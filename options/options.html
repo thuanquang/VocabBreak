@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocabBreak Settings</title>
+    <link rel="stylesheet" href="options.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>VocabBreak Settings</h1>
+                    <p>Customize your language learning experience</p>
+                </div>
+                <div class="header-actions">
+                    <button id="save-settings" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="account">Account</button>
+            <button class="tab-btn" data-tab="learning">Learning</button>
+            <button class="tab-btn" data-tab="blocking">Blocking</button>
+            <button class="tab-btn" data-tab="gamification">Gamification</button>
+            <button class="tab-btn" data-tab="language">Language</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Account Tab -->
+            <section id="account-tab" class="tab-content active">
+                <div class="card">
+                    <h2>Account Information</h2>
+                    <div class="account-info" id="account-info">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Data Management</h2>
+                    <div class="form-group">
+                        <label>Sync Status</label>
+                        <div class="sync-status" id="sync-status">
+                            <span class="status-indicator"></span>
+                            <span class="status-text">Checking...</span>
+                            <button id="sync-now" class="btn btn-outline btn-sm">Sync Now</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Data Export</label>
+                        <p class="form-description">Export your progress data and settings</p>
+                        <button id="export-data" class="btn btn-outline">Export Data</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Reset Data</label>
+                        <p class="form-description">Clear all local data and progress (cannot be undone)</p>
+                        <button id="reset-data" class="btn btn-danger">Reset All Data</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Learning Tab -->
+            <section id="learning-tab" class="tab-content">
+                <div class="card">
+                    <h2>Difficulty Settings</h2>
+                    <div class="form-group">
+                        <label>Vocabulary Levels</label>
+                        <p class="form-description">Select the CEFR levels you want to practice</p>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="levels" value="A1" checked>
+                                <span class="checkmark"></span>
+                                A1 - Beginner
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="levels" value="A2" checked>
+                                <span class="checkmark"></span>
+                                A2 - Elementary
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="levels" value="B1">
+                                <span class="checkmark"></span>
+                                B1 - Intermediate
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="levels" value="B2">
+                                <span class="checkmark"></span>
+                                B2 - Upper-Intermediate
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="levels" value="C1">
+                                <span class="checkmark"></span>
+                                C1 - Advanced
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="levels" value="C2">
+                                <span class="checkmark"></span>
+                                C2 - Proficiency
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Question Types</h2>
+                    <div class="form-group">
+                        <label>Question Formats</label>
+                        <p class="form-description">Choose which types of questions you want to see</p>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="question-types" value="multiple-choice" checked>
+                                <span class="checkmark"></span>
+                                Multiple Choice
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="question-types" value="text-input" checked>
+                                <span class="checkmark"></span>
+                                Text Input
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" name="question-types" value="voice-input" disabled>
+                                <span class="checkmark"></span>
+                                Voice Input <span class="coming-soon">(Coming Soon)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Topics</h2>
+                    <div class="form-group">
+                        <label>Vocabulary Topics</label>
+                        <p class="form-description">Select topics you want to focus on</p>
+                        <div class="checkbox-group" id="topics-list">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Blocking Tab -->
+            <section id="blocking-tab" class="tab-content">
+                <div class="card">
+                    <h2>Blocking Mode</h2>
+                    <div class="form-group">
+                        <label>How should sites be blocked?</label>
+                        <div class="radio-group">
+                            <label class="radio-item">
+                                <input type="radio" name="blocking-mode" value="blacklist" checked>
+                                <span class="radiomark"></span>
+                                <div class="radio-content">
+                                    <strong>Blacklist Mode</strong>
+                                    <p>Block all sites except those in your exclusion list</p>
+                                </div>
+                            </label>
+                            <label class="radio-item">
+                                <input type="radio" name="blocking-mode" value="whitelist">
+                                <span class="radiomark"></span>
+                                <div class="radio-content">
+                                    <strong>Whitelist Mode</strong>
+                                    <p>Only block sites that are in your target list</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Site Management</h2>
+                    <div class="form-group">
+                        <label>Manage Sites</label>
+                        <div class="site-input-group">
+                            <input type="text" id="site-input" placeholder="Enter website URL or pattern (e.g., *.reddit.com)">
+                            <button id="add-site" class="btn btn-primary">Add Site</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Site List</label>
+                        <div class="site-list" id="site-list">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Quick Add Categories</label>
+                        <div class="category-buttons">
+                            <button class="btn btn-outline btn-sm" data-category="social">Social Media</button>
+                            <button class="btn btn-outline btn-sm" data-category="news">News Sites</button>
+                            <button class="btn btn-outline btn-sm" data-category="entertainment">Entertainment</button>
+                            <button class="btn btn-outline btn-sm" data-category="shopping">Shopping</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Timing Settings</h2>
+                    <div class="form-group">
+                        <label for="periodic-interval">Question Frequency</label>
+                        <p class="form-description">How often should questions appear (in minutes)</p>
+                        <input type="range" id="periodic-interval" min="5" max="120" value="30" step="5">
+                        <div class="range-labels">
+                            <span>5 min</span>
+                            <span id="interval-value">30 min</span>
+                            <span>120 min</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="penalty-duration">Wrong Answer Penalty</label>
+                        <p class="form-description">How long to wait after wrong answers (in seconds)</p>
+                        <input type="range" id="penalty-duration" min="10" max="300" value="30" step="10">
+                        <div class="range-labels">
+                            <span>10 sec</span>
+                            <span id="penalty-value">30 sec</span>
+                            <span>300 sec</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gamification Tab -->
+            <section id="gamification-tab" class="tab-content">
+                <div class="card">
+                    <h2>Current Progress</h2>
+                    <div class="progress-overview" id="progress-overview">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Achievements</h2>
+                    <div class="achievements-grid" id="achievements-grid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Gamification Settings</h2>
+                    <div class="form-group">
+                        <label class="switch-item">
+                            <input type="checkbox" id="gamification-enabled" checked>
+                            <span class="switch"></span>
+                            <div class="switch-content">
+                                <strong>Enable Gamification</strong>
+                                <p>Show points, streaks, and achievements</p>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="switch-item">
+                            <input type="checkbox" id="streak-notifications" checked>
+                            <span class="switch"></span>
+                            <div class="switch-content">
+                                <strong>Streak Notifications</strong>
+                                <p>Get notified about streak milestones</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Language Tab -->
+            <section id="language-tab" class="tab-content">
+                <div class="card">
+                    <h2>Interface Language</h2>
+                    <div class="form-group">
+                        <label>Choose your interface language</label>
+                        <div class="radio-group">
+                            <label class="radio-item">
+                                <input type="radio" name="interface-language" value="en" checked>
+                                <span class="radiomark"></span>
+                                <div class="radio-content">
+                                    <strong>English</strong>
+                                    <p>Use English for all interface elements</p>
+                                </div>
+                            </label>
+                            <label class="radio-item">
+                                <input type="radio" name="interface-language" value="vi">
+                                <span class="radiomark"></span>
+                                <div class="radio-content">
+                                    <strong>Tiếng Việt</strong>
+                                    <p>Sử dụng tiếng Việt cho giao diện</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Learning Language</h2>
+                    <div class="form-group">
+                        <label>Target Language</label>
+                        <p class="form-description">The language you want to learn (currently only English is supported)</p>
+                        <select id="target-language" disabled>
+                            <option value="en">English</option>
+                            <option value="es">Spanish (Coming Soon)</option>
+                            <option value="fr">French (Coming Soon)</option>
+                            <option value="de">German (Coming Soon)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Regional Settings</h2>
+                    <div class="form-group">
+                        <label for="timezone">Time Zone</label>
+                        <select id="timezone">
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p>&copy; 2024 VocabBreak. Made with ❤️ for language learners.</p>
+                <div class="footer-links">
+                    <a href="#" id="about-link">About</a>
+                    <a href="#" id="privacy-link">Privacy</a>
+                    <a href="#" id="support-link">Support</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="confirm-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="confirm-title">Confirm Action</h3>
+            <p id="confirm-message">Are you sure you want to proceed?</p>
+            <div class="modal-actions">
+                <button id="confirm-cancel" class="btn btn-outline">Cancel</button>
+                <button id="confirm-ok" class="btn btn-danger">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification hidden">
+        <span id="notification-text">Settings saved successfully!</span>
+    </div>
+
+    <script src="../shared/supabase-client.js"></script>
+    <script src="../shared/setup-credentials.js"></script>
+    <script src="options.js"></script>
+</body>
+</html>
+
+

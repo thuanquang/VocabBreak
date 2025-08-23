@@ -1,0 +1,151 @@
+{
+  "extensionName": {
+    "message": "VocabBreak - Language Learning",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Learn English vocabulary through strategic web interruptions",
+    "description": "Extension description"
+  },
+  
+  "question_header": {
+    "message": "Language Learning Break",
+    "description": "Header shown on question overlay"
+  },
+  "question_instruction_mc": {
+    "message": "Choose the correct answer to continue browsing",
+    "description": "Instruction for multiple choice questions"
+  },
+  "question_instruction_text": {
+    "message": "Type the correct answer to continue browsing",
+    "description": "Instruction for text input questions"
+  },
+  
+  "submit_answer": {
+    "message": "Submit Answer",
+    "description": "Submit button text"
+  },
+  "correct_answer": {
+    "message": "Correct! Well done!",
+    "description": "Message shown for correct answers"
+  },
+  "incorrect_answer": {
+    "message": "Incorrect. Please wait $TIME$ seconds to try again.",
+    "description": "Message shown for incorrect answers",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "30"
+      }
+    }
+  },
+  
+  "streak_bonus": {
+    "message": "Streak Bonus! +$POINTS$ points",
+    "description": "Streak bonus notification",
+    "placeholders": {
+      "points": {
+        "content": "$1",
+        "example": "50"
+      }
+    }
+  },
+  "points_earned": {
+    "message": "+$POINTS$ points",
+    "description": "Points earned notification",
+    "placeholders": {
+      "points": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  
+  "login": {
+    "message": "Login",
+    "description": "Login button"
+  },
+  "logout": {
+    "message": "Logout",
+    "description": "Logout button"
+  },
+  "email": {
+    "message": "Email",
+    "description": "Email field label"
+  },
+  "password": {
+    "message": "Password",
+    "description": "Password field label"
+  },
+  "signup": {
+    "message": "Sign Up",
+    "description": "Sign up button"
+  },
+  
+  "settings": {
+    "message": "Settings",
+    "description": "Settings button"
+  },
+  "progress": {
+    "message": "Progress",
+    "description": "Progress button"
+  },
+  "sync_now": {
+    "message": "Sync Now",
+    "description": "Sync button"
+  },
+  
+  "current_streak": {
+    "message": "Current Streak",
+    "description": "Current streak label"
+  },
+  "total_points": {
+    "message": "Total Points",
+    "description": "Total points label"
+  },
+  "questions_answered": {
+    "message": "Questions Answered",
+    "description": "Questions answered label"
+  },
+  "accuracy_rate": {
+    "message": "Accuracy Rate",
+    "description": "Accuracy rate label"
+  },
+  
+  "difficulty_level": {
+    "message": "Difficulty Level",
+    "description": "Difficulty level setting"
+  },
+  "topics": {
+    "message": "Topics",
+    "description": "Topics setting"
+  },
+  "blocking_mode": {
+    "message": "Blocking Mode",
+    "description": "Blocking mode setting"
+  },
+  "whitelist": {
+    "message": "Whitelist",
+    "description": "Whitelist mode"
+  },
+  "blacklist": {
+    "message": "Blacklist",
+    "description": "Blacklist mode"
+  },
+  
+  "error_network": {
+    "message": "Network error. Working offline with cached questions.",
+    "description": "Network error message"
+  },
+  "error_auth": {
+    "message": "Authentication failed. Please login again.",
+    "description": "Authentication error message"
+  },
+  "error_generic": {
+    "message": "Something went wrong. Please try again.",
+    "description": "Generic error message"
+  }
+}
+
+
+

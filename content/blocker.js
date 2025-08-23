@@ -1,0 +1,551 @@
+/**
+ * Content script for VocabBreak extension
+ * Handles the blocking overlay and question interface injection
+ */
+
+class VocabBreakBlocker {
+  constructor() {
+    this.overlay = null;
+    this.isBlocked = false;
+    this.currentQuestion = null;
+    this.startTime = null;
+    this.penaltyTimer = null;
+    this.isInitialized = false;
+    
+    this.init();
+  }
+
+  async init() {
+    // Avoid multiple initializations
+    if (this.isInitialized) return;
+    
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => this.setup());
+    } else {
+      this.setup();
+    }
+  }
+
+  async setup() {
+    // Check if we should block this page
+    const response = await this.sendMessage({ type: 'REQUEST_BLOCK_CHECK' });
+    
+    if (response && response.shouldBlock) {
+      this.showQuestion();
+    }
+
+    // Set up message listener
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      this.handleMessage(message, sender, sendResponse);
+    });
+
+    // Prevent easy bypassing
+    this.setupBypassPrevention();
+
+    this.isInitialized = true;
+    window.vocabBreakBlocker = this;
+    
+    console.log('VocabBreak blocker initialized');
+  }
+
+  setupBypassPrevention() {
+    // Prevent F12, right-click, and common keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (this.isBlocked) {
+        // Prevent F12, Ctrl+Shift+I, Ctrl+U, Ctrl+Shift+J
+        if (e.key === 'F12' || 
+            (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+            (e.ctrlKey && e.key === 'u')) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+        
+        // Prevent Escape
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }
+    }, true);
+
+    // Prevent right-click context menu
+    document.addEventListener('contextmenu', (e) => {
+      if (this.isBlocked) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    }, true);
+
+    // Prevent text selection during blocking
+    document.addEventListener('selectstart', (e) => {
+      if (this.isBlocked) {
+        e.preventDefault();
+        return false;
+      }
+    }, true);
+  }
+
+  async showQuestion() {
+    if (this.isBlocked) return; // Already showing
+
+    try {
+      // Get question from background script
+      const response = await this.sendMessage({ type: 'GET_QUESTION' });
+      
+      if (!response || !response.success) {
+        console.error('Failed to get question');
+        return;
+      }
+
+      this.currentQuestion = response.question;
+      this.isBlocked = true;
+      this.startTime = Date.now();
+
+      this.createOverlay();
+      this.renderQuestion();
+
+    } catch (error) {
+      console.error('Failed to show question:', error);
+    }
+  }
+
+  createOverlay() {
+    // Remove existing overlay
+    if (this.overlay) {
+      this.overlay.remove();
+    }
+
+    // Create overlay
+    this.overlay = document.createElement('div');
+    this.overlay.id = 'vocabbreak-overlay';
+    this.overlay.innerHTML = `
+      <div class="vocabbreak-modal">
+        <div class="vocabbreak-header">
+          <h2 id="vocabbreak-title">Language Learning Break</h2>
+          <div class="vocabbreak-streak" id="vocabbreak-streak"></div>
+        </div>
+        <div class="vocabbreak-content" id="vocabbreak-content">
+          <!-- Question content will be injected here -->
+        </div>
+        <div class="vocabbreak-footer" id="vocabbreak-footer">
+          <!-- Footer content will be injected here -->
+        </div>
+      </div>
+    `;
+
+    // Add to page
+    document.body.appendChild(this.overlay);
+
+    // Force overlay to be on top and unbypassable
+    this.overlay.style.cssText = `
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: rgba(0, 0, 0, 0.9) !important;
+      backdrop-filter: blur(10px) !important;
+      z-index: 2147483647 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      pointer-events: all !important;
+    `;
+
+    // Style the modal
+    const modal = this.overlay.querySelector('.vocabbreak-modal');
+    modal.style.cssText = `
+      background: white !important;
+      border-radius: 12px !important;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+      max-width: 500px !important;
+      width: 90% !important;
+      max-height: 80vh !important;
+      overflow-y: auto !important;
+      animation: vocabbreak-slide-in 0.3s ease-out !important;
+    `;
+
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes vocabbreak-slide-in {
+        from {
+          opacity: 0;
+          transform: scale(0.9) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      
+      .vocabbreak-header {
+        padding: 24px 24px 16px 24px !important;
+        border-bottom: 1px solid #eee !important;
+        text-align: center !important;
+      }
+      
+      #vocabbreak-title {
+        margin: 0 !important;
+        font-size: 24px !important;
+        font-weight: 600 !important;
+        color: #333 !important;
+      }
+      
+      .vocabbreak-streak {
+        margin-top: 8px !important;
+        font-size: 14px !important;
+        color: #666 !important;
+      }
+      
+      .vocabbreak-content {
+        padding: 24px !important;
+      }
+      
+      .vocabbreak-question {
+        font-size: 18px !important;
+        font-weight: 500 !important;
+        color: #333 !important;
+        margin-bottom: 20px !important;
+        line-height: 1.5 !important;
+      }
+      
+      .vocabbreak-options {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+      }
+      
+      .vocabbreak-option {
+        padding: 12px 16px !important;
+        border: 2px solid #e0e0e0 !important;
+        border-radius: 8px !important;
+        background: white !important;
+        cursor: pointer !important;
+        font-size: 16px !important;
+        transition: all 0.2s ease !important;
+      }
+      
+      .vocabbreak-option:hover {
+        border-color: #007bff !important;
+        background: #f8f9fa !important;
+      }
+      
+      .vocabbreak-option.selected {
+        border-color: #007bff !important;
+        background: #e3f2fd !important;
+      }
+      
+      .vocabbreak-text-input {
+        padding: 12px 16px !important;
+        border: 2px solid #e0e0e0 !important;
+        border-radius: 8px !important;
+        font-size: 16px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      
+      .vocabbreak-text-input:focus {
+        outline: none !important;
+        border-color: #007bff !important;
+      }
+      
+      .vocabbreak-footer {
+        padding: 16px 24px 24px 24px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+      }
+      
+      .vocabbreak-submit {
+        background: #007bff !important;
+        color: white !important;
+        border: none !important;
+        padding: 12px 24px !important;
+        border-radius: 6px !important;
+        font-size: 16px !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        transition: background 0.2s ease !important;
+      }
+      
+      .vocabbreak-submit:hover {
+        background: #0056b3 !important;
+      }
+      
+      .vocabbreak-submit:disabled {
+        background: #ccc !important;
+        cursor: not-allowed !important;
+      }
+      
+      .vocabbreak-feedback {
+        padding: 16px !important;
+        border-radius: 8px !important;
+        margin-top: 16px !important;
+        font-size: 16px !important;
+      }
+      
+      .vocabbreak-feedback.correct {
+        background: #d4edda !important;
+        color: #155724 !important;
+        border: 1px solid #c3e6cb !important;
+      }
+      
+      .vocabbreak-feedback.incorrect {
+        background: #f8d7da !important;
+        color: #721c24 !important;
+        border: 1px solid #f5c6cb !important;
+      }
+      
+      .vocabbreak-penalty {
+        text-align: center !important;
+        color: #721c24 !important;
+      }
+      
+      .vocabbreak-timer {
+        font-size: 24px !important;
+        font-weight: bold !important;
+        margin: 16px 0 !important;
+      }
+    `;
+    
+    document.head.appendChild(style);
+  }
+
+  renderQuestion() {
+    if (!this.currentQuestion) return;
+
+    const content = this.overlay.querySelector('#vocabbreak-content');
+    const footer = this.overlay.querySelector('#vocabbreak-footer');
+
+    // Get question text (default to English for now)
+    const questionText = this.currentQuestion.questionText.en || this.currentQuestion.questionText.vi;
+
+    if (this.currentQuestion.type === 'multiple-choice') {
+      content.innerHTML = `
+        <div class="vocabbreak-question">${questionText}</div>
+        <div class="vocabbreak-options" id="vocabbreak-options">
+          ${this.currentQuestion.options.map((option, index) => 
+            `<div class="vocabbreak-option" data-value="${option}" onclick="vocabBreakBlocker.selectOption(this)">
+              ${option}
+            </div>`
+          ).join('')}
+        </div>
+      `;
+    } else if (this.currentQuestion.type === 'text-input') {
+      content.innerHTML = `
+        <div class="vocabbreak-question">${questionText}</div>
+        <input type="text" class="vocabbreak-text-input" id="vocabbreak-text-input" 
+               placeholder="Type your answer here..." 
+               onkeypress="if(event.key==='Enter') vocabBreakBlocker.submitAnswer()">
+      `;
+      
+      // Focus the input
+      setTimeout(() => {
+        const input = content.querySelector('#vocabbreak-text-input');
+        if (input) input.focus();
+      }, 100);
+    }
+
+    footer.innerHTML = `
+      <div class="vocabbreak-points">+${this.currentQuestion.pointsValue} points</div>
+      <button class="vocabbreak-submit" onclick="vocabBreakBlocker.submitAnswer()">
+        Submit Answer
+      </button>
+    `;
+  }
+
+  selectOption(element) {
+    // Clear previous selections
+    const options = this.overlay.querySelectorAll('.vocabbreak-option');
+    options.forEach(opt => opt.classList.remove('selected'));
+    
+    // Select clicked option
+    element.classList.add('selected');
+  }
+
+  async submitAnswer() {
+    let userAnswer = '';
+
+    if (this.currentQuestion.type === 'multiple-choice') {
+      const selected = this.overlay.querySelector('.vocabbreak-option.selected');
+      if (!selected) {
+        alert('Please select an answer');
+        return;
+      }
+      userAnswer = selected.dataset.value;
+    } else if (this.currentQuestion.type === 'text-input') {
+      const input = this.overlay.querySelector('#vocabbreak-text-input');
+      userAnswer = input.value.trim();
+      if (!userAnswer) {
+        alert('Please enter an answer');
+        return;
+      }
+    }
+
+    const timeTaken = Date.now() - this.startTime;
+
+    // Disable submit button
+    const submitBtn = this.overlay.querySelector('.vocabbreak-submit');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+    }
+
+    try {
+      // Send answer to background script
+      const response = await this.sendMessage({
+        type: 'SUBMIT_ANSWER',
+        questionId: this.currentQuestion.id,
+        userAnswer: userAnswer,
+        timeTaken: timeTaken
+      });
+
+      if (response && response.success) {
+        this.showFeedback(response);
+      } else {
+        console.error('Failed to submit answer');
+        this.showError('Failed to submit answer. Please try again.');
+      }
+
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      this.showError('An error occurred. Please try again.');
+    }
+  }
+
+  showFeedback(response) {
+    const content = this.overlay.querySelector('#vocabbreak-content');
+    const validation = response.validation;
+    const isCorrect = validation.isCorrect;
+
+    const feedbackClass = isCorrect ? 'correct' : 'incorrect';
+    const feedbackText = validation.feedback;
+
+    content.innerHTML = `
+      <div class="vocabbreak-feedback ${feedbackClass}">
+        <div>${feedbackText}</div>
+        ${validation.explanation ? `<div style="margin-top: 12px; font-size: 14px; opacity: 0.8;">${validation.explanation}</div>` : ''}
+      </div>
+      ${response.points && response.points.totalPoints > 0 ? 
+        `<div style="text-align: center; margin-top: 16px; font-size: 18px; font-weight: bold; color: #28a745;">
+          +${response.points.totalPoints} points earned!
+        </div>` : ''}
+    `;
+
+    const footer = this.overlay.querySelector('#vocabbreak-footer');
+
+    if (isCorrect) {
+      footer.innerHTML = `
+        <div style="color: #28a745; font-weight: 500;">Correct! You may continue browsing.</div>
+        <button class="vocabbreak-submit" onclick="vocabBreakBlocker.hideOverlay()" style="background: #28a745;">
+          Continue
+        </button>
+      `;
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        this.hideOverlay();
+      }, 3000);
+      
+    } else {
+      // Show penalty timer
+      const penaltyEndTime = response.penaltyEndTime || (Date.now() + 30000);
+      this.startPenaltyTimer(penaltyEndTime);
+      
+      footer.innerHTML = `
+        <div class="vocabbreak-penalty">
+          <div>Please wait before trying again</div>
+          <div class="vocabbreak-timer" id="vocabbreak-penalty-timer">30</div>
+        </div>
+      `;
+    }
+  }
+
+  startPenaltyTimer(endTime) {
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      const timerElement = this.overlay.querySelector('#vocabbreak-penalty-timer');
+      
+      if (timerElement) {
+        timerElement.textContent = remaining;
+      }
+      
+      if (remaining <= 0) {
+        this.hideOverlay();
+        return;
+      }
+      
+      this.penaltyTimer = setTimeout(updateTimer, 1000);
+    };
+    
+    updateTimer();
+  }
+
+  showError(message) {
+    const content = this.overlay.querySelector('#vocabbreak-content');
+    content.innerHTML = `
+      <div class="vocabbreak-feedback incorrect">
+        ${message}
+      </div>
+    `;
+    
+    const footer = this.overlay.querySelector('#vocabbreak-footer');
+    footer.innerHTML = `
+      <button class="vocabbreak-submit" onclick="vocabBreakBlocker.hideOverlay()">
+        Close
+      </button>
+    `;
+  }
+
+  hideOverlay() {
+    if (this.overlay) {
+      this.overlay.remove();
+      this.overlay = null;
+    }
+    
+    if (this.penaltyTimer) {
+      clearTimeout(this.penaltyTimer);
+      this.penaltyTimer = null;
+    }
+    
+    this.isBlocked = false;
+    this.currentQuestion = null;
+    this.startTime = null;
+  }
+
+  handleMessage(message, sender, sendResponse) {
+    switch (message.type) {
+      case 'SHOW_QUESTION':
+        this.showQuestion();
+        break;
+        
+      case 'PENALTY_CLEARED':
+        this.hideOverlay();
+        break;
+        
+      default:
+        // Unknown message type
+        break;
+    }
+  }
+
+  sendMessage(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        resolve(response);
+      });
+    });
+  }
+}
+
+// Initialize the blocker
+const vocabBreakBlocker = new VocabBreakBlocker();
+
+
+

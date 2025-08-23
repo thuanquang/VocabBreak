@@ -1,0 +1,76 @@
+{
+  "manifest_version": 3,
+  "name": "VocabBreak - Language Learning Extension",
+  "version": "1.0.0",
+  "description": "Learn English vocabulary through strategic web interruptions. Gamified language learning that blocks websites until you answer questions correctly.",
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "background",
+    "unlimitedStorage"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "shared/i18n.js",
+        "shared/supabase-client.js",
+        "shared/offline-manager.js",
+        "shared/question-manager.js",
+        "content/blocker.js"
+      ],
+      "css": ["content/blocker.css"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "VocabBreak - Language Learning",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  
+  "options_page": "options/options.html",
+  
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/*",
+        "content/question-ui.html",
+        "shared/*",
+        "scripts/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  
+  "default_locale": "en"
+}
+
+
