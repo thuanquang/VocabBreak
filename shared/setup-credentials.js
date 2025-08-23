@@ -8,11 +8,33 @@
 
 async function setupCredentials() {
   try {
-    // In a real setup, these would come from your .env file
-    // For now, developers need to replace these with actual values
+    // Try to get credentials from environment variables first
+    let supabaseUrl = process.env.SUPABASE_URL;
+    let supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    // If not available from environment, check if already stored
+    if (!supabaseUrl || !supabaseKey) {
+      const stored = await chrome.storage.local.get(['supabaseUrl', 'supabaseKey']);
+      if (stored.supabaseUrl && stored.supabaseKey) {
+        console.log('✅ Using stored credentials');
+        return; // Already set up
+      }
+    }
+    
+    // If still not available, use placeholder values that need to be replaced
+    if (!supabaseUrl) {
+      supabaseUrl = 'YOUR_SUPABASE_URL'; // Replace with actual URL
+      console.warn('⚠️ Please replace YOUR_SUPABASE_URL with your actual Supabase URL');
+    }
+    
+    if (!supabaseKey) {
+      supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // Replace with actual key
+      console.warn('⚠️ Please replace YOUR_SUPABASE_ANON_KEY with your actual Supabase key');
+    }
+
     const credentials = {
-      supabaseUrl: 'YOUR_SUPABASE_URL', // Replace with actual URL from .env
-      supabaseKey: 'YOUR_SUPABASE_ANON_KEY' // Replace with actual key from .env
+      supabaseUrl: supabaseUrl,
+      supabaseKey: supabaseKey
     };
 
     // Store credentials in chrome storage
@@ -25,6 +47,16 @@ async function setupCredentials() {
       url: stored.supabaseUrl ? '✅ Set' : '❌ Missing',
       key: stored.supabaseKey ? '✅ Set' : '❌ Missing'
     });
+    
+    // Check if using placeholder values
+    if (stored.supabaseUrl === 'YOUR_SUPABASE_URL' || stored.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
+      console.error('❌ Please update the credentials in shared/setup-credentials.js with your actual Supabase values');
+      console.log('📝 Instructions:');
+      console.log('   1. Get your Supabase URL from your project dashboard');
+      console.log('   2. Get your Supabase anon key from Settings > API');
+      console.log('   3. Replace the placeholder values in this file');
+      console.log('   4. Reload the extension');
+    }
     
   } catch (error) {
     console.error('❌ Failed to setup credentials:', error);
@@ -39,5 +71,36 @@ if (typeof chrome !== 'undefined' && chrome.storage) {
 // Export for manual usage
 if (typeof window !== 'undefined') {
   window.setupCredentials = setupCredentials;
+  
+  // Add a function to manually set credentials
+  window.setSupabaseCredentials = async function(url, key) {
+    try {
+      await chrome.storage.local.set({
+        supabaseUrl: url,
+        supabaseKey: key
+      });
+      console.log('✅ Credentials set successfully');
+      console.log('🔄 Please reload the extension for changes to take effect');
+    } catch (error) {
+      console.error('❌ Failed to set credentials:', error);
+    }
+  };
+  
+  // Add a function to check current credentials
+  window.checkCredentials = async function() {
+    try {
+      const stored = await chrome.storage.local.get(['supabaseUrl', 'supabaseKey']);
+      console.log('Current credentials:', {
+        url: stored.supabaseUrl ? '✅ Set' : '❌ Missing',
+        key: stored.supabaseKey ? '✅ Set' : '❌ Missing'
+      });
+      if (stored.supabaseUrl && stored.supabaseKey) {
+        console.log('URL:', stored.supabaseUrl);
+        console.log('Key:', stored.supabaseKey.substring(0, 20) + '...');
+      }
+    } catch (error) {
+      console.error('❌ Failed to check credentials:', error);
+    }
+  };
 }
 

@@ -16,11 +16,27 @@ async function initializeCredentials() {
   try {
     const result = await chrome.storage.local.get(['supabaseUrl', 'supabaseKey']);
     if (result.supabaseUrl && result.supabaseKey) {
+      // Check if credentials are still placeholder values
+      if (result.supabaseUrl === 'YOUR_SUPABASE_URL' || result.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
+        console.warn('⚠️ Supabase credentials are still placeholder values');
+        console.log('📝 Please set your actual Supabase credentials using:');
+        console.log('   window.setSupabaseCredentials("your_url", "your_key")');
+        return false;
+      }
+      
       SUPABASE_URL = result.supabaseUrl;
       SUPABASE_ANON_KEY = result.supabaseKey;
+      console.log('✅ Supabase credentials loaded from storage');
+      return true;
+    } else {
+      console.warn('⚠️ No Supabase credentials found in storage');
+      console.log('📝 Please set your Supabase credentials using:');
+      console.log('   window.setSupabaseCredentials("your_url", "your_key")');
+      return false;
     }
   } catch (error) {
-    console.warn('Could not load credentials from storage, using defaults');
+    console.warn('Could not load credentials from storage:', error);
+    return false;
   }
 }
 
@@ -36,7 +52,20 @@ class SupabaseClient {
   async initClient() {
     try {
       // Initialize credentials first
-      await initializeCredentials();
+      const credentialsLoaded = await initializeCredentials();
+      
+      if (!credentialsLoaded) {
+        console.warn('⚠️ Supabase client not initialized - no valid credentials');
+        return;
+      }
+      
+      // Check if we're in a context that supports Supabase
+      const isServiceWorker = typeof window === 'undefined' && typeof self !== 'undefined';
+      
+      if (isServiceWorker) {
+        console.log('📝 Service worker context detected - Supabase not available');
+        return;
+      }
       
       // Check if Supabase is available globally (loaded via CDN)
       if (typeof window !== 'undefined' && window.supabase) {
@@ -47,24 +76,26 @@ class SupabaseClient {
             detectSessionInUrl: false // Disable for extension
           }
         });
+        console.log('✅ Supabase client created successfully');
+        
+        // Get current user session
+        const { data: { user } } = await this.client.auth.getUser();
+        this.user = user;
+        
+        // Generate session ID for tracking
+        this.sessionId = this.generateUUID();
+        
+        // Listen for auth changes
+        this.client.auth.onAuthStateChange((event, session) => {
+          this.user = session?.user || null;
+          this.handleAuthChange(event, session);
+        });
+        
+        this.initialized = true;
+        console.log('✅ Supabase client initialized successfully');
       } else {
-        throw new Error('Supabase client not loaded. Please include the Supabase JS library.');
+        console.warn('⚠️ Supabase CDN not loaded. Please include the Supabase JS library.');
       }
-      
-      // Get current user session
-      const { data: { user } } = await this.client.auth.getUser();
-      this.user = user;
-      
-      // Generate session ID for tracking
-      this.sessionId = this.generateUUID();
-      
-      // Listen for auth changes
-      this.client.auth.onAuthStateChange((event, session) => {
-        this.user = session?.user || null;
-        this.handleAuthChange(event, session);
-      });
-      
-      this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize Supabase client:', error);
     }
@@ -757,6 +788,13 @@ const supabaseClient = new SupabaseClient();
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = SupabaseClient;
+  module.exports.default = SupabaseClient;
 } else if (typeof window !== 'undefined') {
+  window.SupabaseClient = SupabaseClient;
   window.supabaseClient = supabaseClient;
+}
+
+// ES6 export for dynamic imports
+if (typeof globalThis !== 'undefined') {
+  globalThis.SupabaseClient = SupabaseClient;
 }

@@ -171,13 +171,6 @@ class I18n {
 // Global instance
 const i18n = new I18n();
 
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = I18n;
-} else if (typeof window !== 'undefined') {
-  window.i18n = i18n;
-}
-
 // Auto-initialize when DOM is ready
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
@@ -187,6 +180,14 @@ if (typeof document !== 'undefined') {
   } else {
     i18n.localizePage();
   }
+}
+
+// Export for use in other modules
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = I18n;
+} else if (typeof window !== 'undefined') {
+  window.I18n = I18n;
+  window.i18n = i18n;
 }
 
 

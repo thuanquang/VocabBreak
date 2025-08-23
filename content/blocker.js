@@ -93,15 +93,40 @@ class VocabBreakBlocker {
     if (this.isBlocked) return; // Already showing
 
     try {
-      // Get question from background script
-      const response = await this.sendMessage({ type: 'GET_QUESTION' });
+      // Try to get question from Supabase first (if available)
+      let question = null;
       
-      if (!response || !response.success) {
-        console.error('Failed to get question');
-        return;
+      if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+        try {
+          const dbQuestion = await window.supabaseClient.getRandomQuestion({
+            level: ['A1', 'A2', 'B1'], // User's difficulty levels - could be customizable
+            limit: 1
+          });
+          
+          if (dbQuestion) {
+            // Transform database question to expected format
+            question = this.transformDatabaseQuestion(dbQuestion);
+            console.log('✅ Question fetched from Supabase');
+          }
+        } catch (dbError) {
+          console.warn('Failed to fetch question from Supabase:', dbError);
+        }
+      }
+      
+      // Fallback to background script (local questions) if no database question
+      if (!question) {
+        const response = await this.sendMessage({ type: 'GET_QUESTION' });
+        
+        if (!response || !response.success) {
+          console.error('Failed to get question from background script');
+          return;
+        }
+        
+        question = response.question;
+        console.log('📝 Using local question from background script');
       }
 
-      this.currentQuestion = response.question;
+      this.currentQuestion = question;
       this.isBlocked = true;
       this.startTime = Date.now();
 
@@ -430,7 +455,7 @@ class VocabBreakBlocker {
     }
 
     try {
-      // Send answer to background script
+      // Send answer to background script for local validation
       const response = await this.sendMessage({
         type: 'SUBMIT_ANSWER',
         questionId: this.currentQuestion.id,
@@ -439,6 +464,8 @@ class VocabBreakBlocker {
       });
 
       if (response && response.success) {
+        // Also try to record interaction in Supabase if available
+        await this.recordInteractionToDatabase(response, timeTaken);
         this.showFeedback(response);
       } else {
         console.error('Failed to submit answer');
@@ -577,6 +604,113 @@ class VocabBreakBlocker {
         // Unknown message type
         break;
     }
+  }
+
+  async recordInteractionToDatabase(response, timeTaken) {
+    try {
+      // Check if Supabase client is available and authenticated
+      if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+        await window.supabaseClient.recordInteraction({
+          type: 'question_answer',
+          targetId: this.currentQuestion.id,
+          correct: response.validation.isCorrect,
+          timeTaken: timeTaken,
+          pointsEarned: response.points?.totalPoints || 0,
+          streakAtTime: response.currentStreak || 0,
+          answerGiven: response.userAnswer,
+          siteUrl: window.location.href,
+          triggerType: 'periodic', // Since we only use 30-min timer now
+          deviceInfo: this.getDeviceInfo(),
+          browserInfo: this.getBrowserInfo()
+        });
+        console.log('✅ Interaction recorded to Supabase');
+      } else {
+        // Store in offline manager for later sync
+        if (window.offlineManager) {
+          await window.offlineManager.addToSyncQueue('progress', {
+            questionId: this.currentQuestion.id,
+            correct: response.validation.isCorrect,
+            timeTaken: timeTaken,
+            pointsEarned: response.points?.totalPoints || 0,
+            streakAtTime: response.currentStreak || 0,
+            timestamp: Date.now()
+          });
+          console.log('📝 Interaction queued for offline sync');
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to record interaction to database:', error);
+      // Don't throw error - this shouldn't break the user experience
+    }
+  }
+
+  transformDatabaseQuestion(dbQuestion) {
+    // Transform Supabase question format to expected local format
+    try {
+      const questionText = dbQuestion.content?.text || {};
+      const answers = dbQuestion.answers || {};
+      const metadata = dbQuestion.metadata || {};
+      const scoring = dbQuestion.scoring || {};
+
+      return {
+        id: dbQuestion.id,
+        level: metadata.level || 'A1',
+        type: metadata.type || 'multiple-choice',
+        questionText: {
+          en: questionText.en || 'Question text not available',
+          vi: questionText.vi || questionText.en || 'Question text not available'
+        },
+        correctAnswer: answers.correct?.[0] || '', // Take first correct answer
+        options: answers.options?.map(opt => typeof opt === 'string' ? opt : opt.text) || [],
+        pointsValue: scoring.base_points || 10,
+        explanation: dbQuestion.content?.explanation || {},
+        hints: dbQuestion.content?.hints || [],
+        difficulty: metadata.difficulty || 5,
+        topics: metadata.topics || [],
+        estimatedTime: metadata.estimated_time || 30
+      };
+    } catch (error) {
+      console.error('Error transforming database question:', error);
+      return null;
+    }
+  }
+
+  getDeviceInfo() {
+    return {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screen: {
+        width: screen.width,
+        height: screen.height
+      }
+    };
+  }
+
+  getBrowserInfo() {
+    const ua = navigator.userAgent;
+    let browserName = 'Unknown';
+    let browserVersion = 'Unknown';
+    
+    if (ua.indexOf('Firefox') > -1) {
+      browserName = 'Firefox';
+      browserVersion = ua.match(/Firefox\/(\d+)/)?.[1] || 'Unknown';
+    } else if (ua.indexOf('Chrome') > -1) {
+      browserName = 'Chrome';
+      browserVersion = ua.match(/Chrome\/(\d+)/)?.[1] || 'Unknown';
+    } else if (ua.indexOf('Safari') > -1) {
+      browserName = 'Safari';
+      browserVersion = ua.match(/Version\/(\d+)/)?.[1] || 'Unknown';
+    } else if (ua.indexOf('Edge') > -1) {
+      browserName = 'Edge';
+      browserVersion = ua.match(/Edge\/(\d+)/)?.[1] || 'Unknown';
+    }
+    
+    return {
+      name: browserName,
+      version: browserVersion,
+      userAgent: ua
+    };
   }
 
   sendMessage(message) {

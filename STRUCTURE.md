@@ -17,7 +17,7 @@
 
 ### 2. Background Service Worker (`background.js`)
 - Tab lifecycle management and tracking
-- Question scheduling (per-tab timers: new site + 30min intervals)
+- Question scheduling (per-tab timers: 30min intervals only)
 - Timer persistence across browser sessions
 - Communication hub between content scripts and popup
 - Supabase sync coordination

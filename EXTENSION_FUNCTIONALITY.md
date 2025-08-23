@@ -13,7 +13,7 @@
 - Sets up site whitelist/blacklist preferences
 
 ### 2. Active Learning Cycle
-- User browses normally until trigger event (new site OR 30-minute timer)
+- User browses normally until trigger event (30-minute timer only)
 - Full-page blocking overlay appears with blur backdrop
 - Question presented based on user's configured difficulty/topics
 - **Correct Answer**: Immediate access granted + points/streak update
@@ -47,6 +47,13 @@
 - Business & Work, Travel & Transportation, Food & Cooking
 - Technology & Internet, Health & Fitness, Education & Learning
 - Entertainment & Media, Nature & Environment, Culture & Society
+
+**Current Implementation:**
+- Local question bank with 10 diverse questions (A1-B1 levels)
+- Questions include multiple choice and text input types
+- Random question selection for variety
+- Proper answer validation and feedback
+- Supabase integration ready (requires proper credentials setup)
 
 ### Blocking Mechanism Technical Details
 **Unbypassable Implementation:**

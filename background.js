@@ -1,23 +1,21 @@
 /**
  * Background service worker for VocabBreak extension
- * Handles tab tracking, question scheduling, and cross-component communication
+ * Handles tab tracking, question scheduling (30-minute intervals), and cross-component communication
  */
 
 // Import shared modules for service worker
-// Load supabase client dynamically since service workers can't use CDN directly
-let supabaseClient = null;
+// Note: Service workers cannot use Supabase CDN, so database operations are handled by content scripts
 
 // Initialize Supabase client for background script
 async function initializeSupabase() {
   try {
-    // Import supabase client dynamically
-    const module = await import('./shared/supabase-client.js');
-    if (typeof SupabaseClient !== 'undefined') {
-      supabaseClient = new SupabaseClient();
-      console.log('✅ Supabase client initialized in background');
-    }
+    // Service workers can't use CDN scripts, so we'll skip Supabase initialization here
+    // Questions will be handled through content script communication
+    console.log('📝 Background script will use local question bank');
+    console.log('📝 Supabase operations will be handled by content scripts when needed');
   } catch (error) {
     console.warn('⚠️ Supabase client not available in background:', error);
+    console.log('📝 Extension will work with local question bank instead');
   }
 }
 
@@ -173,16 +171,7 @@ class BackgroundManager {
         return;
       }
 
-      // Check if this is a new site visit
-      const existingState = this.tabStates.get(tabId);
-      const isNewSite = !existingState || existingState.url !== url;
-
-      if (isNewSite) {
-        // Trigger immediate question for new site
-        await this.triggerQuestion(tabId, 'new_site');
-      }
-
-      // Initialize/update tab
+      // Initialize/update tab - questions only appear every 30 minutes, not on new site visits
       await this.initializeTab(tabId, url);
 
     } catch (error) {
@@ -201,47 +190,14 @@ class BackgroundManager {
       switch (message.type) {
         case 'GET_QUESTION':
           try {
-            // Try to get question from Supabase first
-            let question = null;
-            
-            if (supabaseClient && supabaseClient.isAuthenticated()) {
-              question = await supabaseClient.getRandomQuestion({
-                level: ['A1', 'A2', 'B1'], // User's difficulty levels
-                limit: 1
-              });
-            }
-            
-            // Fallback to question manager if no database question
-            if (!question && window.questionManager) {
-              question = await window.questionManager.getNextQuestion();
-            }
-            
-            // Last resort: sample question
-            if (!question) {
-              question = {
-                id: 'sample_' + Date.now(),
-                level: 'A1',
-                type: 'multiple-choice',
-                questionText: { en: 'What color is the sky?', vi: 'Bầu trời có màu gì?' },
-                correctAnswer: 'blue',
-                options: ['red', 'blue', 'green', 'yellow'],
-                pointsValue: 10
-              };
-            }
-            
+            // Background script uses local question bank only
+            // Content scripts can handle Supabase integration if needed
+            const question = this.getRandomLocalQuestion();
             sendResponse({ success: true, question: question });
           } catch (error) {
             console.error('Error getting question:', error);
-            // Fallback to sample question on error
-            const sampleQuestion = {
-              id: 'sample_' + Date.now(),
-              level: 'A1',
-              type: 'multiple-choice',
-              questionText: { en: 'What color is the sky?', vi: 'Bầu trời có màu gì?' },
-              correctAnswer: 'blue',
-              options: ['red', 'blue', 'green', 'yellow'],
-              pointsValue: 10
-            };
+            // Final fallback to sample question
+            const sampleQuestion = this.getRandomLocalQuestion();
             sendResponse({ success: true, question: sampleQuestion });
           }
           break;
@@ -290,9 +246,41 @@ class BackgroundManager {
     const tabId = sender.tab.id;
 
     try {
-      // Simple validation - in production this would use questionManager
-      const isCorrect = userAnswer.toLowerCase() === 'blue';
-      const pointsEarned = isCorrect ? 10 : 0;
+      // Get the question that was asked (we need to store this temporarily)
+      // For now, we'll validate against the question ID pattern
+      let isCorrect = false;
+      let correctAnswer = '';
+      let explanation = '';
+      let feedback = '';
+      let pointsEarned = 0;
+
+      // Validate answer based on question ID pattern
+      if (questionId.startsWith('local_')) {
+        const questionNumber = parseInt(questionId.replace('local_', ''));
+        const question = this.getQuestionById(questionNumber);
+        
+        if (question) {
+          correctAnswer = question.correctAnswer;
+          isCorrect = userAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
+          pointsEarned = isCorrect ? question.pointsValue : 0;
+          
+          // Generate feedback based on question
+          if (isCorrect) {
+            feedback = 'Correct! Well done!';
+            explanation = 'Great job! You got it right.';
+          } else {
+            feedback = `Not quite right. The correct answer is: ${correctAnswer}`;
+            explanation = this.getExplanationForQuestion(questionNumber);
+          }
+        }
+      } else {
+        // Fallback for other question types
+        isCorrect = userAnswer.toLowerCase() === 'blue';
+        correctAnswer = 'blue';
+        pointsEarned = isCorrect ? 10 : 0;
+        feedback = isCorrect ? 'Correct! Well done!' : 'Not quite right. The correct answer is: blue';
+        explanation = 'The sky appears blue due to light scattering.';
+      }
 
       // Update tab state
       const tabState = this.tabStates.get(tabId);
@@ -324,9 +312,9 @@ class BackgroundManager {
         success: true,
         validation: {
           isCorrect: isCorrect,
-          correctAnswer: 'blue',
-          explanation: 'The sky appears blue due to light scattering.',
-          feedback: isCorrect ? 'Correct! Well done!' : 'Not quite right. The correct answer is: blue'
+          correctAnswer: correctAnswer,
+          explanation: explanation,
+          feedback: feedback
         },
         points: { totalPoints: pointsEarned },
         penaltyEndTime: tabState?.penaltyEndTime || 0
@@ -489,6 +477,214 @@ class BackgroundManager {
     }
   }
 
+  getRandomLocalQuestion() {
+    // Local question bank for when Supabase is not available
+    const questions = [
+      {
+        id: 'local_1',
+        level: 'A1',
+        type: 'multiple-choice',
+        questionText: { en: 'What color is the sky?', vi: 'Bầu trời có màu gì?' },
+        correctAnswer: 'blue',
+        options: ['red', 'blue', 'green', 'yellow'],
+        pointsValue: 10
+      },
+      {
+        id: 'local_2',
+        level: 'A1',
+        type: 'multiple-choice',
+        questionText: { en: 'How many days are in a week?', vi: 'Có bao nhiêu ngày trong một tuần?' },
+        correctAnswer: 'seven',
+        options: ['five', 'six', 'seven', 'eight'],
+        pointsValue: 10
+      },
+      {
+        id: 'local_3',
+        level: 'A1',
+        type: 'multiple-choice',
+        questionText: { en: 'What is the opposite of "hot"?', vi: 'Từ trái nghĩa của "nóng" là gì?' },
+        correctAnswer: 'cold',
+        options: ['warm', 'cold', 'cool', 'freezing'],
+        pointsValue: 10
+      },
+      {
+        id: 'local_4',
+        level: 'A2',
+        type: 'multiple-choice',
+        questionText: { en: 'Which season comes after summer?', vi: 'Mùa nào đến sau mùa hè?' },
+        correctAnswer: 'autumn',
+        options: ['spring', 'autumn', 'winter', 'summer'],
+        pointsValue: 15
+      },
+      {
+        id: 'local_5',
+        level: 'A2',
+        type: 'multiple-choice',
+        questionText: { en: 'What do you use to write on paper?', vi: 'Bạn dùng gì để viết trên giấy?' },
+        correctAnswer: 'pen',
+        options: ['pen', 'fork', 'book', 'phone'],
+        pointsValue: 15
+      },
+      {
+        id: 'local_6',
+        level: 'B1',
+        type: 'multiple-choice',
+        questionText: { en: 'What is the capital of England?', vi: 'Thủ đô của nước Anh là gì?' },
+        correctAnswer: 'london',
+        options: ['paris', 'london', 'berlin', 'madrid'],
+        pointsValue: 20
+      },
+      {
+        id: 'local_7',
+        level: 'B1',
+        type: 'multiple-choice',
+        questionText: { en: 'Which planet is closest to the Sun?', vi: 'Hành tinh nào gần Mặt Trời nhất?' },
+        correctAnswer: 'mercury',
+        options: ['venus', 'mercury', 'earth', 'mars'],
+        pointsValue: 20
+      },
+      {
+        id: 'local_8',
+        level: 'A1',
+        type: 'text-input',
+        questionText: { en: 'Complete the sentence: "The sun is ___."', vi: 'Hoàn thành câu: "Mặt trời ___."' },
+        correctAnswer: 'bright',
+        pointsValue: 10
+      },
+      {
+        id: 'local_9',
+        level: 'A2',
+        type: 'text-input',
+        questionText: { en: 'What is the opposite of "big"?', vi: 'Từ trái nghĩa của "to" là gì?' },
+        correctAnswer: 'small',
+        pointsValue: 15
+      },
+      {
+        id: 'local_10',
+        level: 'B1',
+        type: 'text-input',
+        questionText: { en: 'What is the past tense of "go"?', vi: 'Thì quá khứ của "đi" là gì?' },
+        correctAnswer: 'went',
+        pointsValue: 20
+      }
+    ];
+
+    // Return a random question
+    const randomIndex = Math.floor(Math.random() * questions.length);
+    return questions[randomIndex];
+  }
+
+  getQuestionById(questionNumber) {
+    const questions = [
+      {
+        id: 'local_1',
+        level: 'A1',
+        type: 'multiple-choice',
+        questionText: { en: 'What color is the sky?', vi: 'Bầu trời có màu gì?' },
+        correctAnswer: 'blue',
+        options: ['red', 'blue', 'green', 'yellow'],
+        pointsValue: 10
+      },
+      {
+        id: 'local_2',
+        level: 'A1',
+        type: 'multiple-choice',
+        questionText: { en: 'How many days are in a week?', vi: 'Có bao nhiêu ngày trong một tuần?' },
+        correctAnswer: 'seven',
+        options: ['five', 'six', 'seven', 'eight'],
+        pointsValue: 10
+      },
+      {
+        id: 'local_3',
+        level: 'A1',
+        type: 'multiple-choice',
+        questionText: { en: 'What is the opposite of "hot"?', vi: 'Từ trái nghĩa của "nóng" là gì?' },
+        correctAnswer: 'cold',
+        options: ['warm', 'cold', 'cool', 'freezing'],
+        pointsValue: 10
+      },
+      {
+        id: 'local_4',
+        level: 'A2',
+        type: 'multiple-choice',
+        questionText: { en: 'Which season comes after summer?', vi: 'Mùa nào đến sau mùa hè?' },
+        correctAnswer: 'autumn',
+        options: ['spring', 'autumn', 'winter', 'summer'],
+        pointsValue: 15
+      },
+      {
+        id: 'local_5',
+        level: 'A2',
+        type: 'multiple-choice',
+        questionText: { en: 'What do you use to write on paper?', vi: 'Bạn dùng gì để viết trên giấy?' },
+        correctAnswer: 'pen',
+        options: ['pen', 'fork', 'book', 'phone'],
+        pointsValue: 15
+      },
+      {
+        id: 'local_6',
+        level: 'B1',
+        type: 'multiple-choice',
+        questionText: { en: 'What is the capital of England?', vi: 'Thủ đô của nước Anh là gì?' },
+        correctAnswer: 'london',
+        options: ['paris', 'london', 'berlin', 'madrid'],
+        pointsValue: 20
+      },
+      {
+        id: 'local_7',
+        level: 'B1',
+        type: 'multiple-choice',
+        questionText: { en: 'Which planet is closest to the Sun?', vi: 'Hành tinh nào gần Mặt Trời nhất?' },
+        correctAnswer: 'mercury',
+        options: ['venus', 'mercury', 'earth', 'mars'],
+        pointsValue: 20
+      },
+      {
+        id: 'local_8',
+        level: 'A1',
+        type: 'text-input',
+        questionText: { en: 'Complete the sentence: "The sun is ___."', vi: 'Hoàn thành câu: "Mặt trời ___."' },
+        correctAnswer: 'bright',
+        pointsValue: 10
+      },
+      {
+        id: 'local_9',
+        level: 'A2',
+        type: 'text-input',
+        questionText: { en: 'What is the opposite of "big"?', vi: 'Từ trái nghĩa của "to" là gì?' },
+        correctAnswer: 'small',
+        pointsValue: 15
+      },
+      {
+        id: 'local_10',
+        level: 'B1',
+        type: 'text-input',
+        questionText: { en: 'What is the past tense of "go"?', vi: 'Thì quá khứ của "đi" là gì?' },
+        correctAnswer: 'went',
+        pointsValue: 20
+      }
+    ];
+
+    return questions[questionNumber - 1] || null;
+  }
+
+  getExplanationForQuestion(questionNumber) {
+    const explanations = {
+      1: 'The sky appears blue due to light scattering in the atmosphere.',
+      2: 'There are seven days in a week: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, and Sunday.',
+      3: 'The opposite of "hot" is "cold". Hot means high temperature, cold means low temperature.',
+      4: 'The seasons in order are: spring, summer, autumn, winter. Autumn comes after summer.',
+      5: 'A pen is a writing instrument used to write on paper.',
+      6: 'London is the capital city of England and the United Kingdom.',
+      7: 'Mercury is the closest planet to the Sun in our solar system.',
+      8: 'The sun is bright because it emits light and heat.',
+      9: 'The opposite of "big" is "small". Big means large in size, small means little in size.',
+      10: 'The past tense of "go" is "went". For example: I go to school (present) → I went to school (past).'
+    };
+
+    return explanations[questionNumber] || 'This is the correct answer.';
+  }
+
   async loadPersistedStates() {
     try {
       const stored = await chrome.storage.local.get(['tabStates', 'tabTimers']);
@@ -562,93 +758,7 @@ class BackgroundManager {
     }
   }
 
-  async handleAnswerSubmission(message, sender, sendResponse) {
-    try {
-      const { questionId, userAnswer, timeTaken } = message;
-      
-      // For now, we'll use simple validation since we don't have the full database setup
-      // In production, this would validate against the actual question from the database
-      
-      // Get the current question for validation
-      // This is a simplified approach - in production you'd store the question temporarily
-      // or fetch it from database using questionId
-      let correctAnswer = 'blue'; // Default for sample question
-      let isCorrect = false;
 
-      // Try to get the correct answer from the question (if available)
-      // For now, we'll use a simple validation, but this should be improved
-      // to handle different question types and formats
-      if (userAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
-        isCorrect = true;
-      }
-      
-      const validation = {
-        isCorrect: isCorrect,
-        correctAnswer: 'blue',
-        feedback: isCorrect ? '🎉 Correct! Well done!' : '❌ Incorrect. The correct answer is "blue".',
-        explanation: isCorrect ? 'Great job! You got it right.' : 'The sky appears blue due to light scattering.'
-      };
-
-      const pointsEarned = isCorrect ? 10 : 0;
-      const currentStreak = isCorrect ? 1 : 0; // Simplified streak calculation
-
-      // In production, record this in the database via supabaseClient
-      if (supabaseClient && supabaseClient.isAuthenticated()) {
-        try {
-          await supabaseClient.recordInteraction({
-            type: 'question_answer',
-            targetId: questionId,
-            correct: isCorrect,
-            timeTaken: timeTaken,
-            pointsEarned: pointsEarned,
-            streakAtTime: currentStreak,
-            answerGiven: userAnswer
-          });
-        } catch (dbError) {
-          console.warn('Failed to record in database:', dbError);
-        }
-      }
-
-      // Update tab state
-      const tabId = sender.tab.id;
-      const tabState = this.tabStates.get(tabId) || {};
-      tabState.lastAnswerCorrect = isCorrect;
-      tabState.questionsAnswered = (tabState.questionsAnswered || 0) + 1;
-      tabState.correctAnswers = (tabState.correctAnswers || 0) + (isCorrect ? 1 : 0);
-      this.tabStates.set(tabId, tabState);
-
-      if (isCorrect) {
-        // Correct answer - allow access
-        sendResponse({ 
-          success: true, 
-          validation: validation,
-          pointsEarned: pointsEarned,
-          action: 'allow_access'
-        });
-      } else {
-        // Wrong answer - start penalty timer
-        await this.startPenaltyTimer(tabId);
-        sendResponse({ 
-          success: true, 
-          validation: validation,
-          pointsEarned: pointsEarned,
-          action: 'start_penalty'
-        });
-      }
-
-    } catch (error) {
-      console.error('Error handling answer submission:', error);
-      sendResponse({ 
-        success: false, 
-        error: 'Failed to process answer',
-        validation: {
-          isCorrect: false,
-          feedback: 'An error occurred while processing your answer.',
-          explanation: 'Please try again.'
-        }
-      });
-    }
-  }
 
   async getStats() {
     try {
@@ -665,10 +775,11 @@ class BackgroundManager {
         pointsToNextLevel: 500
       };
 
-      // Try to get stats from Supabase if authenticated
-      if (supabaseClient && supabaseClient.isAuthenticated()) {
+      // Background script doesn't have access to Supabase (service worker limitation)
+      // Stats will be handled by popup and content scripts
+      if (false) { // Disabled for service worker
         try {
-          const userProfile = await supabaseClient.getUserProfile();
+          const userProfile = null; // await supabaseClient.getUserProfile();
           if (userProfile && userProfile.profile) {
             const profile = userProfile.profile;
             

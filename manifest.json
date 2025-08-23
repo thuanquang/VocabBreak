@@ -10,7 +10,8 @@
     "tabs",
     "scripting",
     "background",
-    "unlimitedStorage"
+    "unlimitedStorage",
+    "alarms"
   ],
   
   "host_permissions": [
@@ -25,6 +26,7 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "shared/setup-credentials.js",
         "shared/i18n.js",
         "shared/supabase-client.js",
         "shared/offline-manager.js",

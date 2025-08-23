@@ -4,7 +4,8 @@
   "main": "background.js",
   "scripts": {
     "build": "node scripts/build.js",
-    "dev": "npm run build && echo \"Extension built! Load it in Chrome at chrome://extensions/\"",
+    "clean": "rimraf dist",
+    "dev": "npm run build && echo \"Extension built in ./dist! Load it in Chrome at chrome://extensions/\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
