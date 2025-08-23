@@ -270,40 +270,68 @@ class OptionsManager {
     `).join('');
   }
 
-  updateProgressOverview() {
+  async updateProgressOverview() {
     const progressOverview = document.getElementById('progress-overview');
     
-    // Sample data - in production this would come from actual stats
-    const stats = {
-      totalPoints: 1250,
-      currentStreak: 7,
-      questionsAnswered: 156,
-      accuracyRate: 87,
-      currentLevel: 2
-    };
+    try {
+      // Get real stats from background script
+      const response = await this.sendMessage({ type: 'GET_STATS' });
+      const stats = response?.stats || {
+        totalPoints: 0,
+        currentStreak: 0,
+        questionsAnswered: 0,
+        accuracyRate: 0,
+        currentLevel: 1
+      };
 
-    progressOverview.innerHTML = `
-      <div class="progress-card">
-        <span class="progress-value">${stats.totalPoints}</span>
-        <span class="progress-label">Total Points</span>
-      </div>
-      <div class="progress-card">
-        <span class="progress-value">${stats.currentStreak}</span>
-        <span class="progress-label">Current Streak</span>
-      </div>
-      <div class="progress-card">
-        <span class="progress-value">${stats.questionsAnswered}</span>
-        <span class="progress-label">Questions Answered</span>
-      </div>
-      <div class="progress-card">
-        <span class="progress-value">${stats.accuracyRate}%</span>
-        <span class="progress-label">Accuracy Rate</span>
-      </div>
-      <div class="progress-card">
-        <span class="progress-value">Level ${stats.currentLevel}</span>
-        <span class="progress-label">Current Level</span>
-      </div>
-    `;
+      progressOverview.innerHTML = `
+        <div class="progress-card">
+          <span class="progress-value">${this.formatNumber(stats.totalPoints)}</span>
+          <span class="progress-label">Total Points</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">${stats.currentStreak}</span>
+          <span class="progress-label">Current Streak</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">${stats.questionsAnswered}</span>
+          <span class="progress-label">Questions Answered</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">${stats.accuracyRate}%</span>
+          <span class="progress-label">Accuracy Rate</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">Level ${stats.currentLevel}</span>
+          <span class="progress-label">Current Level</span>
+        </div>
+      `;
+    } catch (error) {
+      console.error('Failed to load progress overview:', error);
+      // Fallback to default display
+      progressOverview.innerHTML = `
+        <div class="progress-card">
+          <span class="progress-value">0</span>
+          <span class="progress-label">Total Points</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">0</span>
+          <span class="progress-label">Current Streak</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">0</span>
+          <span class="progress-label">Questions Answered</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">0%</span>
+          <span class="progress-label">Accuracy Rate</span>
+        </div>
+        <div class="progress-card">
+          <span class="progress-value">Level 1</span>
+          <span class="progress-label">Current Level</span>
+        </div>
+      `;
+    }
   }
 
   updateAchievements() {
@@ -604,6 +632,23 @@ class OptionsManager {
     setTimeout(() => {
       notification.classList.add('hidden');
     }, 3000);
+  }
+
+  formatNumber(num) {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  }
+
+  async sendMessage(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        resolve(response);
+      });
+    });
   }
 }
 

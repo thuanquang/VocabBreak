@@ -324,25 +324,30 @@ class VocabBreakBlocker {
     const footer = this.overlay.querySelector('#vocabbreak-footer');
 
     // Get question text (default to English for now)
-    const questionText = this.currentQuestion.questionText.en || this.currentQuestion.questionText.vi;
+    const questionText = this.currentQuestion.questionText?.en || 
+                        this.currentQuestion.questionText?.vi || 
+                        this.currentQuestion.content?.text?.en || 
+                        this.currentQuestion.content?.text?.vi ||
+                        'Question text not available';
 
     if (this.currentQuestion.type === 'multiple-choice') {
       content.innerHTML = `
         <div class="vocabbreak-question">${questionText}</div>
         <div class="vocabbreak-options" id="vocabbreak-options">
-          ${this.currentQuestion.options.map((option, index) => 
-            `<div class="vocabbreak-option" data-value="${option}" onclick="vocabBreakBlocker.selectOption(this)">
-              ${option}
-            </div>`
-          ).join('')}
+          ${(this.currentQuestion.options || this.currentQuestion.answers?.options || []).map((option, index) => {
+            const optionText = typeof option === 'string' ? option : (option.text || option);
+            const optionValue = typeof option === 'string' ? option : (option.text || option.id || option);
+            return `<div class="vocabbreak-option" data-value="${optionValue}" data-index="${index}">
+              ${optionText}
+            </div>`;
+          }).join('')}
         </div>
       `;
     } else if (this.currentQuestion.type === 'text-input') {
       content.innerHTML = `
         <div class="vocabbreak-question">${questionText}</div>
         <input type="text" class="vocabbreak-text-input" id="vocabbreak-text-input" 
-               placeholder="Type your answer here..." 
-               onkeypress="if(event.key==='Enter') vocabBreakBlocker.submitAnswer()">
+               placeholder="Type your answer here...">
       `;
       
       // Focus the input
@@ -353,11 +358,38 @@ class VocabBreakBlocker {
     }
 
     footer.innerHTML = `
-      <div class="vocabbreak-points">+${this.currentQuestion.pointsValue} points</div>
-      <button class="vocabbreak-submit" onclick="vocabBreakBlocker.submitAnswer()">
+      <div class="vocabbreak-points">+${this.currentQuestion.pointsValue || this.currentQuestion.scoring?.base_points || 10} points</div>
+      <button class="vocabbreak-submit" id="vocabbreak-submit-btn">
         Submit Answer
       </button>
     `;
+
+    // Add event listeners after DOM is created
+    this.setupQuestionEventListeners();
+  }
+
+  setupQuestionEventListeners() {
+    // Add click listeners to options
+    const options = this.overlay.querySelectorAll('.vocabbreak-option');
+    options.forEach(option => {
+      option.addEventListener('click', () => this.selectOption(option));
+    });
+
+    // Add click listener to submit button
+    const submitBtn = this.overlay.querySelector('#vocabbreak-submit-btn');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => this.submitAnswer());
+    }
+
+    // Add Enter key listener for text input
+    const textInput = this.overlay.querySelector('#vocabbreak-text-input');
+    if (textInput) {
+      textInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.submitAnswer();
+        }
+      });
+    }
   }
 
   selectOption(element) {
@@ -443,10 +475,16 @@ class VocabBreakBlocker {
     if (isCorrect) {
       footer.innerHTML = `
         <div style="color: #28a745; font-weight: 500;">Correct! You may continue browsing.</div>
-        <button class="vocabbreak-submit" onclick="vocabBreakBlocker.hideOverlay()" style="background: #28a745;">
+        <button class="vocabbreak-submit" id="vocabbreak-continue-btn" style="background: #28a745;">
           Continue
         </button>
       `;
+
+      // Add event listener for continue button
+      const continueBtn = footer.querySelector('#vocabbreak-continue-btn');
+      if (continueBtn) {
+        continueBtn.addEventListener('click', () => this.hideOverlay());
+      }
       
       // Auto-hide after 3 seconds
       setTimeout(() => {
@@ -497,10 +535,16 @@ class VocabBreakBlocker {
     
     const footer = this.overlay.querySelector('#vocabbreak-footer');
     footer.innerHTML = `
-      <button class="vocabbreak-submit" onclick="vocabBreakBlocker.hideOverlay()">
+      <button class="vocabbreak-submit" id="vocabbreak-close-btn">
         Close
       </button>
     `;
+
+    // Add event listener for close button
+    const closeBtn = footer.querySelector('#vocabbreak-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.hideOverlay());
+    }
   }
 
   hideOverlay() {
