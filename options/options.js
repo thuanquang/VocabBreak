@@ -334,26 +334,39 @@ class OptionsManager {
     }
   }
 
-  updateAchievements() {
+  async updateAchievements() {
     const achievementsGrid = document.getElementById('achievements-grid');
     
-    // Sample achievements - in production this would come from the gamification system
-    const achievements = [
-      { id: 'first_correct', name: 'First Success', description: 'Answer your first question correctly', icon: '🎯', unlocked: true },
-      { id: 'streak_3', name: '3-Day Streak', description: 'Answer questions correctly for 3 consecutive days', icon: '🔥', unlocked: true },
-      { id: 'streak_7', name: 'Week Warrior', description: 'Answer questions correctly for 7 consecutive days', icon: '⚔️', unlocked: false },
-      { id: 'perfect_10', name: 'Perfect Ten', description: 'Answer 10 questions in a row correctly', icon: '💯', unlocked: false },
-      { id: 'century_club', name: 'Century Club', description: 'Answer 100 questions correctly', icon: '💪', unlocked: true },
-      { id: 'lightning_fast', name: 'Lightning Fast', description: 'Answer 10 questions correctly in under 5 seconds each', icon: '⚡', unlocked: false }
-    ];
+    try {
+      // Get real achievements from gamification manager via background script
+      const response = await this.sendMessage({ type: 'GET_ACHIEVEMENTS' });
+      const achievements = response?.achievements || {};
+      
+      // Convert achievements object to array and sort by unlock status
+      const achievementArray = Object.values(achievements).sort((a, b) => {
+        if (a.unlocked && !b.unlocked) return -1;
+        if (!a.unlocked && b.unlocked) return 1;
+        return 0;
+      });
 
-    achievementsGrid.innerHTML = achievements.map(achievement => `
-      <div class="achievement-card ${achievement.unlocked ? 'unlocked' : ''}">
-        <span class="achievement-icon">${achievement.icon}</span>
-        <div class="achievement-name">${achievement.name}</div>
-        <div class="achievement-description">${achievement.description}</div>
-      </div>
-    `).join('');
+      if (achievementArray.length === 0) {
+        achievementsGrid.innerHTML = '<p style="color: #718096; text-align: center; padding: 20px;">No achievements available</p>';
+        return;
+      }
+
+      achievementsGrid.innerHTML = achievementArray.map(achievement => `
+        <div class="achievement-card ${achievement.unlocked ? 'unlocked' : ''}">
+          <span class="achievement-icon">${achievement.icon}</span>
+          <div class="achievement-name">${achievement.name}</div>
+          <div class="achievement-description">${achievement.description}</div>
+          ${achievement.unlocked ? '<div class="achievement-points">+' + achievement.points + ' points</div>' : ''}
+        </div>
+      `).join('');
+    } catch (error) {
+      console.error('Failed to load achievements:', error);
+      // Fallback to empty state
+      achievementsGrid.innerHTML = '<p style="color: #e53e3e; text-align: center; padding: 20px;">Failed to load achievements</p>';
+    }
   }
 
   updateTimezoneSelector() {

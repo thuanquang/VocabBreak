@@ -231,6 +231,11 @@ class BackgroundManager {
           sendResponse({ stats: stats });
           break;
 
+        case 'GET_ACHIEVEMENTS':
+          const achievements = await this.getAchievements();
+          sendResponse({ achievements: achievements });
+          break;
+
         default:
           console.warn('Unknown message type:', message.type);
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -841,6 +846,128 @@ class BackgroundManager {
         pointsToNextLevel: 500
       };
     }
+  }
+
+  async getAchievements() {
+    try {
+      // Since background script can't access gamificationManager directly,
+      // we'll return the achievements data structure that matches what the gamificationManager provides
+      
+      // Try to get achievements from storage first
+      let achievements = {};
+      let unlockedAchievements = [];
+      
+      try {
+        const stored = await chrome.storage.local.get(['unlockedAchievements', 'userStats']);
+        unlockedAchievements = stored.unlockedAchievements || [];
+        
+        // Initialize achievements with unlock status
+        achievements = this.initializeAchievementsData(unlockedAchievements, stored.userStats);
+      } catch (error) {
+        console.warn('Failed to load achievements from storage:', error);
+        achievements = this.initializeAchievementsData([], null);
+      }
+
+      return achievements;
+    } catch (error) {
+      console.error('Error getting achievements:', error);
+      return {};
+    }
+  }
+
+  initializeAchievementsData(unlockedAchievements = [], userStats = null) {
+    const achievements = {
+      first_correct: {
+        id: 'first_correct',
+        name: 'First Success',
+        description: 'Answer your first question correctly',
+        icon: '🎯',
+        points: 50,
+        unlocked: unlockedAchievements.includes('first_correct')
+      },
+      streak_3: {
+        id: 'streak_3',
+        name: '3-Day Streak',
+        description: 'Answer questions correctly for 3 consecutive days',
+        icon: '🔥',
+        points: 100,
+        unlocked: unlockedAchievements.includes('streak_3')
+      },
+      streak_7: {
+        id: 'streak_7',
+        name: 'Week Warrior',
+        description: 'Answer questions correctly for 7 consecutive days',
+        icon: '⚔️',
+        points: 250,
+        unlocked: unlockedAchievements.includes('streak_7')
+      },
+      streak_30: {
+        id: 'streak_30',
+        name: 'Monthly Master',
+        description: 'Answer questions correctly for 30 consecutive days',
+        icon: '👑',
+        points: 1000,
+        unlocked: unlockedAchievements.includes('streak_30')
+      },
+      perfect_10: {
+        id: 'perfect_10',
+        name: 'Perfect Ten',
+        description: 'Answer 10 questions in a row correctly',
+        icon: '💯',
+        points: 200,
+        unlocked: unlockedAchievements.includes('perfect_10')
+      },
+      accuracy_master: {
+        id: 'accuracy_master',
+        name: 'Accuracy Master',
+        description: 'Maintain 90% accuracy over 50 questions',
+        icon: '🎯',
+        points: 300,
+        unlocked: unlockedAchievements.includes('accuracy_master')
+      },
+      century_club: {
+        id: 'century_club',
+        name: 'Century Club',
+        description: 'Answer 100 questions correctly',
+        icon: '💪',
+        points: 500,
+        unlocked: unlockedAchievements.includes('century_club')
+      },
+      millennium_master: {
+        id: 'millennium_master',
+        name: 'Millennium Master',
+        description: 'Answer 1000 questions correctly',
+        icon: '🏆',
+        points: 2000,
+        unlocked: unlockedAchievements.includes('millennium_master')
+      },
+      lightning_fast: {
+        id: 'lightning_fast',
+        name: 'Lightning Fast',
+        description: 'Answer 10 questions correctly in under 5 seconds each',
+        icon: '⚡',
+        points: 400,
+        unlocked: unlockedAchievements.includes('lightning_fast')
+      },
+      level_up_2: {
+        id: 'level_up_2',
+        name: 'Rising Star',
+        description: 'Reach Level 2',
+        icon: '⭐',
+        points: 100,
+        unlocked: unlockedAchievements.includes('level_up_2')
+      },
+      level_up_5: {
+        id: 'level_up_5',
+        name: 'Language Expert',
+        description: 'Reach Level 5',
+        icon: '🎓',
+        points: 1000,
+        unlocked: unlockedAchievements.includes('level_up_5')
+      }
+    };
+
+    return achievements;
   }
 }
 

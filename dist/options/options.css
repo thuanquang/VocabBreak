@@ -673,6 +673,13 @@ input[type="range"]::-moz-range-thumb {
     line-height: 1.4;
 }
 
+.achievement-points {
+    font-size: 12px;
+    color: #48bb78;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
 /* Footer */
 .footer {
     background: white;

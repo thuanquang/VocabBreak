@@ -425,6 +425,9 @@ class PopupManager {
       if (progressPoints) {
         progressPoints.textContent = `${this.formatNumber(stats.totalPoints || 0)} / ${this.formatNumber(stats.pointsToNextLevel || 500)} points`;
       }
+
+      // Update achievements display
+      this.updateRecentAchievements();
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'update-stats-display' });
     }
@@ -465,6 +468,58 @@ class PopupManager {
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'update-sync-status' });
     }
+  }
+
+  async updateRecentAchievements() {
+    try {
+      const recentAchievementsContainer = document.getElementById('recent-achievements');
+      if (!recentAchievementsContainer) return;
+
+      // Get achievements from background script
+      const response = await this.sendMessage({ type: 'GET_ACHIEVEMENTS' });
+      const achievements = response?.achievements || {};
+
+      // Filter to show only unlocked achievements (recent ones)
+      const unlockedAchievements = Object.values(achievements).filter(a => a.unlocked);
+
+      if (unlockedAchievements.length === 0) {
+        recentAchievementsContainer.innerHTML = `
+          <div class="no-achievements">
+            <p>🏆 Start answering questions to unlock achievements!</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Show up to 3 most recent achievements
+      const recentAchievements = unlockedAchievements.slice(0, 3);
+
+      recentAchievementsContainer.innerHTML = `
+        <h3>Recent Achievements</h3>
+        <div class="achievements-list">
+          ${recentAchievements.map(achievement => `
+            <div class="achievement-item">
+              <span class="achievement-icon">${achievement.icon}</span>
+              <div class="achievement-details">
+                <div class="achievement-name">${achievement.name}</div>
+                <div class="achievement-description">${achievement.description}</div>
+              </div>
+              <div class="achievement-points">+${achievement.points}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } catch (error) {
+      window.errorHandler?.handleUIError(error, { context: 'update-recent-achievements' });
+    }
+  }
+
+  async sendMessage(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        resolve(response);
+      });
+    });
   }
 
   localizeInterface() {
