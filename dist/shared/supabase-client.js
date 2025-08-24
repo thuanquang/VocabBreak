@@ -8,8 +8,8 @@
 // Note: Supabase client will be loaded via CDN in HTML files or bundled
 
 // Get credentials from chrome storage (set from .env during build)
-let SUPABASE_URL = 'YOUR_SUPABASE_URL';
-let SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+let SUPABASE_URL = 'https://nyxtigtweenrnsmaaoic.supabase.co';
+let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55eHRpZ3R3ZWVucm5zbWFhb2ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4MzE5NzIsImV4cCI6MjA3MTQwNzk3Mn0.w8nGFtcUpJnJ_UuH1zRqjvz22HuVrQIZjjR9JsGlByI';
 
 // Initialize credentials from storage
 async function initializeCredentials() {

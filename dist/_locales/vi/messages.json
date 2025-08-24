@@ -1,0 +1,151 @@
+{
+  "extensionName": {
+    "message": "VocabBreak - Học Ngôn Ngữ",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Học từ vựng tiếng Anh thông qua việc chặn trang web có chiến lược",
+    "description": "Extension description"
+  },
+  
+  "question_header": {
+    "message": "Giờ Nghỉ Học Ngôn Ngữ",
+    "description": "Header shown on question overlay"
+  },
+  "question_instruction_mc": {
+    "message": "Chọn đáp án đúng để tiếp tục duyệt web",
+    "description": "Instruction for multiple choice questions"
+  },
+  "question_instruction_text": {
+    "message": "Nhập đáp án đúng để tiếp tục duyệt web",
+    "description": "Instruction for text input questions"
+  },
+  
+  "submit_answer": {
+    "message": "Gửi Đáp Án",
+    "description": "Submit button text"
+  },
+  "correct_answer": {
+    "message": "Chính xác! Làm tốt lắm!",
+    "description": "Message shown for correct answers"
+  },
+  "incorrect_answer": {
+    "message": "Sai rồi. Vui lòng đợi $TIME$ giây để thử lại.",
+    "description": "Message shown for incorrect answers",
+    "placeholders": {
+      "time": {
+        "content": "$1",
+        "example": "30"
+      }
+    }
+  },
+  
+  "streak_bonus": {
+    "message": "Thưởng Chuỗi! +$POINTS$ điểm",
+    "description": "Streak bonus notification",
+    "placeholders": {
+      "points": {
+        "content": "$1",
+        "example": "50"
+      }
+    }
+  },
+  "points_earned": {
+    "message": "+$POINTS$ điểm",
+    "description": "Points earned notification",
+    "placeholders": {
+      "points": {
+        "content": "$1",
+        "example": "25"
+      }
+    }
+  },
+  
+  "login": {
+    "message": "Đăng Nhập",
+    "description": "Login button"
+  },
+  "logout": {
+    "message": "Đăng Xuất",
+    "description": "Logout button"
+  },
+  "email": {
+    "message": "Email",
+    "description": "Email field label"
+  },
+  "password": {
+    "message": "Mật Khẩu",
+    "description": "Password field label"
+  },
+  "signup": {
+    "message": "Đăng Ký",
+    "description": "Sign up button"
+  },
+  
+  "settings": {
+    "message": "Cài Đặt",
+    "description": "Settings button"
+  },
+  "progress": {
+    "message": "Tiến Trình",
+    "description": "Progress button"
+  },
+  "sync_now": {
+    "message": "Đồng Bộ Ngay",
+    "description": "Sync button"
+  },
+  
+  "current_streak": {
+    "message": "Chuỗi Hiện Tại",
+    "description": "Current streak label"
+  },
+  "total_points": {
+    "message": "Tổng Điểm",
+    "description": "Total points label"
+  },
+  "questions_answered": {
+    "message": "Câu Hỏi Đã Trả Lời",
+    "description": "Questions answered label"
+  },
+  "accuracy_rate": {
+    "message": "Tỷ Lệ Chính Xác",
+    "description": "Accuracy rate label"
+  },
+  
+  "difficulty_level": {
+    "message": "Mức Độ Khó",
+    "description": "Difficulty level setting"
+  },
+  "topics": {
+    "message": "Chủ Đề",
+    "description": "Topics setting"
+  },
+  "blocking_mode": {
+    "message": "Chế Độ Chặn",
+    "description": "Blocking mode setting"
+  },
+  "whitelist": {
+    "message": "Danh Sách Trắng",
+    "description": "Whitelist mode"
+  },
+  "blacklist": {
+    "message": "Danh Sách Đen",
+    "description": "Blacklist mode"
+  },
+  
+  "error_network": {
+    "message": "Lỗi mạng. Đang hoạt động offline với câu hỏi đã lưu.",
+    "description": "Network error message"
+  },
+  "error_auth": {
+    "message": "Xác thực thất bại. Vui lòng đăng nhập lại.",
+    "description": "Authentication error message"
+  },
+  "error_generic": {
+    "message": "Có lỗi xảy ra. Vui lòng thử lại.",
+    "description": "Generic error message"
+  }
+}
+
+
+

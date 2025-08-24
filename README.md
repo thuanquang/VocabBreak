@@ -1,338 +1,199 @@
-# VocabBreak - Language Learning Browser Extension
+# 🎯 VocabBreak - Language Learning Extension
 
-VocabBreak is an innovative browser extension that gamifies English vocabulary learning by strategically blocking web access until users correctly answer language questions. Transform your browsing habits into productive learning sessions!
+Learn English vocabulary through strategic web interruptions. Gamified language learning that blocks websites until you answer questions correctly.
 
-## 🌟 Features
+## ✨ Features
 
-### Core Learning Experience
-- **Strategic Web Blocking**: Questions appear when visiting new sites or every 30 minutes (configurable)
-- **Unbypassable Interface**: Professional, secure overlay that prevents easy circumvention
-- **Multiple Question Types**: Multiple choice, text input, and voice input (coming soon)
-- **CEFR Difficulty Levels**: A1 (Beginner) to C2 (Proficiency) vocabulary
-- **Topic Categories**: Business, travel, technology, health, education, and more
-
-### Gamification System
-- **Points & Levels**: Earn points based on difficulty and performance
-- **Streak System**: Build consecutive correct answer streaks with multipliers
-- **Achievements**: Unlock badges for various milestones and accomplishments
-- **Progress Tracking**: Detailed statistics on accuracy, speed, and improvement
-
-### Customization & Control
-- **Site Management**: Whitelist or blacklist specific websites
-- **Flexible Timing**: Adjust question frequency and penalty durations
-- **Offline Support**: Cache questions locally for uninterrupted learning
-- **Bilingual Interface**: English and Vietnamese language support
-
-### Data & Sync
-- **Supabase Integration**: Cloud storage for progress and settings sync
-- **Cross-Device Sync**: Access your progress from any browser
-- **Data Export**: Backup your learning data and achievements
-- **Privacy First**: Secure data handling with user control
+- **Smart Web Blocking**: Interrupts browsing every 30 minutes with vocabulary questions
+- **Gamification**: Points, levels, streaks, and achievements to motivate learning
+- **Real-time Progress**: Track your learning progress with detailed statistics
+- **Supabase Integration**: Cloud-based user profiles and progress synchronization
+- **Offline Support**: Continue learning even without internet connection
+- **Multiple Question Types**: Multiple choice and text input questions
+- **Difficulty Levels**: A1 to C2 CEFR levels with adaptive difficulty
+- **Bilingual Support**: English and Vietnamese interface
 
 ## 🚀 Quick Start
 
+### Prerequisites
+- Chrome browser with Developer mode enabled
+- Node.js 16+ for building from source
+- Supabase account for cloud features
+
 ### Installation
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/yourusername/vocabbreak.git
-   cd vocabbreak
-   ```
+1. **Clone the repository**
+```bash
+git clone <your-repo-url>
+cd VocabBreak
+```
 
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+2. **Install dependencies**
+```bash
+npm install
+```
 
-3. **Set Up Supabase** (Optional but recommended)
-   - Create a [Supabase](https://supabase.com) account
-   - Create a new project
-   - Update `shared/supabase-client.js` with your credentials:
-   ```javascript
-   const SUPABASE_URL = 'your-project-url';
-   const SUPABASE_ANON_KEY = 'your-anon-key';
-   ```
+3. **Set up environment variables**
+Create a `.env` file in the root directory:
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-4. **Create Extension Icons**
-   - Add icon files to `assets/` directory:
-     - `icon16.png` (16x16)
-     - `icon32.png` (32x32)
-     - `icon48.png` (48x48)
-     - `icon128.png` (128x128)
-   - See `assets/README.md` for design guidelines
+4. **Build the extension**
+```bash
+npm run build
+```
 
-5. **Load Extension in Browser**
+5. **Load in Chrome**
    - Open Chrome and go to `chrome://extensions/`
    - Enable "Developer mode"
-   - Click "Load unpacked" and select the project directory
+   - Click "Load unpacked" and select the `dist` directory
 
-### First Time Setup
+## 🏗️ Architecture
 
-1. **Open Extension Options**
-   - Click the VocabBreak icon in the toolbar
-   - Select "Settings" or right-click the icon and choose "Options"
+### Core Components
+- **Background Script** (`background.js`) - Handles timing, tab management, and question scheduling
+- **Content Script** (`content/blocker.js`) - Injects blocking overlay and question UI
+- **Popup** (`popup/`) - Extension popup interface for authentication and dashboard
+- **Options** (`options/`) - Settings and configuration page
 
-2. **Configure Your Learning**
-   - Choose your difficulty levels (A1-C2)
-   - Select question types and topics
-   - Set up site blocking preferences
-   - Adjust timing settings
+### Shared Modules
+- **State Manager** (`shared/state-manager.js`) - Centralized state management
+- **Error Handler** (`shared/error-handler.js`) - Comprehensive error handling
+- **Auth Manager** (`shared/auth-manager.js`) - Authentication and user management
+- **Supabase Client** (`shared/supabase-client.js`) - Database operations
+- **Question Manager** (`shared/question-manager.js`) - Question selection and validation
+- **Offline Manager** (`shared/offline-manager.js`) - IndexedDB for offline storage
 
-3. **Create Account** (Optional)
-   - Sign up for cloud sync and progress tracking
-   - Or continue in offline mode
+## 🗄️ Database Setup
 
-## 🔧 Development
+1. **Create Supabase Project**
+   - Go to [supabase.com](https://supabase.com) and create a new project
+   - Note your project URL and anon key
+
+2. **Apply Database Schema**
+   - Go to your Supabase dashboard → SQL Editor
+   - Copy the contents of `database/schema.sql`
+   - Execute the SQL to create tables, functions, and policies
+
+3. **Configure Authentication**
+   - Enable email authentication in Supabase Auth settings
+   - Configure any additional auth providers as needed
+
+For detailed setup instructions, see `database/SETUP_INSTRUCTIONS.md`.
+
+## 🛠️ Development
+
+### Available Scripts
+- `npm run build` - Build the extension for production
+- `npm install` - Install dependencies
 
 ### Project Structure
-
 ```
 VocabBreak/
-├── manifest.json          # Extension configuration
-├── background.js           # Service worker for tab management
-├── content/               # Content scripts and blocking UI
-│   ├── blocker.js         # Main blocking logic
-│   └── blocker.css        # Overlay styling
-├── popup/                 # Extension popup interface
-│   ├── popup.html
-│   ├── popup.css
-│   └── popup.js
-├── options/               # Settings page
-│   ├── options.html
-│   ├── options.css
-│   └── options.js
-├── shared/                # Shared utilities
-│   ├── i18n.js           # Internationalization
-│   ├── supabase-client.js # Database integration
-│   ├── offline-manager.js # IndexedDB operations
-│   ├── gamification.js   # Points and achievements
-│   ├── question-manager.js # Question handling
-│   └── site-filter.js    # URL filtering logic
-├── locales/              # Language files
-│   ├── en/messages.json  # English translations
-│   └── vi/messages.json  # Vietnamese translations
-└── assets/               # Icons and resources
+├── _locales/           # Internationalization files
+├── assets/             # Extension icons and assets
+├── background.js       # Service worker
+├── content/            # Content scripts and styles
+├── database/           # Database schema and setup
+├── dist/              # Built extension (generated)
+├── options/           # Options page
+├── popup/             # Extension popup
+├── scripts/           # Build scripts
+└── shared/            # Shared modules and utilities
 ```
 
-### Key Components
+### Key Features Implementation
+- **Centralized State Management**: All application state managed through `StateManager`
+- **Comprehensive Error Handling**: Global error boundaries with user-friendly messages
+- **Reactive UI Updates**: State-driven interface updates across all components
+- **Memory Leak Prevention**: Proper cleanup patterns and subscription management
+- **Robust Authentication**: Retry logic, input validation, and session management
 
-#### Background Script (`background.js`)
-- Tracks tab states and schedules questions
-- Manages timers and persistence
-- Handles cross-component communication
+## 🎮 Usage
 
-#### Content Script (`content/blocker.js`)
-- Injects blocking overlay into web pages
-- Handles question display and user interaction
-- Prevents bypass attempts
+1. **First Time Setup**
+   - Click the extension icon and create an account
+   - Configure your learning preferences in the options page
+   - Set difficulty levels, topics, and timing preferences
 
-#### Shared Utilities (`shared/`)
-- **I18n**: Multi-language support system
-- **Supabase Client**: Database operations and auth
-- **Offline Manager**: IndexedDB caching and sync
-- **Gamification**: Points, streaks, and achievements
-- **Question Manager**: Question selection and validation
-- **Site Filter**: URL pattern matching and filtering
+2. **Learning Flow**
+   - Browse the web normally
+   - Every 30 minutes, a vocabulary question appears
+   - Answer correctly to continue browsing
+   - Wrong answers result in a 30-second penalty
 
-### Database Schema (Supabase)
+3. **Progress Tracking**
+   - View your stats in the popup dashboard
+   - Track points, streaks, and accuracy
+   - Unlock achievements as you progress
+   - Monitor your learning in the options page
 
-```sql
--- Users table
-CREATE TABLE users (
-  id UUID REFERENCES auth.users PRIMARY KEY,
-  email TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  settings_json JSONB DEFAULT '{}',
-  total_points INTEGER DEFAULT 0,
-  current_level INTEGER DEFAULT 1,
-  current_streak INTEGER DEFAULT 0
-);
+## 🔧 Configuration
 
--- Questions table
-CREATE TABLE questions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  level TEXT NOT NULL CHECK (level IN ('A1', 'A2', 'B1', 'B2', 'C1', 'C2')),
-  topic TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('multiple-choice', 'text-input', 'voice-input')),
-  question_text_en TEXT NOT NULL,
-  question_text_vi TEXT NOT NULL,
-  correct_answer TEXT NOT NULL,
-  options_json JSONB,
-  explanation_en TEXT,
-  explanation_vi TEXT,
-  points_value INTEGER NOT NULL,
-  difficulty INTEGER DEFAULT 5 CHECK (difficulty >= 1 AND difficulty <= 10),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+### Timing Settings
+- **Periodic Interval**: How often questions appear (default: 30 minutes)
+- **Penalty Duration**: Delay after wrong answers (default: 30 seconds)
 
--- User progress tracking
-CREATE TABLE user_progress (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  question_id UUID REFERENCES questions(id) ON DELETE CASCADE,
-  answered_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  correct BOOLEAN NOT NULL,
-  time_taken INTEGER NOT NULL,
-  points_earned INTEGER NOT NULL,
-  streak_at_time INTEGER DEFAULT 0,
-  attempt_number INTEGER DEFAULT 1
-);
-
--- User settings
-CREATE TABLE user_settings (
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  setting_key TEXT NOT NULL,
-  setting_value JSONB NOT NULL,
-  synced_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  PRIMARY KEY (user_id, setting_key)
-);
-
--- Cached questions metadata
-CREATE TABLE cached_questions (
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE PRIMARY KEY,
-  question_ids_json JSONB NOT NULL,
-  cached_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  level_filter TEXT[],
-  topic_filter TEXT[]
-);
-```
-
-## 🎯 Usage Guide
-
-### Basic Operation
-
-1. **Browse Normally**: VocabBreak runs silently in the background
-2. **Answer Questions**: When a question appears, select or type your answer
-3. **Learn from Mistakes**: Wrong answers trigger a 30-second wait period
-4. **Build Streaks**: Consecutive correct answers multiply your points
-5. **Track Progress**: View stats and achievements in the popup
+### Learning Settings
+- **Difficulty Levels**: A1, A2, B1, B2, C1, C2
+- **Question Types**: Multiple choice, text input
+- **Topics**: General vocabulary, specific categories
 
 ### Site Management
+- **Blacklist Mode**: Block specific sites
+- **Whitelist Mode**: Only block certain sites
+- **Exclusion Patterns**: Skip localhost, file://, etc.
 
-**Blacklist Mode** (Default)
-- Blocks all sites except those in your exclusion list
-- Good for general learning while protecting work/banking sites
+## 🎯 Gamification
 
-**Whitelist Mode**
-- Only blocks sites you specifically target
-- Ideal for focused learning on social media or entertainment sites
-
-### Timing Configuration
-
-- **Question Frequency**: 5-120 minutes between questions
-- **New Site Trigger**: Immediate questions when visiting new domains
-- **Penalty Duration**: 10-300 seconds wait after wrong answers
-
-### Difficulty Progression
-
-- **A1-A2**: Basic vocabulary and common words
-- **B1-B2**: Intermediate expressions and concepts
-- **C1-C2**: Advanced vocabulary and nuanced meanings
-
-## 🌍 Internationalization
-
-VocabBreak supports multiple interface languages:
-
-- **English**: Default language
-- **Vietnamese**: Full translation available
-
-To add a new language:
-
-1. Create `locales/[lang]/messages.json`
-2. Update `shared/i18n.js` to include the new language
-3. Add language option to settings page
+- **Points System**: Earn points for correct answers
+- **Level Progression**: Advance through 6 levels
+- **Streak Tracking**: Maintain daily learning streaks
+- **Achievements**: Unlock badges for milestones
+- **Leaderboards**: Compare progress with other learners
 
 ## 🔒 Privacy & Security
 
-- **Local First**: Core functionality works offline
-- **Encrypted Storage**: Sensitive data is properly secured
-- **User Control**: Complete control over data export and deletion
-- **Minimal Permissions**: Only requests necessary browser permissions
-- **Open Source**: Full transparency in code and data handling
+- **Local Storage**: Sensitive data stored locally when possible
+- **Encrypted Communication**: All API calls use HTTPS
+- **Row Level Security**: Database access controlled by user permissions
+- **Input Validation**: All user inputs validated and sanitized
+- **Error Sanitization**: No sensitive data in error messages
+
+## 🌐 Browser Compatibility
+
+- **Chrome**: Full support (primary target)
+- **Edge**: Compatible with Chromium-based Edge
+- **Other Browsers**: May work with Manifest V3 support
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-1. **Fork the Repository**
-2. **Create a Feature Branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. **Make Your Changes**
-4. **Test Thoroughly**
-5. **Submit a Pull Request**
+## 🐛 Bug Reports
 
-### Development Guidelines
+Please use the GitHub Issues tab to report bugs. Include:
+- Chrome version
+- Extension version
+- Steps to reproduce
+- Console errors (if any)
 
-- Follow existing code style and patterns
-- Add comments for complex logic
-- Test across different browsers
-- Update documentation for new features
-- Ensure accessibility compliance
+## 📚 Documentation
 
-### Areas for Contribution
-
-- **Question Database**: Add more vocabulary questions
-- **Language Support**: Translate interface to new languages
-- **Voice Features**: Implement pronunciation checking
-- **UI/UX**: Improve design and user experience
-- **Performance**: Optimize loading and caching
-- **Testing**: Add automated tests
-
-## 📚 Learning Resources
-
-- [CEFR Language Levels](https://www.coe.int/en/web/common-european-framework-reference-languages)
-- [Vocabulary Learning Strategies](https://www.cambridge.org/core/journals/language-teaching)
-- [Spaced Repetition Research](https://www.gwern.net/Spaced-repetition)
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Extension Not Loading**
-- Check that all required files are present
-- Verify manifest.json syntax
-- Enable Developer mode in Chrome
-
-**Questions Not Appearing**
-- Check site filtering settings
-- Verify timing configuration
-- Look for JavaScript errors in console
-
-**Sync Issues**
-- Verify Supabase credentials
-- Check internet connection
-- Try manual sync from settings
-
-**Performance Problems**
-- Clear extension data and restart
-- Check for conflicting extensions
-- Update to latest Chrome version
-
-### Getting Help
-
-- Check the [Issues](https://github.com/yourusername/vocabbreak/issues) page
-- Create a new issue with detailed information
-- Include browser version and error messages
-- Provide steps to reproduce the problem
-
-## 📄 License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-## 🙏 Acknowledgments
-
-- Supabase for backend infrastructure
-- Chrome Extensions team for excellent documentation
-- Language learning community for feedback and suggestions
-- Open source contributors who make projects like this possible
+- `database/SETUP_INSTRUCTIONS.md` - Detailed database setup guide
+- Code comments throughout the codebase
+- JSDoc comments for all major functions
 
 ---
 
-**Happy Learning! 🎓**
-
-Transform your browsing time into vocabulary mastery with VocabBreak.
-
-
-
+**Built with ❤️ for language learners everywhere**

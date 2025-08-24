@@ -48,27 +48,60 @@ function copyDir(src, dest) {
   }
 }
 
-// Inject credentials into setup-credentials.js in build directory
+// Inject credentials into build directory
 function injectCredentials(env, buildDir) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    console.log('📝 No credentials found - extension will use manual setup');
+    return;
+  }
+
+  console.log('🔧 Injecting Supabase credentials...');
+
+  // Update setup-credentials.js
   const setupPath = path.join(buildDir, 'shared', 'setup-credentials.js');
   let setupContent = fs.readFileSync(setupPath, 'utf8');
   
-  if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
-    // Replace placeholder values with actual credentials
-    setupContent = setupContent.replace(
-      'supabaseUrl: \'YOUR_SUPABASE_URL\'',
-      `supabaseUrl: '${env.SUPABASE_URL}'`
-    );
-    
-    setupContent = setupContent.replace(
-      'supabaseKey: \'YOUR_SUPABASE_ANON_KEY\'',
-      `supabaseKey: '${env.SUPABASE_ANON_KEY}'`
-    );
-    
-    fs.writeFileSync(setupPath, setupContent);
-    console.log('✅ Credentials injected into build');
+  // Replace placeholder values with actual credentials in setup-credentials.js
+  setupContent = setupContent.replace(
+    /let supabaseUrl = 'YOUR_SUPABASE_URL'/g,
+    `let supabaseUrl = '${env.SUPABASE_URL}'`
+  );
+  
+  setupContent = setupContent.replace(
+    /let supabaseKey = 'YOUR_SUPABASE_ANON_KEY'/g,
+    `let supabaseKey = '${env.SUPABASE_ANON_KEY}'`
+  );
+  
+  fs.writeFileSync(setupPath, setupContent);
+  console.log('✅ Credentials injected into setup-credentials.js');
+
+  // Update supabase-client.js
+  const clientPath = path.join(buildDir, 'shared', 'supabase-client.js');
+  let clientContent = fs.readFileSync(clientPath, 'utf8');
+  
+  // Replace placeholder values with actual credentials in supabase-client.js
+  clientContent = clientContent.replace(
+    /let SUPABASE_URL = 'YOUR_SUPABASE_URL'/g,
+    `let SUPABASE_URL = '${env.SUPABASE_URL}'`
+  );
+  
+  clientContent = clientContent.replace(
+    /let SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'/g,
+    `let SUPABASE_ANON_KEY = '${env.SUPABASE_ANON_KEY}'`
+  );
+  
+  fs.writeFileSync(clientPath, clientContent);
+  console.log('✅ Credentials injected into supabase-client.js');
+  
+  console.log('🎉 All credentials injected successfully!');
+  
+  // Copy Supabase library locally (required for Manifest V3 CSP)
+  console.log('📦 Copying Supabase library...');
+  const { copySupabase } = require('./copy-supabase.js');
+  if (copySupabase()) {
+    console.log('✅ Supabase library copied successfully');
   } else {
-    console.log('📝 No credentials found - extension will use manual setup');
+    console.error('❌ Failed to copy Supabase library');
   }
 }
 
