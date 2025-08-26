@@ -33,12 +33,19 @@ async function initializeCredentials() {
       return true;
     }
     
-    console.warn('⚠️ No valid Supabase credentials found');
-    console.log('📝 Please set your Supabase credentials using:');
-    console.log('   window.setSupabaseCredentials("your_url", "your_key")');
-    return false;
+    const credError = new Error('Missing Supabase credentials: set via setup-credentials or chrome.storage');
+    if (typeof window !== 'undefined' && window.errorHandler) {
+      window.errorHandler.handleDatabaseError(credError, { stage: 'credentials' });
+    } else {
+      console.error(credError);
+    }
+    throw credError;
   } catch (error) {
-    console.warn('Could not load credentials from storage:', error);
+    if (typeof window !== 'undefined' && window.errorHandler) {
+      window.errorHandler.handleDatabaseError(error, { stage: 'credentials-load' });
+    } else {
+      console.error('Could not load credentials from storage:', error);
+    }
     
     // Fallback to hardcoded values
     if (SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL' && 
@@ -47,7 +54,7 @@ async function initializeCredentials() {
       return true;
     }
     
-    return false;
+    throw new Error('Missing Supabase credentials after storage load failure');
   }
 }
 
@@ -57,28 +64,20 @@ class SupabaseClient {
     this.user = null;
     this.sessionId = null;
     this.initialized = false;
+    this._initializing = null;
     this.initClient();
   }
 
   async initClient() {
     try {
       // Initialize credentials first
-      const credentialsLoaded = await initializeCredentials();
-      
-      if (!credentialsLoaded) {
-        console.warn('⚠️ Supabase client not initialized - no valid credentials');
-        return;
-      }
-      
-      // Check if we're in a context that supports Supabase
-      const isServiceWorker = typeof window === 'undefined' && typeof self !== 'undefined';
-      
-      if (isServiceWorker) {
-        console.log('📝 Service worker context detected - Supabase not available');
-        return;
-      }
+      await initializeCredentials();
       
       // Check if Supabase is available globally (loaded via CDN)
+      if (!(typeof window !== 'undefined' && window.supabase)) {
+        await this.loadSupabaseLibrary();
+      }
+
       if (typeof window !== 'undefined' && window.supabase) {
         this.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           auth: {
@@ -105,11 +104,117 @@ class SupabaseClient {
         this.initialized = true;
         console.log('✅ Supabase client initialized successfully');
       } else {
-        console.warn('⚠️ Supabase CDN not loaded. Please include the Supabase JS library.');
+        const libError = new Error('Supabase library not loaded after attempt');
+        if (typeof window !== 'undefined' && window.errorHandler) {
+          window.errorHandler.handleDatabaseError(libError, { stage: 'library' });
+        } else {
+          console.error(libError);
+        }
+        throw libError;
       }
     } catch (error) {
-      console.error('Failed to initialize Supabase client:', error);
+      if (typeof window !== 'undefined' && window.errorHandler) {
+        window.errorHandler.handleDatabaseError(error, { stage: 'init' });
+      } else {
+        console.error('Failed to initialize Supabase client:', error);
+      }
     }
+  }
+
+  async loadSupabaseLibrary() {
+    try {
+      // In MV3 service worker or worker-like contexts
+      if (typeof window === 'undefined' && typeof self !== 'undefined' && typeof importScripts === 'function') {
+        const url = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
+          ? chrome.runtime.getURL('shared/supabase.js')
+          : 'shared/supabase.js';
+        importScripts(url);
+        console.log('📦 Supabase library loaded via importScripts');
+        return true;
+      }
+
+      // In windowed contexts
+      if (typeof window !== 'undefined' && !window.supabase) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
+            ? chrome.runtime.getURL('shared/supabase.js')
+            : '../shared/supabase.js';
+          script.onload = () => resolve(true);
+          script.onerror = () => reject(new Error('Failed to load supabase.js'));
+          document.head.appendChild(script);
+        });
+        console.log('📦 Supabase library injected dynamically');
+        return true;
+      }
+    } catch (e) {
+      if (typeof window !== 'undefined' && window.errorHandler) {
+        window.errorHandler.handleDatabaseError(e, { stage: 'library-load' });
+      } else {
+        console.error('Failed to load Supabase library:', e);
+      }
+      throw e;
+    }
+    return false;
+  }
+
+  async waitForInitialization(timeoutMs = 8000) {
+    if (this.initialized && this.client) return true;
+    if (!this._initializing) {
+      this._initializing = this.initClient();
+    }
+    await this.withTimeout(this._initializing, timeoutMs, 'initialization');
+    if (!this.client) {
+      const initError = new Error('Supabase client not available after initialization');
+      if (typeof window !== 'undefined' && window.errorHandler) {
+        window.errorHandler.handleDatabaseError(initError, { stage: 'post-init' });
+      }
+      throw initError;
+    }
+    return true;
+  }
+
+  assertClient(context = 'unknown') {
+    if (!this.client) {
+      const err = new Error(`Supabase client is not initialized for ${context}`);
+      if (typeof window !== 'undefined' && window.errorHandler) {
+        window.errorHandler.handleDatabaseError(err, { stage: 'assert', context });
+      }
+      throw err;
+    }
+  }
+
+  async withTimeout(promise, ms = 10000, context = 'operation') {
+    let timer;
+    const timeoutPromise = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const toErr = new Error(`Supabase ${context} timed out after ${ms}ms`);
+        if (typeof window !== 'undefined' && window.errorHandler) {
+          window.errorHandler.handleNetworkError(toErr, { stage: 'timeout', context, ms });
+        }
+        reject(toErr);
+      }, ms);
+    });
+    try {
+      const result = await Promise.race([promise, timeoutPromise]);
+      return result;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  getDebugInfo() {
+    return {
+      initialized: this.initialized,
+      hasClient: !!this.client,
+      hasUser: !!this.user,
+      sessionId: this.sessionId,
+      libraryLoaded: typeof window !== 'undefined' ? !!window.supabase : typeof self !== 'undefined',
+      credentials: {
+        urlSet: !!SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL',
+        keySet: !!SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY'
+      }
+    };
   }
 
   handleAuthChange(event, session) {
@@ -141,6 +246,8 @@ class SupabaseClient {
   // =====================================================
 
   async signUp(email, password, additionalData = {}) {
+    await this.waitForInitialization();
+    this.assertClient('signUp');
     const { data, error } = await this.client.auth.signUp({
       email: email,
       password: password,
@@ -161,6 +268,8 @@ class SupabaseClient {
   }
 
   async signIn(email, password) {
+    await this.waitForInitialization();
+    this.assertClient('signIn');
     const { data, error } = await this.client.auth.signInWithPassword({
       email: email,
       password: password
@@ -177,6 +286,8 @@ class SupabaseClient {
   }
 
   async signOut() {
+    await this.waitForInitialization();
+    this.assertClient('signOut');
     // End current learning session
     await this.endLearningSession();
     
@@ -197,7 +308,9 @@ class SupabaseClient {
   // =====================================================
 
   async createUserProfile(userData = {}) {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    this.assertClient('createUserProfile');
+    const op = this.client
       .from('users')
       .insert([{
         id: this.user.id,
@@ -240,30 +353,36 @@ class SupabaseClient {
         metadata: userData.metadata || {}
       }])
       .select();
+    const { data, error } = await this.withTimeout(op, 12000, 'createUserProfile');
     
     if (error) throw error;
     return data[0];
   }
 
   async getUserProfile() {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    this.assertClient('getUserProfile');
+    const op = this.client
       .from('users')
       .select('*')
       .eq('id', this.user.id)
       .single();
+    const { data, error } = await this.withTimeout(op, 8000, 'getUserProfile');
     
     if (error) throw error;
     return data;
   }
 
   async updateUserProfile(updates) {
+    await this.waitForInitialization();
+    this.assertClient('updateUserProfile');
     // Get current profile for deep merge
     const { data: currentProfile } = await this.getUserProfile();
     
     // Deep merge updates into existing profile
     const mergedProfile = this.deepMerge(currentProfile.profile, updates.profile || {});
     
-    const { data, error } = await this.client
+    const op = this.client
       .from('users')
       .update({
         ...updates,
@@ -272,6 +391,7 @@ class SupabaseClient {
       })
       .eq('id', this.user.id)
       .select();
+    const { data, error } = await this.withTimeout(op, 12000, 'updateUserProfile');
     
     if (error) throw error;
     return data[0];
@@ -282,6 +402,8 @@ class SupabaseClient {
   // =====================================================
 
   async getQuestions(filters = {}) {
+    await this.waitForInitialization();
+    this.assertClient('getQuestions');
     let query = this.client
       .from('questions')
       .select('*')
@@ -337,12 +459,13 @@ class SupabaseClient {
       query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
     
-    const { data, error } = await query;
+    const { data, error } = await this.withTimeout(query, 10000, 'getQuestions');
     if (error) throw error;
     return data;
   }
 
   async getRandomQuestion(filters = {}) {
+    await this.waitForInitialization();
     // Get all matching questions
     const questions = await this.getQuestions(filters);
     
@@ -354,7 +477,9 @@ class SupabaseClient {
   }
 
   async createQuestion(questionData) {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    this.assertClient('createQuestion');
+    const op = this.client
       .from('questions')
       .insert([{
         content: {
@@ -401,6 +526,7 @@ class SupabaseClient {
         created_by: this.user.id
       }])
       .select();
+    const { data, error } = await this.withTimeout(op, 12000, 'createQuestion');
     
     if (error) throw error;
     return data[0];
@@ -411,7 +537,9 @@ class SupabaseClient {
   // =====================================================
 
   async recordInteraction(interactionData) {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    this.assertClient('recordInteraction');
+    const op = this.client
       .from('user_interactions')
       .insert([{
         user_id: this.user.id,
@@ -441,6 +569,7 @@ class SupabaseClient {
         }
       }])
       .select();
+    const { data, error } = await this.withTimeout(op, 10000, 'recordInteraction');
     
     if (error) throw error;
     
@@ -453,6 +582,7 @@ class SupabaseClient {
   }
 
   async updateGamificationStats(pointsEarned, currentStreak) {
+    await this.waitForInitialization();
     const { data: user } = await this.getUserProfile();
     
     const updatedGamification = {
@@ -478,9 +608,10 @@ class SupabaseClient {
   // =====================================================
 
   async startLearningSession() {
+    await this.waitForInitialization();
     this.sessionId = this.generateUUID();
     
-    const { data, error } = await this.client
+    const op = this.client
       .from('learning_sessions')
       .insert([{
         id: this.sessionId,
@@ -502,6 +633,7 @@ class SupabaseClient {
         }
       }])
       .select();
+    const { data, error } = await this.withTimeout(op, 10000, 'startLearningSession');
     
     if (error) console.error('Failed to start learning session:', error);
     return data?.[0];
@@ -510,7 +642,8 @@ class SupabaseClient {
   async updateLearningSession(updates) {
     if (!this.sessionId) return;
     
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('learning_sessions')
       .update({
         session_data: updates,
@@ -518,6 +651,7 @@ class SupabaseClient {
       })
       .eq('id', this.sessionId)
       .select();
+    const { data, error } = await this.withTimeout(op, 8000, 'updateLearningSession');
     
     if (error) console.error('Failed to update learning session:', error);
     return data?.[0];
@@ -526,7 +660,8 @@ class SupabaseClient {
   async endLearningSession() {
     if (!this.sessionId) return;
     
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('learning_sessions')
       .update({
         ended_at: new Date().toISOString(),
@@ -534,6 +669,7 @@ class SupabaseClient {
       })
       .eq('id', this.sessionId)
       .select();
+    const { data, error } = await this.withTimeout(op, 8000, 'endLearningSession');
     
     if (error) console.error('Failed to end learning session:', error);
     
@@ -546,6 +682,8 @@ class SupabaseClient {
   // =====================================================
 
   async getConfiguration(scope, scopeId = null, category = null, key = null) {
+    await this.waitForInitialization();
+    this.assertClient('getConfiguration');
     let query = this.client
       .from('configurations')
       .select('*')
@@ -556,7 +694,7 @@ class SupabaseClient {
     if (category) query = query.eq('category', category);
     if (key) query = query.eq('config_key', key);
     
-    const { data, error } = await query;
+    const { data, error } = await this.withTimeout(query, 8000, 'getConfiguration');
     if (error) throw error;
     
     // Return single config if key specified, otherwise return array
@@ -568,7 +706,9 @@ class SupabaseClient {
   }
 
   async setConfiguration(scope, scopeId, category, key, value, metadata = {}) {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    this.assertClient('setConfiguration');
+    const op = this.client
       .from('configurations')
       .upsert([{
         scope: scope,
@@ -582,6 +722,7 @@ class SupabaseClient {
         ignoreDuplicates: false
       })
       .select();
+    const { data, error } = await this.withTimeout(op, 10000, 'setConfiguration');
     
     if (error) throw error;
     return data[0];
@@ -600,35 +741,41 @@ class SupabaseClient {
   // =====================================================
 
   async getAchievements() {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('achievements')
       .select('*')
       .eq('is_active', true)
       .order('achievement_data->points_value', { ascending: false });
     
+    const { data, error } = await this.withTimeout(op, 8000, 'getAchievements');
     if (error) throw error;
     return data;
   }
 
   async getUserAchievements() {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('user_achievements')
       .select('*, achievements(*)')
       .eq('user_id', this.user.id)
       .order('unlocked_at', { ascending: false });
     
+    const { data, error } = await this.withTimeout(op, 8000, 'getUserAchievements');
     if (error) throw error;
     return data;
   }
 
   async unlockAchievement(achievementId) {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('user_achievements')
       .insert([{
         user_id: this.user.id,
         achievement_id: achievementId
       }])
       .select();
+    const { data, error } = await this.withTimeout(op, 8000, 'unlockAchievement');
     
     if (error && error.code !== '23505') throw error; // Ignore duplicate key errors
     
@@ -649,7 +796,8 @@ class SupabaseClient {
   // =====================================================
 
   async trackEvent(eventType, eventCategory, eventData = {}, metadata = {}) {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('analytics_events')
       .insert([{
         user_id: this.user.id,
@@ -660,17 +808,20 @@ class SupabaseClient {
       }])
       .select();
     
+    const { data, error } = await this.withTimeout(op, 8000, 'trackEvent');
     if (error) console.error('Failed to track event:', error);
     return data?.[0];
   }
 
   async getUserStatistics() {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('user_statistics')
       .select('*')
       .eq('id', this.user.id)
       .single();
     
+    const { data, error } = await this.withTimeout(op, 8000, 'getUserStatistics');
     if (error) throw error;
     return data;
   }
@@ -680,7 +831,8 @@ class SupabaseClient {
   // =====================================================
 
   async submitFeedback(feedbackData) {
-    const { data, error } = await this.client
+    await this.waitForInitialization();
+    const op = this.client
       .from('feedback')
       .insert([{
         user_id: this.user.id,
@@ -692,6 +844,7 @@ class SupabaseClient {
       }])
       .select();
     
+    const { data, error } = await this.withTimeout(op, 8000, 'submitFeedback');
     if (error) throw error;
     return data[0];
   }
@@ -795,6 +948,17 @@ class SupabaseClient {
 
 // Global instance
 const supabaseClient = new SupabaseClient();
+// Expose a readiness promise for consumers to await
+if (typeof window !== 'undefined') {
+  window.supabaseReadyPromise = (async () => {
+    try {
+      await supabaseClient.waitForInitialization();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  })();
+}
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {

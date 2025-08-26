@@ -1,0 +1,33 @@
+VocabBreak STRUCTURE (for assistant reference)
+
+- Supabase
+  - Library: shared/supabase.js (UMD, copied from @supabase/supabase-js)
+  - Client wrapper: shared/supabase-client.js
+    - Removes service worker blocking
+    - Dynamic library load (window/importScripts)
+    - waitForInitialization(timeout)
+    - withTimeout for DB ops
+    - assertClient and getDebugInfo
+    - Exposes window.supabaseReadyPromise
+- Error Handling
+  - shared/error-handler.js -> global window.errorHandler
+  - All DB init/errors routed to errorHandler with context stages
+- Loading Order
+  - manifest.json content_scripts: shared/supabase.js before shared/supabase-client.js
+  - popup/options HTML: supabase.js -> error-handler/state/setup -> supabase-client -> others
+- Build
+  - scripts/build.js copies all source -> dist
+  - injectCredentials() optionally injects creds into setup-credentials.js and supabase-client.js
+  - Always attempts to copy Supabase UMD via scripts/copy-supabase.js to dist/shared/supabase.js
+- Background (MV3 service worker)
+  - background.js is the service_worker
+  - supabase-client loads library via importScripts when needed
+- Data Model
+  - JSONB-centric tables (questions, users, user_interactions, learning_sessions, configurations, achievements, user_achievements, analytics_events, feedback)
+- API Methods (selected)
+  - Auth: signUp, signIn, signOut, getCurrentUser, isAuthenticated
+  - Users: createUserProfile, getUserProfile, updateUserProfile
+  - Questions: getQuestions, getRandomQuestion, createQuestion
+  - Sessions: startLearningSession, updateLearningSession, endLearningSession
+  - Configs: getConfiguration, setConfiguration, getUserSettings, updateUserSettings
+  - Achievements/Analytics/Feedback: getAchievements, getUserAchievements, unlockAchievement, trackEvent, getUserStatistics, submitFeedback

@@ -96,25 +96,42 @@ class VocabBreakBlocker {
       // Try to get question from Supabase first (if available)
       let question = null;
       
-      if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+      if (typeof window !== 'undefined' && window.supabaseClient) {
         try {
+          // Wait for client to be ready, but don't block forever
+          if (window.supabaseReadyPromise && typeof window.supabaseReadyPromise.then === 'function') {
+            await Promise.race([
+              window.supabaseReadyPromise,
+              new Promise(resolve => setTimeout(resolve, 4000))
+            ]);
+          }
+
+          console.log('🔍 Attempting to fetch question from Supabase...');
           const dbQuestion = await window.supabaseClient.getRandomQuestion({
-            level: ['A1', 'A2', 'B1'], // User's difficulty levels - could be customizable
-            limit: 1
+            level: ['A1', 'A2', 'B1'] // User's difficulty levels - could be customizable
           });
           
           if (dbQuestion) {
             // Transform database question to expected format
             question = this.transformDatabaseQuestion(dbQuestion);
-            console.log('✅ Question fetched from Supabase');
+            console.log('✅ Question fetched from Supabase:', dbQuestion.id);
+            console.log('🔍 Raw database question structure:', dbQuestion);
+            console.log('🔍 Transformed question structure:', question);
+          } else {
+            console.log('📝 No questions returned from Supabase');
           }
         } catch (dbError) {
-          console.warn('Failed to fetch question from Supabase:', dbError);
+          if (window.errorHandler) {
+            window.errorHandler.handleDatabaseError(dbError, { stage: 'fetch-question', context: 'content-script' });
+          } else {
+            console.warn('Failed to fetch question from Supabase:', dbError);
+          }
         }
       }
       
       // Fallback to background script (local questions) if no database question
       if (!question) {
+        console.log('📝 No Supabase question available, falling back to local questions');
         const response = await this.sendMessage({ type: 'GET_QUESTION' });
         
         if (!response || !response.success) {
@@ -124,6 +141,8 @@ class VocabBreakBlocker {
         
         question = response.question;
         console.log('📝 Using local question from background script');
+      } else {
+        console.log('✅ Using Supabase question:', question.id);
       }
 
       this.currentQuestion = question;
@@ -455,13 +474,21 @@ class VocabBreakBlocker {
     }
 
     try {
-      // Send answer to background script for local validation
-      const response = await this.sendMessage({
-        type: 'SUBMIT_ANSWER',
-        questionId: this.currentQuestion.id,
-        userAnswer: userAnswer,
-        timeTaken: timeTaken
-      });
+      let response;
+      
+      // If this is a Supabase question, validate it locally
+      if (this.currentQuestion.id && !this.currentQuestion.id.startsWith('local_')) {
+        console.log('🔍 Validating Supabase question locally');
+        response = this.validateSupabaseQuestion(userAnswer);
+      } else {
+        // Send to background script for local question validation
+        response = await this.sendMessage({
+          type: 'SUBMIT_ANSWER',
+          questionId: this.currentQuestion.id,
+          userAnswer: userAnswer,
+          timeTaken: timeTaken
+        });
+      }
 
       if (response && response.success) {
         // Also try to record interaction in Supabase if available
@@ -644,6 +671,85 @@ class VocabBreakBlocker {
     }
   }
 
+  validateSupabaseQuestion(userAnswer) {
+    try {
+      const question = this.currentQuestion;
+      if (!question) {
+        return { success: false, error: 'No question available' };
+      }
+
+      console.log('🔍 Validating answer for question:', question.id);
+      console.log('🔍 User answer:', userAnswer);
+      console.log('🔍 Question data:', question);
+
+      // Get correct answer(s) - check multiple possible locations
+      let correctAnswers = [];
+      
+      // Check direct correctAnswer field
+      if (question.correctAnswer) {
+        correctAnswers.push(question.correctAnswer);
+      }
+      
+      // Check answers.correct array
+      if (question.answers && question.answers.correct) {
+        if (Array.isArray(question.answers.correct)) {
+          correctAnswers.push(...question.answers.correct);
+        } else {
+          correctAnswers.push(question.answers.correct);
+        }
+      }
+      
+      // Check content.answers.correct (alternative structure)
+      if (question.content && question.content.answers && question.content.answers.correct) {
+        if (Array.isArray(question.content.answers.correct)) {
+          correctAnswers.push(...question.content.answers.correct);
+        } else {
+          correctAnswers.push(question.content.answers.correct);
+        }
+      }
+
+      console.log('🔍 Correct answers found:', correctAnswers);
+
+      // Normalize answers for comparison
+      const normalizedUserAnswer = userAnswer.toLowerCase().trim();
+      const normalizedCorrectAnswers = correctAnswers.map(ans => ans.toLowerCase().trim());
+
+      console.log('🔍 Normalized user answer:', normalizedUserAnswer);
+      console.log('🔍 Normalized correct answers:', normalizedCorrectAnswers);
+
+      // Check if user answer matches any correct answer
+      const isCorrect = normalizedCorrectAnswers.some(correct => correct === normalizedUserAnswer);
+
+      // Generate feedback
+      let feedback = '';
+      let explanation = '';
+      
+      if (isCorrect) {
+        feedback = 'Correct! Well done!';
+        explanation = question.explanation?.en || 'Great job! You got it right.';
+      } else {
+        feedback = `Not quite right. The correct answer is: ${correctAnswers[0] || 'unknown'}`;
+        explanation = question.explanation?.en || 'Keep trying!';
+      }
+
+      return {
+        success: true,
+        validation: {
+          isCorrect: isCorrect,
+          correctAnswer: correctAnswers[0] || 'unknown',
+          explanation: explanation,
+          feedback: feedback
+        },
+        points: { 
+          totalPoints: isCorrect ? (question.pointsValue || question.scoring?.base_points || 10) : 0 
+        }
+      };
+    } catch (error) {
+      console.error('Error validating Supabase question:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   transformDatabaseQuestion(dbQuestion) {
     // Transform Supabase question format to expected local format
     try {
@@ -651,6 +757,16 @@ class VocabBreakBlocker {
       const answers = dbQuestion.answers || {};
       const metadata = dbQuestion.metadata || {};
       const scoring = dbQuestion.scoring || {};
+
+      // Extract correct answer(s) from various possible structures
+      let correctAnswer = '';
+      if (answers.correct) {
+        if (Array.isArray(answers.correct)) {
+          correctAnswer = answers.correct[0] || '';
+        } else {
+          correctAnswer = answers.correct;
+        }
+      }
 
       return {
         id: dbQuestion.id,
@@ -660,7 +776,8 @@ class VocabBreakBlocker {
           en: questionText.en || 'Question text not available',
           vi: questionText.vi || questionText.en || 'Question text not available'
         },
-        correctAnswer: answers.correct?.[0] || '', // Take first correct answer
+        correctAnswer: correctAnswer,
+        answers: answers, // Keep original answers for validation
         options: answers.options?.map(opt => typeof opt === 'string' ? opt : opt.text) || [],
         pointsValue: scoring.base_points || 10,
         explanation: dbQuestion.content?.explanation || {},

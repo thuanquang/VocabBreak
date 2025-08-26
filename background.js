@@ -279,12 +279,14 @@ class BackgroundManager {
           }
         }
       } else {
-        // Fallback for other question types
-        isCorrect = userAnswer.toLowerCase() === 'blue';
-        correctAnswer = 'blue';
-        pointsEarned = isCorrect ? 10 : 0;
-        feedback = isCorrect ? 'Correct! Well done!' : 'Not quite right. The correct answer is: blue';
-        explanation = 'The sky appears blue due to light scattering.';
+        // For non-local questions (like Supabase questions), we need to validate properly
+        // This should rarely happen since content script should handle Supabase validation
+        console.warn('Background script received non-local question ID:', questionId);
+        isCorrect = false;
+        correctAnswer = 'unknown';
+        pointsEarned = 0;
+        feedback = 'Question validation failed. Please try again.';
+        explanation = 'The question could not be validated properly.';
       }
 
       // Update tab state

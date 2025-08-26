@@ -11,11 +11,14 @@
     "scripting",
     "background",
     "unlimitedStorage",
-    "alarms"
+    "alarms",
+    "identity"
   ],
   
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://*.supabase.co/*",
+    "https://nyxtigtweenrnsmaaoic.supabase.co"
   ],
   
   "content_security_policy": {
@@ -30,6 +33,7 @@
     {
       "matches": ["<all_urls>"],
       "js": [
+        "shared/supabase.js",
         "shared/error-handler.js",
         "shared/state-manager.js",
         "shared/setup-credentials.js",

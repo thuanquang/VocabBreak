@@ -156,6 +156,19 @@ function build() {
     
     // Inject credentials into build (not source)
     injectCredentials(env, buildDir);
+
+    // Always copy Supabase library regardless of credentials presence
+    try {
+      console.log('📦 Ensuring Supabase library is available...');
+      const { copySupabase } = require('./copy-supabase.js');
+      if (copySupabase()) {
+        console.log('✅ Supabase library available in build');
+      } else {
+        console.warn('⚠️ Supabase library not copied. Ensure @supabase/supabase-js is installed.');
+      }
+    } catch (e) {
+      console.warn('⚠️ Could not run Supabase copy step:', e.message);
+    }
     
     console.log('✅ Build complete! Extension built in ./dist directory');
     console.log('📝 Next steps:');
