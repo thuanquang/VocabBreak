@@ -404,6 +404,9 @@ class SupabaseClient {
   async getQuestions(filters = {}) {
     await this.waitForInitialization();
     this.assertClient('getQuestions');
+    
+    console.log('🔍 getQuestions called with filters:', JSON.stringify(filters, null, 2));
+    
     let query = this.client
       .from('questions')
       .select('*')
@@ -413,32 +416,46 @@ class SupabaseClient {
     // Filter by level using JSONB operators
     if (filters.level) {
       const levels = Array.isArray(filters.level) ? filters.level : [filters.level];
+      console.log('🔍 Filtering by levels:', levels);
       query = query.in('metadata->>level', levels);
     }
     
-    // Filter by topics using JSONB containment
+    // Filter by topics using JSONB overlap (any topic in the array matches)
     if (filters.topics && filters.topics.length > 0) {
-      query = query.contains('metadata', { topics: filters.topics });
+      console.log('🔍 Filtering by topics:', filters.topics);
+      // Use overlaps to check if any topic in the filter matches any topic in the question
+      query = query.overlaps('metadata->topics', filters.topics);
     }
     
     // Filter by type
     if (filters.type) {
       const types = Array.isArray(filters.type) ? filters.type : [filters.type];
+      console.log('🔍 Filtering by types:', types);
       query = query.in('metadata->>type', types);
     }
     
-    // Filter by difficulty range
-    if (filters.difficulty) {
-      if (filters.difficulty.min !== undefined) {
-        query = query.gte('metadata->>difficulty', filters.difficulty.min);
-      }
-      if (filters.difficulty.max !== undefined) {
-        query = query.lte('metadata->>difficulty', filters.difficulty.max);
+    // Filter by difficulty - handle both exact value and range
+    if (filters.difficulty !== undefined) {
+      if (typeof filters.difficulty === 'object' && (filters.difficulty.min !== undefined || filters.difficulty.max !== undefined)) {
+        // Range filtering
+        if (filters.difficulty.min !== undefined) {
+          console.log('🔍 Filtering by difficulty min:', filters.difficulty.min);
+          query = query.gte('metadata->>difficulty', filters.difficulty.min);
+        }
+        if (filters.difficulty.max !== undefined) {
+          console.log('🔍 Filtering by difficulty max:', filters.difficulty.max);
+          query = query.lte('metadata->>difficulty', filters.difficulty.max);
+        }
+      } else if (typeof filters.difficulty === 'number') {
+        // Exact difficulty value
+        console.log('🔍 Filtering by exact difficulty:', filters.difficulty);
+        query = query.eq('metadata->>difficulty', filters.difficulty);
       }
     }
     
-    // Filter by tags
+    // Filter by tags using overlap
     if (filters.tags && filters.tags.length > 0) {
+      console.log('🔍 Filtering by tags:', filters.tags);
       query = query.overlaps('metadata->tags', filters.tags);
     }
     
@@ -459,21 +476,49 @@ class SupabaseClient {
       query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
     
+    console.log('🔍 Executing query with filters applied');
     const { data, error } = await this.withTimeout(query, 10000, 'getQuestions');
-    if (error) throw error;
+    
+    if (error) {
+      console.error('❌ Error in getQuestions:', error);
+      throw error;
+    }
+    
+    console.log(`✅ getQuestions returned ${data?.length || 0} questions`);
+    if (data && data.length > 0) {
+      console.log('🔍 Sample question metadata:', data[0].metadata);
+    }
+    
     return data;
   }
 
   async getRandomQuestion(filters = {}) {
     await this.waitForInitialization();
+    console.log('🎲 getRandomQuestion called with filters:', JSON.stringify(filters, null, 2));
+    
     // Get all matching questions
     const questions = await this.getQuestions(filters);
     
-    if (questions.length === 0) return null;
+    console.log(`🎲 Found ${questions.length} matching questions`);
+    
+    if (questions.length === 0) {
+      console.log('❌ No questions found matching the filters');
+      return null;
+    }
     
     // Return random question
     const randomIndex = Math.floor(Math.random() * questions.length);
-    return questions[randomIndex];
+    const selectedQuestion = questions[randomIndex];
+    
+    console.log(`🎲 Selected question ${randomIndex + 1}/${questions.length}:`, {
+      id: selectedQuestion.id,
+      level: selectedQuestion.metadata?.level,
+      type: selectedQuestion.metadata?.type,
+      topics: selectedQuestion.metadata?.topics,
+      difficulty: selectedQuestion.metadata?.difficulty
+    });
+    
+    return selectedQuestion;
   }
 
   async createQuestion(questionData) {

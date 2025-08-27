@@ -457,13 +457,29 @@ class BackgroundManager {
   }
 
   async handleSettingsUpdate(settings) {
+    console.log('🔧 Background script received settings update:', settings);
+    
     // Update periodic interval if changed
-    if (settings.timingConfig && settings.timingConfig.periodicInterval) {
-      this.periodicInterval = settings.timingConfig.periodicInterval * 1000;
+    if (settings.periodicInterval) {
+      this.periodicInterval = settings.periodicInterval * 60 * 1000; // Convert minutes to milliseconds
     }
 
-    if (settings.timingConfig && settings.timingConfig.wrongAnswerPenalty) {
-      this.wrongAnswerPenalty = settings.timingConfig.wrongAnswerPenalty * 1000;
+    if (settings.penaltyDuration) {
+      this.wrongAnswerPenalty = settings.penaltyDuration * 1000; // Convert seconds to milliseconds
+    }
+
+    // Store settings in chrome storage for content scripts to access
+    try {
+      await chrome.storage.sync.set({
+        difficultyLevels: settings.difficultyLevels,
+        questionTypes: settings.questionTypes,
+        topics: settings.topics,
+        periodicInterval: settings.periodicInterval,
+        penaltyDuration: settings.penaltyDuration
+      });
+      console.log('✅ Settings saved to chrome storage');
+    } catch (error) {
+      console.error('❌ Failed to save settings to storage:', error);
     }
 
     // Reinitialize tabs with new settings

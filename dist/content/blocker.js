@@ -107,9 +107,39 @@ class VocabBreakBlocker {
           }
 
           console.log('🔍 Attempting to fetch question from Supabase...');
-          const dbQuestion = await window.supabaseClient.getRandomQuestion({
-            level: ['A1', 'A2', 'B1'] // User's difficulty levels - could be customizable
-          });
+          
+          // Get user settings from chrome storage
+          let userSettings = null;
+          try {
+            const result = await chrome.storage.sync.get([
+              'difficultyLevels', 
+              'questionTypes', 
+              'topics'
+            ]);
+            userSettings = {
+              difficultyLevels: result.difficultyLevels || ['A1', 'A2'],
+              questionTypes: result.questionTypes || ['multiple-choice', 'text-input'],
+              topics: result.topics || ['general']
+            };
+            console.log('🔍 Loaded user settings:', userSettings);
+          } catch (error) {
+            console.warn('⚠️ Failed to load user settings, using defaults:', error);
+            userSettings = {
+              difficultyLevels: ['A1', 'A2'],
+              questionTypes: ['multiple-choice', 'text-input'],
+              topics: ['general']
+            };
+          }
+          
+          // Define filters for question selection based on user settings
+          const questionFilters = {
+            level: userSettings.difficultyLevels,
+            type: userSettings.questionTypes,
+            topics: userSettings.topics.length > 0 && userSettings.topics[0] !== 'general' ? userSettings.topics : undefined
+          };
+          
+          console.log('🔍 Using question filters based on user settings:', JSON.stringify(questionFilters, null, 2));
+          const dbQuestion = await window.supabaseClient.getRandomQuestion(questionFilters);
           
           if (dbQuestion) {
             // Transform database question to expected format

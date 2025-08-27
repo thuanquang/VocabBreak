@@ -31,3 +31,4 @@ VocabBreak STRUCTURE (for assistant reference)
   - Sessions: startLearningSession, updateLearningSession, endLearningSession
   - Configs: getConfiguration, setConfiguration, getUserSettings, updateUserSettings
   - Achievements/Analytics/Feedback: getAchievements, getUserAchievements, unlockAchievement, trackEvent, getUserStatistics, submitFeedback
+

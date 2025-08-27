@@ -30,3 +30,4 @@ VocabBreak Extension Functionality Notes (for assistant reference)
   - If credentials error: set via window.setSupabaseCredentials or ensure .env used by build
   - In background: confirm importScripts path via chrome.runtime.getURL('shared/supabase.js') works
   - Use window.supabaseReadyPromise in popup/options to await readiness before queries
+
