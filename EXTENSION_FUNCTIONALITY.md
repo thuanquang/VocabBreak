@@ -3,8 +3,8 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 - Contexts
   - Background (service worker): background.js; Supabase library can be loaded via importScripts by supabase-client when needed
   - Content script: blocker injection; relies on shared modules, now includes shared/supabase.js via manifest before supabase-client
-  - Popup: popup.html loads shared/supabase.js and shared/supabase-client.js early
-  - Options: options.html loads shared/supabase.js early
+  - Popup: popup.html loads shared/supabase.js, shared/i18n.js, and shared/supabase-client.js early
+  - Options: options.html loads shared/supabase.js and shared/i18n.js early
 
 - Supabase Client Behavior
   - Credentials loaded from chrome.storage or injected build-time constants
@@ -29,5 +29,6 @@ VocabBreak Extension Functionality Notes (for assistant reference)
   - If window.supabase undefined: confirm dist/shared/supabase.js exists and manifest includes it
   - If credentials error: set via window.setSupabaseCredentials or ensure .env used by build
   - In background: confirm importScripts path via chrome.runtime.getURL('shared/supabase.js') works
-  - Use window.supabaseReadyPromise in popup/options to await readiness before queries
+  - Use window.i18n.ready to await messages then call i18n.localizePage(document) on pages
+  - Re-localize UI after language change via i18n.setLocale and update document.documentElement.lang
 

@@ -14,7 +14,9 @@ VocabBreak STRUCTURE (for assistant reference)
   - All DB init/errors routed to errorHandler with context stages
 - Loading Order
   - manifest.json content_scripts: shared/supabase.js before shared/supabase-client.js
-  - popup/options HTML: supabase.js -> error-handler/state/setup -> supabase-client -> others
+  - popup/options HTML: supabase.js -> i18n.js -> error-handler/state/setup -> supabase-client -> others
+  - i18n: shared/i18n.js exposes window.i18n with ready promise; document is localized after i18n.ready
+  - Use data-i18n and optional data-i18n-args on user-visible elements; dynamic strings via i18n.getMessage(key, args)
 - Build
   - scripts/build.js copies all source -> dist
   - injectCredentials() optionally injects creds into setup-credentials.js and supabase-client.js

@@ -7,6 +7,7 @@ class I18n {
   constructor() {
     this.currentLocale = 'en';
     this.messages = {};
+    this.ready = null;
     this.init();
   }
 
@@ -20,14 +21,19 @@ class I18n {
       const browserLocale = navigator.language.split('-')[0];
       this.currentLocale = ['en', 'vi'].includes(browserLocale) ? browserLocale : 'en';
     }
-    
-    await this.loadMessages();
+    // Begin loading messages and expose readiness promise
+    this.ready = this.loadMessages();
+    await this.ready;
+    // Set document language
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = this.currentLocale;
+    }
   }
 
   async loadMessages() {
     try {
       // Load messages for current locale
-      const response = await fetch(chrome.runtime.getURL(`locales/${this.currentLocale}/messages.json`));
+      const response = await fetch(chrome.runtime.getURL(`_locales/${this.currentLocale}/messages.json`));
       this.messages = await response.json();
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -79,7 +85,9 @@ class I18n {
     }
     
     this.currentLocale = locale;
-    await this.loadMessages();
+    // Update messages and readiness
+    this.ready = this.loadMessages();
+    await this.ready;
     await chrome.storage.sync.set({ interfaceLanguage: locale });
     
     // Notify other parts of the extension about language change
@@ -87,6 +95,10 @@ class I18n {
       type: 'LOCALE_CHANGED',
       locale: locale
     });
+    // Update <html lang>
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = this.currentLocale;
+    }
   }
 
   /**
@@ -171,14 +183,22 @@ class I18n {
 // Global instance
 const i18n = new I18n();
 
-// Auto-initialize when DOM is ready
+// Auto-initialize when DOM is ready and localize after messages are loaded
 if (typeof document !== 'undefined') {
+  const localizeWhenReady = async () => {
+    try {
+      if (i18n.ready) {
+        await i18n.ready;
+      }
+      i18n.localizePage(document);
+    } catch (e) {
+      console.error('Localization init failed:', e);
+    }
+  };
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      i18n.localizePage();
-    });
+    document.addEventListener('DOMContentLoaded', localizeWhenReady);
   } else {
-    i18n.localizePage();
+    localizeWhenReady();
   }
 }
 
