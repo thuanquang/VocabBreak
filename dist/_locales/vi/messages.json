@@ -201,7 +201,7 @@
   "sync_failed_full": {"message": "Không thể đồng bộ dữ liệu"},
   "data_exported_success": {"message": "Đã xuất dữ liệu thành công"},
   "all_data_reset": {"message": "Đã đặt lại toàn bộ dữ liệu"},
-  "failed_to_reset_data": {"message": "Không thể đặt lại dữ liệu"}
+  "failed_to_reset_data": {"message": "Không thể đặt lại dữ liệu"},
   "progress": {
     "message": "Tiến Trình",
     "description": "Progress button"
