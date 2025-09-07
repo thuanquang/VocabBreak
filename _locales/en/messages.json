@@ -498,6 +498,46 @@
   },
   "failed_to_reset_data": {
     "message": "Failed to reset data"
+  },
+  "level_progress": {
+    "message": "Level Progress",
+    "description": "Level progress section heading"
+  },
+  "points_progress": {
+    "message": "$1 / $2 points",
+    "description": "Points progress display",
+    "placeholders": {
+      "1": {"content": "$1"},
+      "2": {"content": "$2"}
+    }
+  },
+  "please_select_answer": {
+    "message": "Please select an answer",
+    "description": "Error message when no answer is selected"
+  },
+  "please_enter_answer": {
+    "message": "Please enter an answer",
+    "description": "Error message when no text answer is entered"
+  },
+  "submitting": {
+    "message": "Submitting...",
+    "description": "Text shown while submitting answer"
+  },
+  "correct_continue": {
+    "message": "Correct! You may continue browsing.",
+    "description": "Message shown when answer is correct"
+  },
+  "continue": {
+    "message": "Continue",
+    "description": "Continue button text"
+  },
+  "please_wait": {
+    "message": "Please wait before trying again",
+    "description": "Message shown during penalty timer"
+  },
+  "close": {
+    "message": "Close",
+    "description": "Close button text"
   }
 }
 

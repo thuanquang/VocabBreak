@@ -8,8 +8,8 @@
 // Note: Supabase client will be loaded via CDN in HTML files or bundled
 
 // Get credentials from chrome storage (set from .env during build)
-let SUPABASE_URL = 'https://nyxtigtweenrnsmaaoic.supabase.co';
-let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55eHRpZ3R3ZWVucm5zbWFhb2ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4MzE5NzIsImV4cCI6MjA3MTQwNzk3Mn0.w8nGFtcUpJnJ_UuH1zRqjvz22HuVrQIZjjR9JsGlByI';
+let SUPABASE_URL = '';
+let SUPABASE_ANON_KEY = '';
 
 // Initialize credentials from storage
 async function initializeCredentials() {
@@ -22,14 +22,14 @@ async function initializeCredentials() {
       
       SUPABASE_URL = result.supabaseUrl;
       SUPABASE_ANON_KEY = result.supabaseKey;
-      console.log('✅ Supabase credentials loaded from storage');
+      // console.log('✅ Supabase credentials loaded from storage');
       return true;
     }
     
     // If not in storage, use the hardcoded values (injected by setup script)
     if (SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL' && 
         SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
-      console.log('✅ Using hardcoded Supabase credentials');
+      // console.log('✅ Using hardcoded Supabase credentials');
       return true;
     }
     
@@ -50,7 +50,7 @@ async function initializeCredentials() {
     // Fallback to hardcoded values
     if (SUPABASE_URL && SUPABASE_URL !== 'YOUR_SUPABASE_URL' && 
         SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
-      console.log('✅ Using hardcoded Supabase credentials (fallback)');
+      // console.log('✅ Using hardcoded Supabase credentials (fallback)');
       return true;
     }
     
@@ -86,7 +86,7 @@ class SupabaseClient {
             detectSessionInUrl: false // Disable for extension
           }
         });
-        console.log('✅ Supabase client created successfully');
+        // console.log('✅ Supabase client created successfully');
         
         // Get current user session
         const { data: { user } } = await this.client.auth.getUser();
@@ -102,7 +102,7 @@ class SupabaseClient {
         });
         
         this.initialized = true;
-        console.log('✅ Supabase client initialized successfully');
+        // console.log('✅ Supabase client initialized successfully');
       } else {
         const libError = new Error('Supabase library not loaded after attempt');
         if (typeof window !== 'undefined' && window.errorHandler) {
@@ -405,7 +405,7 @@ class SupabaseClient {
     await this.waitForInitialization();
     this.assertClient('getQuestions');
     
-    console.log('🔍 getQuestions called with filters:', JSON.stringify(filters, null, 2));
+    // console.log('🔍 getQuestions called with filters:', JSON.stringify(filters, null, 2));
     
     let query = this.client
       .from('questions')
@@ -416,13 +416,13 @@ class SupabaseClient {
     // Filter by level using JSONB operators
     if (filters.level) {
       const levels = Array.isArray(filters.level) ? filters.level : [filters.level];
-      console.log('🔍 Filtering by levels:', levels);
+      // console.log('🔍 Filtering by levels:', levels);
       query = query.in('metadata->>level', levels);
     }
     
     // Filter by topics using JSONB overlap (any topic in the array matches)
     if (filters.topics && filters.topics.length > 0) {
-      console.log('🔍 Filtering by topics:', filters.topics);
+      // console.log('🔍 Filtering by topics:', filters.topics);
       // Use overlaps to check if any topic in the filter matches any topic in the question
       query = query.overlaps('metadata->topics', filters.topics);
     }
@@ -430,7 +430,7 @@ class SupabaseClient {
     // Filter by type
     if (filters.type) {
       const types = Array.isArray(filters.type) ? filters.type : [filters.type];
-      console.log('🔍 Filtering by types:', types);
+      // console.log('🔍 Filtering by types:', types);
       query = query.in('metadata->>type', types);
     }
     
@@ -439,23 +439,23 @@ class SupabaseClient {
       if (typeof filters.difficulty === 'object' && (filters.difficulty.min !== undefined || filters.difficulty.max !== undefined)) {
         // Range filtering
         if (filters.difficulty.min !== undefined) {
-          console.log('🔍 Filtering by difficulty min:', filters.difficulty.min);
+          // console.log('🔍 Filtering by difficulty min:', filters.difficulty.min);
           query = query.gte('metadata->>difficulty', filters.difficulty.min);
         }
         if (filters.difficulty.max !== undefined) {
-          console.log('🔍 Filtering by difficulty max:', filters.difficulty.max);
+          // console.log('🔍 Filtering by difficulty max:', filters.difficulty.max);
           query = query.lte('metadata->>difficulty', filters.difficulty.max);
         }
       } else if (typeof filters.difficulty === 'number') {
         // Exact difficulty value
-        console.log('🔍 Filtering by exact difficulty:', filters.difficulty);
+        // console.log('🔍 Filtering by exact difficulty:', filters.difficulty);
         query = query.eq('metadata->>difficulty', filters.difficulty);
       }
     }
     
     // Filter by tags using overlap
     if (filters.tags && filters.tags.length > 0) {
-      console.log('🔍 Filtering by tags:', filters.tags);
+      // console.log('🔍 Filtering by tags:', filters.tags);
       query = query.overlaps('metadata->tags', filters.tags);
     }
     
@@ -476,7 +476,7 @@ class SupabaseClient {
       query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
     
-    console.log('🔍 Executing query with filters applied');
+    // console.log('🔍 Executing query with filters applied');
     const { data, error } = await this.withTimeout(query, 10000, 'getQuestions');
     
     if (error) {
@@ -484,9 +484,9 @@ class SupabaseClient {
       throw error;
     }
     
-    console.log(`✅ getQuestions returned ${data?.length || 0} questions`);
+    // console.log(`✅ getQuestions returned ${data?.length || 0} questions`);
     if (data && data.length > 0) {
-      console.log('🔍 Sample question metadata:', data[0].metadata);
+      // console.log('🔍 Sample question metadata:', data[0].metadata);
     }
     
     return data;
@@ -494,12 +494,12 @@ class SupabaseClient {
 
   async getRandomQuestion(filters = {}) {
     await this.waitForInitialization();
-    console.log('🎲 getRandomQuestion called with filters:', JSON.stringify(filters, null, 2));
+    // console.log('🎲 getRandomQuestion called with filters:', JSON.stringify(filters, null, 2));
     
     // Get all matching questions
     const questions = await this.getQuestions(filters);
     
-    console.log(`🎲 Found ${questions.length} matching questions`);
+    // console.log(`🎲 Found ${questions.length} matching questions`);
     
     if (questions.length === 0) {
       console.log('❌ No questions found matching the filters');
@@ -510,13 +510,13 @@ class SupabaseClient {
     const randomIndex = Math.floor(Math.random() * questions.length);
     const selectedQuestion = questions[randomIndex];
     
-    console.log(`🎲 Selected question ${randomIndex + 1}/${questions.length}:`, {
-      id: selectedQuestion.id,
-      level: selectedQuestion.metadata?.level,
-      type: selectedQuestion.metadata?.type,
-      topics: selectedQuestion.metadata?.topics,
-      difficulty: selectedQuestion.metadata?.difficulty
-    });
+    // console.log(`🎲 Selected question ${randomIndex + 1}/${questions.length}:`, {
+    //   id: selectedQuestion.id,
+    //   level: selectedQuestion.metadata?.level,
+    //   type: selectedQuestion.metadata?.type,
+    //   topics: selectedQuestion.metadata?.topics,
+    //   difficulty: selectedQuestion.metadata?.difficulty
+    // });
     
     return selectedQuestion;
   }

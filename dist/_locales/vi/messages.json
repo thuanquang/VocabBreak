@@ -260,6 +260,46 @@
   "error_generic": {
     "message": "Có lỗi xảy ra. Vui lòng thử lại.",
     "description": "Generic error message"
+  },
+  "level_progress": {
+    "message": "Tiến Trình Cấp Độ",
+    "description": "Level progress section heading"
+  },
+  "points_progress": {
+    "message": "$1 / $2 điểm",
+    "description": "Points progress display",
+    "placeholders": {
+      "1": {"content": "$1"},
+      "2": {"content": "$2"}
+    }
+  },
+  "please_select_answer": {
+    "message": "Vui lòng chọn một đáp án",
+    "description": "Error message when no answer is selected"
+  },
+  "please_enter_answer": {
+    "message": "Vui lòng nhập đáp án",
+    "description": "Error message when no text answer is entered"
+  },
+  "submitting": {
+    "message": "Đang gửi...",
+    "description": "Text shown while submitting answer"
+  },
+  "correct_continue": {
+    "message": "Chính xác! Bạn có thể tiếp tục duyệt web.",
+    "description": "Message shown when answer is correct"
+  },
+  "continue": {
+    "message": "Tiếp tục",
+    "description": "Continue button text"
+  },
+  "please_wait": {
+    "message": "Vui lòng đợi trước khi thử lại",
+    "description": "Message shown during penalty timer"
+  },
+  "close": {
+    "message": "Đóng",
+    "description": "Close button text"
   }
 }
 

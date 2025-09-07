@@ -22,7 +22,8 @@ class PopupManager {
       this.setupEventListeners();
 
       // Initialize i18n if available
-      if (window.chrome && chrome.i18n) {
+      if (window.i18n && window.i18n.ready) {
+        await window.i18n.ready;
         this.localizeInterface();
       }
 
@@ -524,11 +525,19 @@ class PopupManager {
 
   localizeInterface() {
     try {
+      if (!window.i18n) {
+        console.warn('i18n system not available for localization');
+        return;
+      }
+      
       const elements = document.querySelectorAll('[data-i18n]');
       elements.forEach(element => {
         const key = element.getAttribute('data-i18n');
-        const message = chrome.i18n.getMessage(key);
-        if (message) {
+        const args = element.getAttribute('data-i18n-args');
+        const substitutions = args ? args.split(',') : [];
+        
+        const message = window.i18n.getMessage(key, substitutions);
+        if (message && message !== key) {
           if (element.tagName === 'INPUT' && element.type === 'text') {
             element.placeholder = message;
           } else {

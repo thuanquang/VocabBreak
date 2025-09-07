@@ -18,8 +18,8 @@ async function setupCredentials() {
     }
     
     // Use the hardcoded credentials that were injected by the setup script
-    let supabaseUrl = 'https://nyxtigtweenrnsmaaoic.supabase.co'; // Replace with actual URL
-    let supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55eHRpZ3R3ZWVucm5zbWFhb2ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4MzE5NzIsImV4cCI6MjA3MTQwNzk3Mn0.w8nGFtcUpJnJ_UuH1zRqjvz22HuVrQIZjjR9JsGlByI'; // Replace with actual key
+    let supabaseUrl = ''; // Will be injected by build script
+    let supabaseKey = ''; // Will be injected by build script
     
     console.log('✅ Using injected Supabase credentials');
 

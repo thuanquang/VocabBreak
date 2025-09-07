@@ -76,7 +76,8 @@
         "assets/*",
         "content/question-ui.html",
         "shared/*",
-        "scripts/*"
+        "scripts/*",
+        "_locales/*"
       ],
       "matches": ["<all_urls>"]
     }

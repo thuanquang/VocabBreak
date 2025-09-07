@@ -28,6 +28,18 @@ class VocabBreakBlocker {
   }
 
   async setup() {
+    // Wait for i18n system to be ready
+    if (window.i18n && window.i18n.ready) {
+      try {
+        await window.i18n.ready;
+        console.log('i18n system ready in content script');
+      } catch (error) {
+        console.warn('Failed to wait for i18n system:', error);
+      }
+    } else {
+      console.warn('i18n system not available in content script');
+    }
+
     // Check if we should block this page
     const response = await this.sendMessage({ type: 'REQUEST_BLOCK_CHECK' });
     
@@ -199,7 +211,7 @@ class VocabBreakBlocker {
     this.overlay.innerHTML = `
       <div class="vocabbreak-modal">
         <div class="vocabbreak-header">
-          <h2 id="vocabbreak-title">Language Learning Break</h2>
+          <h2 id="vocabbreak-title">${this.getMessage('question_header')}</h2>
           <div class="vocabbreak-streak" id="vocabbreak-streak"></div>
         </div>
         <div class="vocabbreak-content" id="vocabbreak-content">
@@ -279,6 +291,13 @@ class VocabBreakBlocker {
       
       .vocabbreak-content {
         padding: 24px !important;
+      }
+      
+      .vocabbreak-instruction {
+        font-size: 14px !important;
+        color: #666 !important;
+        margin-bottom: 12px !important;
+        font-style: italic !important;
       }
       
       .vocabbreak-question {
@@ -406,6 +425,7 @@ class VocabBreakBlocker {
 
     if (this.currentQuestion.type === 'multiple-choice') {
       content.innerHTML = `
+        <div class="vocabbreak-instruction">${this.getMessage('question_instruction_mc')}</div>
         <div class="vocabbreak-question">${questionText}</div>
         <div class="vocabbreak-options" id="vocabbreak-options">
           ${(this.currentQuestion.options || this.currentQuestion.answers?.options || []).map((option, index) => {
@@ -419,9 +439,10 @@ class VocabBreakBlocker {
       `;
     } else if (this.currentQuestion.type === 'text-input') {
       content.innerHTML = `
+        <div class="vocabbreak-instruction">${this.getMessage('question_instruction_text')}</div>
         <div class="vocabbreak-question">${questionText}</div>
         <input type="text" class="vocabbreak-text-input" id="vocabbreak-text-input" 
-               placeholder="Type your answer here...">
+               placeholder="${this.getMessage('question_instruction_text')}">
       `;
       
       // Focus the input
@@ -434,7 +455,7 @@ class VocabBreakBlocker {
     footer.innerHTML = `
       <div class="vocabbreak-points">+${this.currentQuestion.pointsValue || this.currentQuestion.scoring?.base_points || 10} points</div>
       <button class="vocabbreak-submit" id="vocabbreak-submit-btn">
-        Submit Answer
+        ${this.getMessage('submit_answer')}
       </button>
     `;
 
@@ -481,7 +502,7 @@ class VocabBreakBlocker {
     if (this.currentQuestion.type === 'multiple-choice') {
       const selected = this.overlay.querySelector('.vocabbreak-option.selected');
       if (!selected) {
-        alert('Please select an answer');
+        alert(this.getMessage('please_select_answer'));
         return;
       }
       userAnswer = selected.dataset.value;
@@ -489,7 +510,7 @@ class VocabBreakBlocker {
       const input = this.overlay.querySelector('#vocabbreak-text-input');
       userAnswer = input.value.trim();
       if (!userAnswer) {
-        alert('Please enter an answer');
+        alert(this.getMessage('please_enter_answer'));
         return;
       }
     }
@@ -500,7 +521,7 @@ class VocabBreakBlocker {
     const submitBtn = this.overlay.querySelector('.vocabbreak-submit');
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Submitting...';
+      submitBtn.textContent = this.getMessage('submitting');
     }
 
     try {
@@ -558,9 +579,9 @@ class VocabBreakBlocker {
 
     if (isCorrect) {
       footer.innerHTML = `
-        <div style="color: #28a745; font-weight: 500;">Correct! You may continue browsing.</div>
+        <div style="color: #28a745; font-weight: 500;">${this.getMessage('correct_continue')}</div>
         <button class="vocabbreak-submit" id="vocabbreak-continue-btn" style="background: #28a745;">
-          Continue
+          ${this.getMessage('continue')}
         </button>
       `;
 
@@ -582,7 +603,7 @@ class VocabBreakBlocker {
       
       footer.innerHTML = `
         <div class="vocabbreak-penalty">
-          <div>Please wait before trying again</div>
+          <div>${this.getMessage('please_wait')}</div>
           <div class="vocabbreak-timer" id="vocabbreak-penalty-timer">30</div>
         </div>
       `;
@@ -620,7 +641,7 @@ class VocabBreakBlocker {
     const footer = this.overlay.querySelector('#vocabbreak-footer');
     footer.innerHTML = `
       <button class="vocabbreak-submit" id="vocabbreak-close-btn">
-        Close
+        ${this.getMessage('close')}
       </button>
     `;
 
@@ -866,6 +887,58 @@ class VocabBreakBlocker {
         resolve(response);
       });
     });
+  }
+
+  /**
+   * Get localized message
+   * @param {string} key - Message key
+   * @param {Array} substitutions - Array of substitution values
+   * @returns {string} Localized message
+   */
+  getMessage(key, substitutions = []) {
+    // Try to use i18n system if available and ready
+    if (window.i18n && window.i18n.getMessage && typeof window.i18n.getMessage === 'function') {
+      try {
+        const message = window.i18n.getMessage(key, substitutions);
+        // If i18n returns the key itself, it means the translation is missing
+        if (message && message !== key) {
+          return message;
+        }
+      } catch (error) {
+        console.warn('i18n.getMessage failed:', error);
+      }
+    }
+    
+    // Fallback to English if i18n not available or translation missing
+    const fallbacks = {
+      'question_header': 'Language Learning Break',
+      'question_instruction_mc': 'Choose the correct answer to continue browsing',
+      'question_instruction_text': 'Type the correct answer to continue browsing',
+      'submit_answer': 'Submit Answer',
+      'correct_answer': 'Correct! Well done!',
+      'incorrect_answer': 'Incorrect. Please wait $TIME$ seconds to try again.',
+      'please_select_answer': 'Please select an answer',
+      'please_enter_answer': 'Please enter an answer',
+      'submitting': 'Submitting...',
+      'correct_continue': 'Correct! You may continue browsing.',
+      'continue': 'Continue',
+      'please_wait': 'Please wait before trying again',
+      'close': 'Close'
+    };
+    let message = fallbacks[key] || key;
+    
+    // Handle placeholders
+    if (substitutions.length > 0) {
+      substitutions.forEach((sub, index) => {
+        message = message.replace(`$${index + 1}`, sub);
+      });
+      message = message.replace(/\$(\w+)\$/g, (match, placeholder) => {
+        const index = parseInt(placeholder) - 1;
+        return substitutions[index] || match;
+      });
+    }
+    
+    return message;
   }
 }
 

@@ -190,7 +190,11 @@ if (typeof document !== 'undefined') {
       if (i18n.ready) {
         await i18n.ready;
       }
-      i18n.localizePage(document);
+      // Only localize if we're not in a content script context
+      // Content scripts should handle their own localization
+      if (!window.chrome || !window.chrome.runtime || !window.chrome.runtime.getManifest) {
+        i18n.localizePage(document);
+      }
     } catch (e) {
       console.error('Localization init failed:', e);
     }
