@@ -106,7 +106,7 @@ class VocabBreakBlocker {
             ]);
           }
 
-          console.log('🔍 Attempting to fetch question from Supabase...');
+          // console.log('🔍 Attempting to fetch question from Supabase...');
           
           // Get user settings from chrome storage
           let userSettings = null;
@@ -121,7 +121,7 @@ class VocabBreakBlocker {
               questionTypes: result.questionTypes || ['multiple-choice', 'text-input'],
               topics: result.topics || ['general']
             };
-            console.log('🔍 Loaded user settings:', userSettings);
+            // console.log('🔍 Loaded user settings:', userSettings);
           } catch (error) {
             console.warn('⚠️ Failed to load user settings, using defaults:', error);
             userSettings = {
@@ -138,17 +138,17 @@ class VocabBreakBlocker {
             topics: userSettings.topics.length > 0 && userSettings.topics[0] !== 'general' ? userSettings.topics : undefined
           };
           
-          console.log('🔍 Using question filters based on user settings:', JSON.stringify(questionFilters, null, 2));
+          // console.log('🔍 Using question filters based on user settings:', JSON.stringify(questionFilters, null, 2));
           const dbQuestion = await window.supabaseClient.getRandomQuestion(questionFilters);
           
           if (dbQuestion) {
             // Transform database question to expected format
             question = this.transformDatabaseQuestion(dbQuestion);
-            console.log('✅ Question fetched from Supabase:', dbQuestion.id);
-            console.log('🔍 Raw database question structure:', dbQuestion);
-            console.log('🔍 Transformed question structure:', question);
+            // console.log('✅ Question fetched from Supabase:', dbQuestion.id);
+            // console.log('🔍 Raw database question structure:', dbQuestion);
+            // console.log('🔍 Transformed question structure:', question);
           } else {
-            console.log('📝 No questions returned from Supabase');
+            // console.log('📝 No questions returned from Supabase');
           }
         } catch (dbError) {
           if (window.errorHandler) {

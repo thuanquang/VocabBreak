@@ -416,24 +416,6 @@ class QuestionManager {
     };
   }
 
-  // Voice input placeholder methods
-  async startVoiceRecognition() {
-    // Placeholder for future voice input implementation
-    console.log('Voice recognition not yet implemented');
-    return null;
-  }
-
-  async stopVoiceRecognition() {
-    // Placeholder for future voice input implementation
-    console.log('Voice recognition not yet implemented');
-    return null;
-  }
-
-  validatePronunciation(audioData, correctAnswer) {
-    // Placeholder for future pronunciation validation
-    console.log('Pronunciation validation not yet implemented');
-    return { isCorrect: false, confidence: 0 };
-  }
 }
 
 // Global instance

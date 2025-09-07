@@ -18,8 +18,8 @@ async function setupCredentials() {
     }
     
     // Use the hardcoded credentials that were injected by the setup script
-    let supabaseUrl = 'YOUR_SUPABASE_URL'; // Replace with actual URL
-    let supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // Replace with actual key
+    let supabaseUrl = ''; // Will be injected by build script
+    let supabaseKey = ''; // Will be injected by build script
     
     console.log('✅ Using injected Supabase credentials');
 

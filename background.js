@@ -11,11 +11,11 @@ async function initializeSupabase() {
   try {
     // Service workers can't use CDN scripts, so we'll skip Supabase initialization here
     // Questions will be handled through content script communication
-    console.log('📝 Background script will use local question bank');
-    console.log('📝 Supabase operations will be handled by content scripts when needed');
+    // console.log('📝 Background script will use local question bank');
+    // console.log('📝 Supabase operations will be handled by content scripts when needed');
   } catch (error) {
     console.warn('⚠️ Supabase client not available in background:', error);
-    console.log('📝 Extension will work with local question bank instead');
+    // console.log('📝 Extension will work with local question bank instead');
   }
 }
 
@@ -31,7 +31,7 @@ class BackgroundManager {
   }
 
   async init() {
-    console.log('VocabBreak background script initializing...');
+    // console.log('VocabBreak background script initializing...');
     
     // Initialize Supabase client
     await initializeSupabase();
@@ -39,7 +39,7 @@ class BackgroundManager {
     // Initialize question manager if available
     if (typeof QuestionManager !== 'undefined') {
       window.questionManager = new QuestionManager();
-      console.log('✅ Question manager initialized in background');
+      // console.log('✅ Question manager initialized in background');
     }
     
     // Set up event listeners
@@ -52,7 +52,7 @@ class BackgroundManager {
     await this.initializeExistingTabs();
     
     this.isInitialized = true;
-    console.log('VocabBreak background script initialized');
+    // console.log('VocabBreak background script initialized');
   }
 
   setupEventListeners() {
@@ -130,7 +130,7 @@ class BackgroundManager {
     // Set up periodic timer
     this.schedulePeriodicQuestion(tabId);
 
-    console.log(`Initialized tab ${tabId} for URL: ${url}`);
+    // console.log(`Initialized tab ${tabId} for URL: ${url}`);
   }
 
   shouldBlockUrl(url) {
@@ -800,43 +800,7 @@ class BackgroundManager {
 
       // Background script doesn't have access to Supabase (service worker limitation)
       // Stats will be handled by popup and content scripts
-      if (false) { // Disabled for service worker
-        try {
-          const userProfile = null; // await supabaseClient.getUserProfile();
-          if (userProfile && userProfile.profile) {
-            const profile = userProfile.profile;
-            
-            stats.totalPoints = profile.gamification?.total_points || 0;
-            stats.currentStreak = profile.gamification?.current_streak || 0;
-            stats.longestStreak = profile.gamification?.longest_streak || 0;
-            stats.currentLevel = profile.gamification?.current_level || 1;
-            
-            stats.questionsAnswered = profile.statistics?.total_questions_answered || 0;
-            stats.correctAnswers = profile.statistics?.total_correct_answers || 0;
-            
-            if (stats.questionsAnswered > 0) {
-              stats.accuracyRate = Math.round((stats.correctAnswers / stats.questionsAnswered) * 100);
-            }
-
-            // Calculate level progress
-            const levelThresholds = [0, 500, 1500, 3500, 7000, 13000];
-            const currentLevelIndex = Math.min(stats.currentLevel - 1, levelThresholds.length - 1);
-            const currentLevelMin = levelThresholds[currentLevelIndex];
-            const nextLevelMin = levelThresholds[Math.min(currentLevelIndex + 1, levelThresholds.length - 1)];
-            
-            stats.pointsToNextLevel = nextLevelMin;
-            if (nextLevelMin > currentLevelMin) {
-              stats.levelProgress = Math.round(((stats.totalPoints - currentLevelMin) / (nextLevelMin - currentLevelMin)) * 100);
-            }
-
-            // Level names
-            const levelNames = ['Beginner', 'Elementary', 'Intermediate', 'Upper-Intermediate', 'Advanced', 'Expert'];
-            stats.levelName = levelNames[Math.min(stats.currentLevel - 1, levelNames.length - 1)];
-          }
-        } catch (dbError) {
-          console.warn('Failed to get stats from database, using offline data:', dbError);
-        }
-      }
+      // Note: User statistics are managed by popup and content scripts that have Supabase access
 
       // Fallback to offline data if no database stats
       if (stats.totalPoints === 0 && window.offlineManager) {
