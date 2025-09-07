@@ -34,6 +34,13 @@ class OptionsManager {
     await this.loadUserData();
     await this.loadSettings();
     
+    // Wait for i18n ready, then localize and set lang
+    if (window.i18n && window.i18n.ready) {
+      await window.i18n.ready;
+      document.documentElement.lang = window.i18n.getCurrentLocale();
+      window.i18n.localizePage(document);
+    }
+
     // Initialize UI
     this.initializeUI();
     
@@ -52,8 +59,8 @@ class OptionsManager {
     });
 
     // Save button
-    document.getElementById('save-settings').addEventListener('click', () => {
-      this.saveSettings();
+    document.getElementById('save-settings').addEventListener('click', async () => {
+      await this.saveSettings();
     });
 
     // Account actions
@@ -64,7 +71,9 @@ class OptionsManager {
       this.exportData();
     });
     document.getElementById('reset-data').addEventListener('click', () => {
-      this.showConfirmModal('Reset All Data', 'This will permanently delete all your progress and settings. This action cannot be undone.', () => {
+      const title = window.i18n ? window.i18n.getMessage('reset_all_data') : 'Reset All Data';
+      const msg = window.i18n ? window.i18n.getMessage('reset_data_warning') : 'This will permanently delete all your progress and settings. This action cannot be undone.';
+      this.showConfirmModal(title, msg, () => {
         this.resetData();
       });
     });
@@ -175,23 +184,23 @@ class OptionsManager {
     if (this.user) {
       accountInfo.innerHTML = `
         <div class="account-field">
-          <span class="account-label">Email</span>
+          <span class="account-label">${window.i18n ? window.i18n.getMessage('email') : 'Email'}</span>
           <span class="account-value">${this.user.email}</span>
         </div>
         <div class="account-field">
-          <span class="account-label">Account Created</span>
+          <span class="account-label">${window.i18n ? window.i18n.getMessage('account_created') : 'Account Created'}</span>
           <span class="account-value">${new Date(this.user.created_at).toLocaleDateString()}</span>
         </div>
         <div class="account-field">
-          <span class="account-label">User ID</span>
+          <span class="account-label">${window.i18n ? window.i18n.getMessage('user_id') : 'User ID'}</span>
           <span class="account-value">${this.user.id.substring(0, 8)}...</span>
         </div>
       `;
     } else {
       accountInfo.innerHTML = `
         <div class="account-field">
-          <span class="account-label">Status</span>
-          <span class="account-value">Not logged in</span>
+          <span class="account-label">${window.i18n ? window.i18n.getMessage('status') : 'Status'}</span>
+          <span class="account-value">${window.i18n ? window.i18n.getMessage('not_logged_in') : 'Not logged in'}</span>
         </div>
       `;
     }
@@ -258,14 +267,15 @@ class OptionsManager {
     const siteList = document.getElementById('site-list');
     
     if (this.settings.siteList.length === 0) {
-      siteList.innerHTML = '<p style="color: #718096; text-align: center; padding: 20px;">No sites added yet</p>';
+      const empty = window.i18n ? window.i18n.getMessage('no_sites_added') : 'No sites added yet';
+      siteList.innerHTML = `<p style="color: #718096; text-align: center; padding: 20px;">${empty}</p>`;
       return;
     }
 
     siteList.innerHTML = this.settings.siteList.map(site => `
       <div class="site-item">
         <span class="site-url">${site}</span>
-        <button class="remove-site" onclick="optionsManager.removeSite('${site}')">Remove</button>
+        <button class="remove-site" onclick="optionsManager.removeSite('${site}')">${window.i18n ? window.i18n.getMessage('remove') : 'Remove'}</button>
       </div>
     `).join('');
   }
@@ -287,23 +297,23 @@ class OptionsManager {
       progressOverview.innerHTML = `
         <div class="progress-card">
           <span class="progress-value">${this.formatNumber(stats.totalPoints)}</span>
-          <span class="progress-label">Total Points</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('total_points') : 'Total Points'}</span>
         </div>
         <div class="progress-card">
           <span class="progress-value">${stats.currentStreak}</span>
-          <span class="progress-label">Current Streak</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('current_streak') : 'Current Streak'}</span>
         </div>
         <div class="progress-card">
           <span class="progress-value">${stats.questionsAnswered}</span>
-          <span class="progress-label">Questions Answered</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('questions_answered') : 'Questions Answered'}</span>
         </div>
         <div class="progress-card">
           <span class="progress-value">${stats.accuracyRate}%</span>
-          <span class="progress-label">Accuracy Rate</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('accuracy_rate') : 'Accuracy Rate'}</span>
         </div>
         <div class="progress-card">
-          <span class="progress-value">Level ${stats.currentLevel}</span>
-          <span class="progress-label">Current Level</span>
+          <span class="progress-value">${window.i18n ? window.i18n.getMessage('level_with_number', [String(stats.currentLevel)]) : `Level ${stats.currentLevel}`}</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('current_level') : 'Current Level'}</span>
         </div>
       `;
     } catch (error) {
@@ -312,23 +322,23 @@ class OptionsManager {
       progressOverview.innerHTML = `
         <div class="progress-card">
           <span class="progress-value">0</span>
-          <span class="progress-label">Total Points</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('total_points') : 'Total Points'}</span>
         </div>
         <div class="progress-card">
           <span class="progress-value">0</span>
-          <span class="progress-label">Current Streak</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('current_streak') : 'Current Streak'}</span>
         </div>
         <div class="progress-card">
           <span class="progress-value">0</span>
-          <span class="progress-label">Questions Answered</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('questions_answered') : 'Questions Answered'}</span>
         </div>
         <div class="progress-card">
           <span class="progress-value">0%</span>
-          <span class="progress-label">Accuracy Rate</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('accuracy_rate') : 'Accuracy Rate'}</span>
         </div>
         <div class="progress-card">
-          <span class="progress-value">Level 1</span>
-          <span class="progress-label">Current Level</span>
+          <span class="progress-value">${window.i18n ? window.i18n.getMessage('level_with_number', ['1']) : 'Level 1'}</span>
+          <span class="progress-label">${window.i18n ? window.i18n.getMessage('current_level') : 'Current Level'}</span>
         </div>
       `;
     }
@@ -395,7 +405,7 @@ class OptionsManager {
 
   setupAutoSave() {
     // Set up change listeners for all form elements
-    document.addEventListener('change', (e) => {
+    document.addEventListener('change', async (e) => {
       if (e.target.matches('input[name="levels"]')) {
         this.updateDifficultyLevels();
       } else if (e.target.matches('input[name="question-types"]')) {
@@ -407,6 +417,11 @@ class OptionsManager {
         this.markDirty();
       } else if (e.target.matches('input[name="interface-language"]')) {
         this.settings.interfaceLanguage = e.target.value;
+        if (window.i18n) {
+          await window.i18n.setLocale(this.settings.interfaceLanguage);
+          window.i18n.localizePage(document);
+          document.documentElement.lang = window.i18n.getCurrentLocale();
+        }
         this.markDirty();
       } else if (e.target.id === 'gamification-enabled') {
         this.settings.gamificationEnabled = e.target.checked;
@@ -535,21 +550,21 @@ class OptionsManager {
     const statusText = document.querySelector('#sync-status .status-text');
     
     statusIndicator.className = 'status-indicator syncing';
-    statusText.textContent = 'Syncing...';
+    statusText.textContent = window.i18n ? window.i18n.getMessage('syncing') : 'Syncing...';
     
     try {
       // Simulate sync delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       statusIndicator.className = 'status-indicator';
-      statusText.textContent = 'Synced';
-      this.showNotification('Data synced successfully');
+      statusText.textContent = window.i18n ? window.i18n.getMessage('synced') : 'Synced';
+      this.showNotification(window.i18n ? window.i18n.getMessage('data_synced_success') : 'Data synced successfully');
       
     } catch (error) {
       console.error('Sync failed:', error);
       statusIndicator.className = 'status-indicator error';
-      statusText.textContent = 'Sync failed';
-      this.showNotification('Failed to sync data', 'error');
+      statusText.textContent = window.i18n ? window.i18n.getMessage('sync_failed') : 'Sync failed';
+      this.showNotification(window.i18n ? window.i18n.getMessage('sync_failed_full') : 'Failed to sync data', 'error');
     }
   }
 
@@ -571,7 +586,7 @@ class OptionsManager {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    this.showNotification('Data exported successfully');
+    this.showNotification(window.i18n ? window.i18n.getMessage('data_exported_success') : 'Data exported successfully');
   }
 
   async resetData() {
@@ -598,11 +613,11 @@ class OptionsManager {
       this.updateProgressOverview();
       this.updateAchievements();
       
-      this.showNotification('All data has been reset');
+      this.showNotification(window.i18n ? window.i18n.getMessage('all_data_reset') : 'All data has been reset');
       
     } catch (error) {
       console.error('Failed to reset data:', error);
-      this.showNotification('Failed to reset data', 'error');
+      this.showNotification(window.i18n ? window.i18n.getMessage('failed_to_reset_data') : 'Failed to reset data', 'error');
     }
   }
 
@@ -614,10 +629,10 @@ class OptionsManager {
   updateSaveButton() {
     const saveButton = document.getElementById('save-settings');
     if (this.isDirty) {
-      saveButton.textContent = 'Save Changes *';
+      saveButton.textContent = window.i18n ? window.i18n.getMessage('save_changes_star') : 'Save Changes *';
       saveButton.style.background = '#ed8936';
     } else {
-      saveButton.textContent = 'Save Changes';
+      saveButton.textContent = window.i18n ? window.i18n.getMessage('save_changes') : 'Save Changes';
       saveButton.style.background = '';
     }
   }

@@ -6,6 +6,7 @@
     <title>VocabBreak</title>
     <link rel="stylesheet" href="popup.css">
     <script src="../shared/supabase.js"></script>
+    <script src="../shared/i18n.js"></script>
     <script src="../shared/error-handler.js"></script>
     <script src="../shared/state-manager.js"></script>
     <script src="../shared/setup-credentials.js"></script>
@@ -18,7 +19,7 @@
         <div class="loading-content">
             <div class="loading-spinner"></div>
             <h2 data-i18n="extensionName">VocabBreak</h2>
-            <p>Loading...</p>
+            <p data-i18n="loading">Loading...</p>
         </div>
     </div>
 
@@ -65,7 +66,7 @@
                     <span id="user-level" class="level-badge">Level 1</span>
                 </div>
             </div>
-            <button id="logout-btn" class="btn-icon" title="Logout">
+            <button id="logout-btn" class="btn-icon" title="Logout" data-i18n="logout">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M16 13v-2H7V8.5L3.5 12 7 15.5V13h9zm-2-7h4v12h-4v2h6V4h-6v2z"/>
                 </svg>
@@ -107,14 +108,14 @@
         </div>
 
         <div class="progress-section">
-            <h3>Level Progress</h3>
+            <h3 data-i18n="level_progress">Level Progress</h3>
             <div class="level-progress">
                 <div class="progress-bar">
                     <div class="progress-fill" id="level-progress-fill"></div>
                 </div>
                 <div class="progress-info">
                     <span id="progress-text">Level 1 - Beginner</span>
-                    <span id="progress-points">0 / 500 points</span>
+                    <span id="progress-points" data-i18n="points_progress" data-i18n-args="0,500">0 / 500 points</span>
                 </div>
             </div>
         </div>
@@ -142,7 +143,7 @@
         <div class="footer">
             <div class="sync-status" id="sync-status">
                 <span class="sync-indicator"></span>
-                <span class="sync-text">Synced</span>
+                <span class="sync-text" data-i18n="synced">Synced</span>
             </div>
         </div>
     </div>
@@ -151,9 +152,9 @@
     <div id="error-screen" class="screen hidden">
         <div class="error-content">
             <div class="error-icon">⚠️</div>
-            <h2>Something went wrong</h2>
-            <p id="error-message">An unexpected error occurred.</p>
-            <button id="retry-btn" class="btn btn-primary">Try Again</button>
+            <h2 data-i18n="something_wrong">Something went wrong</h2>
+            <p id="error-message" data-i18n="unexpected_error">An unexpected error occurred.</p>
+            <button id="retry-btn" class="btn btn-primary" data-i18n="try_again">Try Again</button>
         </div>
     </div>
 
