@@ -179,9 +179,10 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 
 ### Localization Features
 - **Interface Translation**: All UI elements translated
-- **Question Content**: Bilingual question text and explanations
+- **Question Content**: Bilingual question text and explanations with user language preference
 - **Cultural Adaptation**: Number formatting, date formats, cultural references
 - **Dynamic Switching**: Runtime language switching without restart
+- **Content Script Localization**: Questions display in user's preferred language (en/vi) with proper fallback
 
 ## Build & Distribution
 

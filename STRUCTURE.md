@@ -198,6 +198,7 @@ VocabBreak STRUCTURE (for assistant reference)
 - **Runtime Switching**: Language changes without extension restart
 - **Cultural Adaptation**: Number formatting, date formats, cultural references
 - **Fallback System**: English fallback for missing translations
+- **Question Localization**: Questions display in user's preferred language (en/vi) with proper fallback
 
 ## Performance & Optimization
 

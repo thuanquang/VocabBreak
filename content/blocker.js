@@ -192,7 +192,7 @@ class VocabBreakBlocker {
       this.startTime = Date.now();
 
       this.createOverlay();
-      this.renderQuestion();
+      await this.renderQuestion();
 
     } catch (error) {
       console.error('Failed to show question:', error);
@@ -410,18 +410,23 @@ class VocabBreakBlocker {
     document.head.appendChild(style);
   }
 
-  renderQuestion() {
+  async renderQuestion() {
     if (!this.currentQuestion) return;
 
     const content = this.overlay.querySelector('#vocabbreak-content');
     const footer = this.overlay.querySelector('#vocabbreak-footer');
 
-    // Get question text (default to English for now)
-    const questionText = this.currentQuestion.questionText?.en || 
-                        this.currentQuestion.questionText?.vi || 
-                        this.currentQuestion.content?.text?.en || 
-                        this.currentQuestion.content?.text?.vi ||
-                        'Question text not available';
+    // Get user's interface language setting
+    let userLanguage = 'en'; // default fallback
+    try {
+      const result = await chrome.storage.sync.get(['interfaceLanguage']);
+      userLanguage = result.interfaceLanguage || 'en';
+    } catch (error) {
+      console.warn('Failed to get interface language setting:', error);
+    }
+
+    // Get question text based on user's language preference
+    const questionText = this.getLocalizedQuestionText(userLanguage);
 
     if (this.currentQuestion.type === 'multiple-choice') {
       content.innerHTML = `
@@ -461,6 +466,63 @@ class VocabBreakBlocker {
 
     // Add event listeners after DOM is created
     this.setupQuestionEventListeners();
+  }
+
+  getLocalizedQuestionText(userLanguage) {
+    const question = this.currentQuestion;
+    if (!question) return 'Question text not available';
+
+    // Try to get text in user's preferred language first
+    let text = null;
+    
+    // Check questionText object structure
+    if (question.questionText && question.questionText[userLanguage]) {
+      text = question.questionText[userLanguage];
+    }
+    // Check content.text object structure (for Supabase questions)
+    else if (question.content && question.content.text && question.content.text[userLanguage]) {
+      text = question.content.text[userLanguage];
+    }
+    
+    // Fallback to English if preferred language not available
+    if (!text) {
+      if (question.questionText && question.questionText.en) {
+        text = question.questionText.en;
+      } else if (question.content && question.content.text && question.content.text.en) {
+        text = question.content.text.en;
+      }
+    }
+    
+    // Final fallback
+    return text || 'Question text not available';
+  }
+
+  getLocalizedExplanation(userLanguage) {
+    const question = this.currentQuestion;
+    if (!question) return '';
+
+    // Try to get explanation in user's preferred language first
+    let explanation = null;
+    
+    // Check explanation object structure
+    if (question.explanation && question.explanation[userLanguage]) {
+      explanation = question.explanation[userLanguage];
+    }
+    // Check content.explanation object structure (for Supabase questions)
+    else if (question.content && question.content.explanation && question.content.explanation[userLanguage]) {
+      explanation = question.content.explanation[userLanguage];
+    }
+    
+    // Fallback to English if preferred language not available
+    if (!explanation) {
+      if (question.explanation && question.explanation.en) {
+        explanation = question.explanation.en;
+      } else if (question.content && question.content.explanation && question.content.explanation.en) {
+        explanation = question.content.explanation.en;
+      }
+    }
+    
+    return explanation || '';
   }
 
   setupQuestionEventListeners() {
@@ -530,7 +592,7 @@ class VocabBreakBlocker {
       // If this is a Supabase question, validate it locally
       if (this.currentQuestion.id && !this.currentQuestion.id.startsWith('local_')) {
         console.log('🔍 Validating Supabase question locally');
-        response = this.validateSupabaseQuestion(userAnswer);
+        response = await this.validateSupabaseQuestion(userAnswer);
       } else {
         // Send to background script for local question validation
         response = await this.sendMessage({
@@ -722,11 +784,20 @@ class VocabBreakBlocker {
     }
   }
 
-  validateSupabaseQuestion(userAnswer) {
+  async validateSupabaseQuestion(userAnswer) {
     try {
       const question = this.currentQuestion;
       if (!question) {
         return { success: false, error: 'No question available' };
+      }
+
+      // Get user's interface language setting
+      let userLanguage = 'en'; // default fallback
+      try {
+        const result = await chrome.storage.sync.get(['interfaceLanguage']);
+        userLanguage = result.interfaceLanguage || 'en';
+      } catch (error) {
+        console.warn('Failed to get interface language setting:', error);
       }
 
       console.log('🔍 Validating answer for question:', question.id);
@@ -771,16 +842,16 @@ class VocabBreakBlocker {
       // Check if user answer matches any correct answer
       const isCorrect = normalizedCorrectAnswers.some(correct => correct === normalizedUserAnswer);
 
-      // Generate feedback
+      // Generate localized feedback
       let feedback = '';
       let explanation = '';
       
       if (isCorrect) {
-        feedback = 'Correct! Well done!';
-        explanation = question.explanation?.en || 'Great job! You got it right.';
+        feedback = this.getMessage('correct_answer');
+        explanation = this.getLocalizedExplanation(userLanguage) || this.getMessage('correct_answer');
       } else {
-        feedback = `Not quite right. The correct answer is: ${correctAnswers[0] || 'unknown'}`;
-        explanation = question.explanation?.en || 'Keep trying!';
+        feedback = this.getMessage('incorrect_answer', [correctAnswers[0] || 'unknown']);
+        explanation = this.getLocalizedExplanation(userLanguage) || this.getMessage('try_again');
       }
 
       return {
