@@ -42,6 +42,7 @@
         "shared/auth-manager.js",
         "shared/offline-manager.js",
         "shared/question-manager.js",
+        "shared/gamification.js",
         "content/blocker.js"
       ],
       "css": ["content/blocker.css"],

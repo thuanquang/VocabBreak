@@ -398,7 +398,28 @@ class PopupManager {
 
   updateStatsDisplay(stats) {
     try {
-      if (!stats) return;
+      if (!stats) {
+        // If no stats provided, try to get them from gamification manager
+        if (window.gamificationManager) {
+          const gamificationStats = window.gamificationManager.getUserStats();
+          const currentLevel = window.gamificationManager.getCurrentLevel();
+          const nextLevelProgress = window.gamificationManager.getNextLevelProgress();
+          
+          stats = {
+            currentStreak: gamificationStats.currentStreak || 0,
+            totalPoints: gamificationStats.totalPoints || 0,
+            questionsAnswered: gamificationStats.totalQuestions || 0,
+            accuracyRate: gamificationStats.totalQuestions > 0 ? 
+              Math.round((gamificationStats.correctAnswers / gamificationStats.totalQuestions) * 100) : 0,
+            currentLevel: currentLevel.level || 1,
+            levelName: currentLevel.name || 'Beginner',
+            levelProgress: nextLevelProgress.progress || 0,
+            pointsToNextLevel: nextLevelProgress.nextLevel?.points || 500
+          };
+        } else {
+          return; // No stats available
+        }
+      }
       
       // Update stat cards
       this.setElementText('current-streak', stats.currentStreak || 0);
@@ -476,9 +497,16 @@ class PopupManager {
       const recentAchievementsContainer = document.getElementById('recent-achievements');
       if (!recentAchievementsContainer) return;
 
-      // Get achievements from background script
-      const response = await this.sendMessage({ type: 'GET_ACHIEVEMENTS' });
-      const achievements = response?.achievements || {};
+      let achievements = {};
+      
+      // Try to get achievements from gamification manager first
+      if (window.gamificationManager) {
+        achievements = window.gamificationManager.getAchievements();
+      } else {
+        // Fallback to background script
+        const response = await this.sendMessage({ type: 'GET_ACHIEVEMENTS' });
+        achievements = response?.achievements || {};
+      }
 
       // Filter to show only unlocked achievements (recent ones)
       const unlockedAchievements = Object.values(achievements).filter(a => a.unlocked);
@@ -493,7 +521,29 @@ class PopupManager {
       }
 
       // Show up to 3 most recent achievements
-      const recentAchievements = unlockedAchievements.slice(0, 3);
+      const recentAchievements = unlockedAchievements.slice(-3).reverse();
+      
+      const achievementsHTML = recentAchievements.map(achievement => `
+        <div class="achievement-item">
+          <div class="achievement-icon">${achievement.icon}</div>
+          <div class="achievement-details">
+            <div class="achievement-name">${achievement.name}</div>
+            <div class="achievement-description">${achievement.description}</div>
+          </div>
+          <div class="achievement-points">+${achievement.points}</div>
+        </div>
+      `).join('');
+      
+      recentAchievementsContainer.innerHTML = `
+        <h3>Recent Achievements</h3>
+        <div class="achievements-list">
+          ${achievementsHTML}
+        </div>
+      `;
+    } catch (error) {
+      window.errorHandler?.handleUIError(error, { context: 'update-recent-achievements' });
+    }
+  }(0, 3);
 
       recentAchievementsContainer.innerHTML = `
         <h3>Recent Achievements</h3>

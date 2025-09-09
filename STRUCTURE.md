@@ -25,7 +25,7 @@ VocabBreak STRUCTURE (for assistant reference)
 - **state-manager.js**: Application state management with subscription system
 - **auth-manager.js**: Authentication flow management and user session handling
 - **question-manager.js**: Question selection, filtering, validation, and caching
-- **gamification.js**: Points, streaks, levels, achievements, and motivation system
+- **gamification.js**: Points, streaks, levels, achievements, and motivation system ✅ FIXED: Now properly loaded
 - **offline-manager.js**: IndexedDB operations, offline sync, data persistence
 - **site-filter.js**: URL pattern matching, blocking logic, site list management
 - **i18n.js**: Internationalization for English/Vietnamese with message loading
@@ -65,7 +65,7 @@ VocabBreak STRUCTURE (for assistant reference)
 
 ## Script Loading Order & Dependencies
 
-### Content Scripts (manifest.json)
+### Content Scripts (manifest.json) ✅ FIXED: Added gamification.js
 1. **shared/supabase.js** - Supabase library (must load first)
 2. **shared/error-handler.js** - Error handling system
 3. **shared/state-manager.js** - Application state management
@@ -75,16 +75,21 @@ VocabBreak STRUCTURE (for assistant reference)
 7. **shared/auth-manager.js** - Authentication management
 8. **shared/offline-manager.js** - Offline data management
 9. **shared/question-manager.js** - Question system
-10. **content/blocker.js** - Main content script
+10. **shared/gamification.js** - Gamification system ✅ ADDED
+11. **content/blocker.js** - Main content script ✅ UPDATED: Integrated gamification calls
 
-### Popup/Options HTML Loading
+### Popup/Options HTML Loading ✅ FIXED: Added missing scripts
 1. **shared/supabase.js** - Supabase library
 2. **shared/error-handler.js** - Error handling
 3. **shared/state-manager.js** - State management
 4. **shared/setup-credentials.js** - Credentials
-5. **shared/supabase-client.js** - Supabase client
-6. **shared/auth-manager.js** - Authentication
-7. **Application-specific scripts** - Popup/options managers
+5. **shared/i18n.js** - Internationalization
+6. **shared/supabase-client.js** - Supabase client
+7. **shared/auth-manager.js** - Authentication
+8. **shared/offline-manager.js** - Offline management ✅ ADDED
+9. **shared/question-manager.js** - Question system ✅ ADDED
+10. **shared/gamification.js** - Gamification system ✅ ADDED
+11. **Application-specific scripts** - Popup/options managers ✅ UPDATED: Enhanced with gamification integration
 
 ### Background Script (Service Worker)
 - **background.js** - Main service worker

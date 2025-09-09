@@ -614,6 +614,42 @@ class VocabBreakBlocker {
       }
 
       if (response && response.success) {
+        // Calculate gamification points and update stats
+        if (window.gamificationManager) {
+          // First calculate proper points using gamification manager
+          let calculatedPoints = 0;
+          if (response.validation.isCorrect && this.currentQuestion) {
+            const pointsResult = window.gamificationManager.calculatePoints(
+              this.currentQuestion,
+              true,
+              timeTaken,
+              window.gamificationManager.getUserStats().currentStreak || 0
+            );
+            calculatedPoints = pointsResult.totalPoints;
+          }
+          
+          const questionResult = {
+            correct: response.validation.isCorrect,
+            pointsEarned: calculatedPoints,
+            timeTaken: timeTaken,
+            question: this.currentQuestion
+          };
+          
+          try {
+            const gamificationResult = await window.gamificationManager.updateStats(questionResult);
+            
+            // Add gamification feedback to response
+            response.gamification = gamificationResult;
+            response.motivationMessage = window.gamificationManager.getMotivationMessage(questionResult);
+            
+            console.log('✅ Gamification stats updated:', gamificationResult);
+          } catch (error) {
+            console.warn('Failed to update gamification stats:', error);
+          }
+        } else {
+          console.warn('Gamification manager not available');
+        }
+        
         // Also try to record interaction in Supabase if available
         await this.recordInteractionToDatabase(response, timeTaken);
         this.showFeedback(response);
@@ -650,7 +686,49 @@ class VocabBreakBlocker {
     const footer = this.overlay.querySelector('#vocabbreak-footer');
 
     if (isCorrect) {
+      let gamificationHTML = '';
+      
+      // Add gamification feedback if available
+      if (response.gamification) {
+        const gamification = response.gamification;
+        let feedbackParts = [];
+        
+        if (gamification.totalPoints > 0) {
+          feedbackParts.push(`🎯 +${gamification.totalPoints} points`);
+        }
+        
+        if (gamification.levelUp) {
+          feedbackParts.push(`🎉 Level up! Now ${gamification.newLevel.name}`);
+        }
+        
+        if (gamification.streakBonus) {
+          feedbackParts.push(`🔥 Streak bonus!`);
+        }
+        
+        if (gamification.newAchievements && gamification.newAchievements.length > 0) {
+          gamification.newAchievements.forEach(achievement => {
+            feedbackParts.push(`🏆 ${achievement.icon} ${achievement.name}`);
+          });
+        }
+        
+        if (feedbackParts.length > 0) {
+          gamificationHTML = `
+            <div class="vocabbreak-points-earned">
+              ${feedbackParts.join('<br>')}
+            </div>
+          `;
+        }
+      }
+      
+      // Add motivation message if available
+      let motivationHTML = '';
+      if (response.motivationMessage) {
+        motivationHTML = `<div style="color: #28a745; font-weight: 500; margin-bottom: 10px;">${response.motivationMessage}</div>`;
+      }
+      
       footer.innerHTML = `
+        ${motivationHTML}
+        ${gamificationHTML}
         <div style="color: #28a745; font-weight: 500;">${this.getMessage('correct_continue')}</div>
         <button class="vocabbreak-submit" id="vocabbreak-continue-btn" style="background: #28a745;">
           ${this.getMessage('continue')}
