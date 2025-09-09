@@ -27,6 +27,7 @@ class BackgroundManager {
     this.wrongAnswerPenalty = 30 * 1000; // 30 seconds in milliseconds
     this.isInitialized = false;
     
+    console.log('🔧 BackgroundManager constructor called, interval =', this.periodicInterval / 60000, 'minutes');
     this.init();
   }
 
@@ -115,15 +116,28 @@ class BackgroundManager {
       return;
     }
 
-    // Create new tab state
-    const tabState = {
-      url: url,
-      lastQuestionTime: 0,
-      questionCount: 0,
-      isBlocked: false,
-      blockReason: null,
-      penaltyEndTime: 0
-    };
+    // Check if tab state already exists (preserve lastQuestionTime)
+    let tabState = this.tabStates.get(tabId);
+    
+    if (!tabState) {
+      // Create new tab state only if none exists
+      // Set lastQuestionTime to now so the 30-minute timer starts from first visit
+      const now = Date.now();
+      tabState = {
+        url: url,
+        lastQuestionTime: now,
+        questionCount: 0,
+        isBlocked: false,
+        blockReason: null,
+        penaltyEndTime: 0
+      };
+      console.log(`🆕 Created NEW tab state for ${tabId}: lastQuestionTime = ${now} (starting 30min timer)`);
+    } else {
+      // Update URL but preserve timing data
+      const oldLastQuestionTime = tabState.lastQuestionTime;
+      tabState.url = url;
+      console.log(`♻️ PRESERVED tab state for ${tabId}: lastQuestionTime = ${oldLastQuestionTime} (${Math.round((Date.now() - oldLastQuestionTime) / 1000)}s ago)`);
+    }
 
     this.tabStates.set(tabId, tabState);
 
@@ -340,17 +354,21 @@ class BackgroundManager {
 
     const tabState = this.tabStates.get(tabId);
     if (!tabState) {
+      console.log(`❌ No tab state found for ${tabId}, not blocking`);
       return false;
     }
 
     // Check if currently in penalty period
     if (tabState.penaltyEndTime > Date.now()) {
+      console.log(`⏳ Tab ${tabId} in penalty period, blocking`);
       return true;
     }
 
     // Check if question is due
     const timeSinceLastQuestion = Date.now() - tabState.lastQuestionTime;
     const isQuestionDue = timeSinceLastQuestion >= this.periodicInterval;
+    
+    console.log(`🔍 Tab ${tabId} block check: timeSince=${Math.round(timeSinceLastQuestion/1000)}s, interval=${this.periodicInterval/1000}s, due=${isQuestionDue}, blocked=${tabState.isBlocked}`);
 
     return tabState.isBlocked || isQuestionDue;
   }
@@ -714,6 +732,11 @@ class BackgroundManager {
       
       if (stored.tabStates) {
         for (const [tabId, state] of Object.entries(stored.tabStates)) {
+          // Fix for existing broken states: if lastQuestionTime is 0, set it to now
+          if (state.lastQuestionTime === 0) {
+            state.lastQuestionTime = Date.now();
+            console.log(`🔧 Fixed broken tab state ${tabId}: set lastQuestionTime to now`);
+          }
           this.tabStates.set(parseInt(tabId), state);
         }
       }
@@ -954,6 +977,7 @@ class BackgroundManager {
 }
 
 // Initialize background manager
+console.log('🚀 VocabBreak background script starting up...');
 const backgroundManager = new BackgroundManager();
 
 // Persist states periodically

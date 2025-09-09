@@ -41,10 +41,15 @@ class VocabBreakBlocker {
     }
 
     // Check if we should block this page
+    console.log('🔍 VocabBreak content script checking if should block...');
     const response = await this.sendMessage({ type: 'REQUEST_BLOCK_CHECK' });
+    console.log('🔍 Block check response:', response);
     
     if (response && response.shouldBlock) {
+      console.log('❌ BLOCKING: Showing question overlay');
       this.showQuestion();
+    } else {
+      console.log('✅ NOT BLOCKING: Continuing normal browsing');
     }
 
     // Set up message listener
