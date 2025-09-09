@@ -398,6 +398,11 @@ class VocabBreakBlocker {
       .vocabbreak-penalty {
         text-align: center !important;
         color: #721c24 !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
       }
       
       .vocabbreak-timer {
@@ -850,7 +855,16 @@ class VocabBreakBlocker {
         feedback = this.getMessage('correct_answer');
         explanation = this.getLocalizedExplanation(userLanguage) || this.getMessage('correct_answer');
       } else {
-        feedback = this.getMessage('incorrect_answer', [correctAnswers[0] || 'unknown']);
+        // Get penalty time from user settings or use default
+        let penaltyTime = 30; // default 30 seconds
+        try {
+          const result = await chrome.storage.sync.get(['wrongAnswerPenalty']);
+          penaltyTime = result.wrongAnswerPenalty || 30;
+        } catch (error) {
+          console.warn('Failed to get penalty time setting:', error);
+        }
+        
+        feedback = this.getMessage('incorrect_answer', [penaltyTime]);
         explanation = this.getLocalizedExplanation(userLanguage) || this.getMessage('try_again');
       }
 
@@ -987,7 +1001,7 @@ class VocabBreakBlocker {
       'question_instruction_text': 'Type the correct answer to continue browsing',
       'submit_answer': 'Submit Answer',
       'correct_answer': 'Correct! Well done!',
-      'incorrect_answer': 'Incorrect. Please wait $TIME$ seconds to try again.',
+      'incorrect_answer': 'Incorrect. Please wait $1 seconds to try again.',
       'please_select_answer': 'Please select an answer',
       'please_enter_answer': 'Please enter an answer',
       'submitting': 'Submitting...',

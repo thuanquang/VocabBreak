@@ -67,6 +67,13 @@ class I18n {
       
       // Handle named placeholders (like $TIME$, $POINTS$)
       message = message.replace(/\$(\w+)\$/g, (match, placeholder) => {
+        // Check if this is a named placeholder defined in the message
+        if (this.messages[key] && this.messages[key].placeholders && this.messages[key].placeholders[placeholder.toLowerCase()]) {
+          const placeholderDef = this.messages[key].placeholders[placeholder.toLowerCase()];
+          const index = parseInt(placeholderDef.content.replace('$', '')) - 1;
+          return substitutions[index] || match;
+        }
+        // Fallback: try to parse as number
         const index = parseInt(placeholder) - 1;
         return substitutions[index] || match;
       });

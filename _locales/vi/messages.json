@@ -9,7 +9,7 @@
   },
   
   "question_header": {
-    "message": "Giờ Nghỉ Học Ngôn Ngữ",
+    "message": "VocabBreak",
     "description": "Header shown on question overlay"
   },
   "question_instruction_mc": {

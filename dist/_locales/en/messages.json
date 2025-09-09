@@ -9,7 +9,7 @@
   },
   
   "question_header": {
-    "message": "Language Learning Break",
+    "message": "VocabBreak",
     "description": "Header shown on question overlay"
   },
   "question_instruction_mc": {

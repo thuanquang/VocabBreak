@@ -291,6 +291,11 @@
   text-align: center !important;
   color: #e53e3e !important;
   font-weight: 600 !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .vocabbreak-timer {
