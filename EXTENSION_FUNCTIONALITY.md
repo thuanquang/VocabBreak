@@ -88,7 +88,7 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 - **Real-time Updates**: Settings changes apply immediately
 
 ### Timing & Penalties
-- **Question Frequency**: 5-120 minutes (default 30 minutes)
+- **Question Frequency**: 5-120 minutes (default 30 minutes) ✅ FIXED: Questions appear immediately on first visit
 - **Wrong Answer Penalty**: 10-300 seconds (default 30 seconds)
 - **Persistent Timers**: Uses chrome.alarms for cross-session persistence
 - **Tab State Tracking**: Individual timer per tab with state persistence
@@ -205,6 +205,8 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 - **Credentials Error**: Set via window.setSupabaseCredentials or ensure .env used by build
 - **Background Script Issues**: Confirm importScripts path via chrome.runtime.getURL works
 - **Content Script Loading**: Verify manifest content_scripts load order and timing
+- **Questions Not Appearing**: ✅ FIXED: Tab initialization now triggers immediate questions instead of 30-minute delay
+- **Gamification Stats**: ✅ FIXED: Replaced undefined `this.userStats` references with proper `this.cachedStats` usage
 
 ### Debug Workflow
 - **Use window.supabaseReadyPromise** in popup/options to await readiness before queries

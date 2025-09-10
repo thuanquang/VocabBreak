@@ -33,6 +33,12 @@ class PopupManager {
       // Initialize UI based on current state
       this.updateUI();
 
+      // Refresh stats from gamification manager with database integration
+      setTimeout(async () => {
+        await this.initializeGamificationStats();
+        this.refreshStats();
+      }, 1000);
+
       this.isInitialized = true;
       console.log('✅ Popup initialized');
     } catch (error) {
@@ -396,29 +402,83 @@ class PopupManager {
     }
   }
 
+  async initializeGamificationStats() {
+    try {
+      console.log('🔄 Initializing gamification stats...');
+      
+      if (!window.gamificationManager) {
+        console.warn('Gamification manager not available');
+        return;
+      }
+      
+      // Wait for gamification manager to be initialized
+      let attempts = 0;
+      while (!window.gamificationManager.isInitialized && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (!window.gamificationManager.isInitialized) {
+        console.warn('Gamification manager failed to initialize');
+        return;
+      }
+      
+      // Check if user is authenticated and has no stats, initialize test data
+      if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+        const currentStats = window.gamificationManager.getUserStats();
+        if (currentStats.totalPoints === 0 && currentStats.totalQuestions === 0) {
+          console.log('🧪 No existing stats found, initializing test stats...');
+          await window.gamificationManager.initializeTestStats();
+        }
+      } else {
+        console.log('📊 User not authenticated, using offline mode');
+      }
+      
+    } catch (error) {
+      console.error('Failed to initialize gamification stats:', error);
+    }
+  }
+
+  refreshStats() {
+    try {
+      console.log('🔄 Refreshing stats from gamification manager...');
+      
+      if (!window.gamificationManager || !window.gamificationManager.isInitialized) {
+        console.warn('Gamification manager not ready');
+        return;
+      }
+      
+      const gamificationStats = window.gamificationManager.getUserStats();
+      const currentLevel = window.gamificationManager.getCurrentLevel();
+      const nextLevelProgress = window.gamificationManager.getNextLevelProgress();
+      
+      console.log('📊 Gamification stats:', gamificationStats);
+      console.log('📈 Current level:', currentLevel);
+      
+      const stats = {
+        currentStreak: gamificationStats.currentStreak || 0,
+        totalPoints: gamificationStats.totalPoints || 0,
+        questionsAnswered: gamificationStats.totalQuestions || 0,
+        accuracyRate: gamificationStats.totalQuestions > 0 ? 
+          Math.round((gamificationStats.correctAnswers / gamificationStats.totalQuestions) * 100) : 0,
+        currentLevel: currentLevel.level || 1,
+        levelName: currentLevel.name || 'Beginner',
+        levelProgress: nextLevelProgress.progress || 0,
+        pointsToNextLevel: nextLevelProgress.nextLevel?.points || 500
+      };
+      
+      this.updateStatsDisplay(stats);
+    } catch (error) {
+      console.error('Failed to refresh stats:', error);
+      window.errorHandler?.handleUIError(error, { context: 'refresh-stats' });
+    }
+  }
+
   updateStatsDisplay(stats) {
     try {
       if (!stats) {
-        // If no stats provided, try to get them from gamification manager
-        if (window.gamificationManager) {
-          const gamificationStats = window.gamificationManager.getUserStats();
-          const currentLevel = window.gamificationManager.getCurrentLevel();
-          const nextLevelProgress = window.gamificationManager.getNextLevelProgress();
-          
-          stats = {
-            currentStreak: gamificationStats.currentStreak || 0,
-            totalPoints: gamificationStats.totalPoints || 0,
-            questionsAnswered: gamificationStats.totalQuestions || 0,
-            accuracyRate: gamificationStats.totalQuestions > 0 ? 
-              Math.round((gamificationStats.correctAnswers / gamificationStats.totalQuestions) * 100) : 0,
-            currentLevel: currentLevel.level || 1,
-            levelName: currentLevel.name || 'Beginner',
-            levelProgress: nextLevelProgress.progress || 0,
-            pointsToNextLevel: nextLevelProgress.nextLevel?.points || 500
-          };
-        } else {
-          return; // No stats available
-        }
+        console.warn('No stats provided to updateStatsDisplay');
+        return;
       }
       
       // Update stat cards

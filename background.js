@@ -121,17 +121,17 @@ class BackgroundManager {
     
     if (!tabState) {
       // Create new tab state only if none exists
-      // Set lastQuestionTime to now so the 30-minute timer starts from first visit
+      // Set lastQuestionTime to trigger immediate question for new tabs
       const now = Date.now();
       tabState = {
         url: url,
-        lastQuestionTime: now,
+        lastQuestionTime: now - this.periodicInterval - 1000, // Force immediate question
         questionCount: 0,
         isBlocked: false,
         blockReason: null,
         penaltyEndTime: 0
       };
-      console.log(`🆕 Created NEW tab state for ${tabId}: lastQuestionTime = ${now} (starting 30min timer)`);
+      console.log(`🆕 Created NEW tab state for ${tabId}: lastQuestionTime set to trigger immediate question`);
     } else {
       // Update URL but preserve timing data
       const oldLastQuestionTime = tabState.lastQuestionTime;

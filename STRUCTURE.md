@@ -92,7 +92,7 @@ VocabBreak STRUCTURE (for assistant reference)
 11. **Application-specific scripts** - Popup/options managers ✅ UPDATED: Enhanced with gamification integration
 
 ### Background Script (Service Worker)
-- **background.js** - Main service worker
+- **background.js** - Main service worker ✅ FIXED: Questions now appear immediately on first visit
 - **Dynamic importScripts** - Loads shared/supabase.js when needed
 
 ## Data Flow & Communication
@@ -190,6 +190,7 @@ VocabBreak STRUCTURE (for assistant reference)
 - **Content Script Problems**: Loading order, timing, permissions
 - **Background Script**: Service worker lifecycle, message handling
 - **Offline Scenarios**: Fallback behavior, sync queue, data persistence
+- **Question Timing**: ✅ FIXED: Questions now appear immediately on first visit instead of 30-minute delay
 
 ## Internationalization Architecture
 

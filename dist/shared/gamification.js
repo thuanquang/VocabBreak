@@ -1,6 +1,7 @@
 /**
  * Gamification system for VocabBreak extension
  * Handles points, streaks, achievements, levels, and user motivation
+ * Completely overhauled to work with Supabase database
  */
 
 class GamificationManager {
@@ -26,21 +27,66 @@ class GamificationManager {
     ];
     
     this.achievements = this.initializeAchievements();
-    this.userStats = {
-      totalPoints: 0,
-      currentStreak: 0,
-      longestStreak: 0,
-      totalQuestions: 0,
-      correctAnswers: 0,
-      currentLevel: 1,
-      unlockedAchievements: []
-    };
+    
+    // Cache for user stats - always sync with database
+    this.cachedStats = null;
+    this.lastSyncTime = 0;
+    this.isInitialized = false;
     
     this.init();
   }
 
   async init() {
-    await this.loadUserStats();
+    try {
+      // Wait for Supabase client to be ready
+      await this.waitForSupabase();
+      
+      // Load user stats from database
+      await this.loadUserStatsFromDatabase();
+      
+      this.isInitialized = true;
+      console.log('✅ Gamification manager initialized with database connection');
+    } catch (error) {
+      console.error('❌ Failed to initialize gamification manager:', error);
+      // Initialize with defaults if database fails
+      this.initializeDefaultStats();
+      this.isInitialized = true;
+    }
+  }
+
+  async waitForSupabase() {
+    let attempts = 0;
+    while (attempts < 50) {
+      if (window.supabaseClient && window.supabaseClient.client) {
+        console.log('✅ Supabase client ready for gamification');
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    throw new Error('Supabase client not available for gamification');
+  }
+
+  initializeDefaultStats() {
+    this.cachedStats = {
+      gamification: {
+        total_points: 0,
+        current_level: 1,
+        current_streak: 0,
+        longest_streak: 0,
+        achievements: [],
+        badges: [],
+        experience_points: 0
+      },
+      statistics: {
+        total_questions_answered: 0,
+        total_correct_answers: 0,
+        average_response_time: 0,
+        favorite_topics: [],
+        weak_areas: []
+      }
+    };
+    console.log('📊 Initialized default stats (offline mode)');
   }
 
   initializeAchievements() {
@@ -247,20 +293,77 @@ class GamificationManager {
   }
 
   // Achievement checking
-  async checkAchievements() {
-    const newAchievements = [];
+  async checkAndUnlockAchievements() {
+    if (!this.cachedStats) return [];
     
+    const newAchievements = [];
+    const currentAchievements = this.cachedStats.gamification.achievements || [];
+    const unlockedIds = currentAchievements.map(a => a.id);
+    
+    // Check each achievement
     for (const [id, achievement] of Object.entries(this.achievements)) {
-      if (!achievement.unlocked && !this.userStats.unlockedAchievements.includes(id)) {
-        if (await achievement.condition(this.userStats)) {
-          achievement.unlocked = true;
-          this.userStats.unlockedAchievements.push(id);
-          this.userStats.totalPoints += achievement.points;
-          newAchievements.push(achievement);
-          
-          // Save achievement unlock
-          await this.saveAchievementUnlock(id);
-        }
+      if (unlockedIds.includes(id)) continue;
+      
+      let unlocked = false;
+      const stats = this.getUserStats();
+      
+      switch (id) {
+        case 'first_correct':
+          unlocked = stats.correctAnswers >= 1;
+          break;
+        case 'streak_3':
+          unlocked = stats.currentStreak >= 3;
+          break;
+        case 'streak_7':
+          unlocked = stats.currentStreak >= 7;
+          break;
+        case 'streak_30':
+          unlocked = stats.currentStreak >= 30;
+          break;
+        case 'perfect_10':
+          unlocked = stats.currentStreak >= 10;
+          break;
+        case 'accuracy_master':
+          unlocked = stats.totalQuestions >= 50 && 
+                    (stats.correctAnswers / stats.totalQuestions) >= 0.9;
+          break;
+        case 'century_club':
+          unlocked = stats.correctAnswers >= 100;
+          break;
+        case 'millennium_master':
+          unlocked = stats.correctAnswers >= 1000;
+          break;
+        case 'lightning_fast':
+          unlocked = stats.averageResponseTime > 0 && stats.averageResponseTime <= 5000 && stats.totalQuestions >= 10;
+          break;
+        case 'level_up_2':
+          unlocked = stats.currentLevel >= 2;
+          break;
+        case 'level_up_5':
+          unlocked = stats.currentLevel >= 5;
+          break;
+      }
+      
+      if (unlocked) {
+        const unlockedAchievement = {
+          id: id,
+          name: achievement.name,
+          description: achievement.description,
+          icon: achievement.icon,
+          points: achievement.points,
+          unlocked_at: new Date().toISOString()
+        };
+        
+        // Add to cached stats
+        this.cachedStats.gamification.achievements.push(unlockedAchievement);
+        
+        // Mark as unlocked in achievements object
+        achievement.unlocked = true;
+        achievement.unlocked_at = unlockedAchievement.unlocked_at;
+        
+        newAchievements.push(unlockedAchievement);
+        
+        console.log('🏆 Achievement unlocked:', unlockedAchievement.name);
       }
     }
     
@@ -323,118 +426,187 @@ class GamificationManager {
     }
   }
 
-  // User stats management
+  // User stats management - completely overhauled for database integration
   async updateStats(questionResult) {
-    this.userStats.totalQuestions++;
-    
-    if (questionResult.correct) {
-      this.userStats.correctAnswers++;
-      this.userStats.currentStreak++;
-      this.userStats.longestStreak = Math.max(this.userStats.longestStreak, this.userStats.currentStreak);
-    } else {
-      this.userStats.currentStreak = 0;
-    }
-    
-    // Add points
-    if (questionResult.pointsEarned) {
-      this.userStats.totalPoints += questionResult.pointsEarned;
-    }
-    
-    // Update level
-    const newLevel = this.calculateLevel(this.userStats.totalPoints);
-    const oldLevel = this.userStats.currentLevel;
-    this.userStats.currentLevel = newLevel.level;
-    
-    // Save stats
-    await this.saveUserStats();
-    
-    // Check for achievements
-    const newAchievements = await this.checkAchievements();
-    
-    // Return feedback
-    return {
-      levelUp: newLevel.level > oldLevel,
-      newLevel: newLevel,
-      oldLevel: { level: oldLevel },
-      newAchievements: newAchievements,
-      streakBonus: questionResult.correct && this.userStats.currentStreak > 1,
-      totalPoints: this.userStats.totalPoints
-    };
-  }
-
-  async loadUserStats() {
     try {
-      // Load from offline storage first
-      const offlineStats = await window.offlineManager.getAllSettings();
+      if (!this.isInitialized) {
+        console.warn('⚠️ Gamification manager not initialized');
+        return { pointsEarned: 0, levelUp: false, newAchievements: [] };
+      }
+
+      const { correct, pointsEarned, timeTaken, question } = questionResult;
       
-      if (offlineStats.userStats) {
-        this.userStats = { ...this.userStats, ...offlineStats.userStats };
+      console.log('📊 Updating stats:', { correct, pointsEarned, timeTaken });
+      
+      // Ensure we have cached stats
+      if (!this.cachedStats) {
+        await this.loadUserStatsFromDatabase();
       }
       
-      // Load unlocked achievements
-      const achievements = await window.offlineManager.getSetting('unlockedAchievements', []);
-      this.userStats.unlockedAchievements = achievements;
+      // Update statistics
+      this.cachedStats.statistics.total_questions_answered++;
+      if (correct) {
+        this.cachedStats.statistics.total_correct_answers++;
+      }
       
-      // Mark achievements as unlocked
-      achievements.forEach(id => {
-        if (this.achievements[id]) {
-          this.achievements[id].unlocked = true;
-        }
-      });
+      // Update response time average
+      const totalQuestions = this.cachedStats.statistics.total_questions_answered;
+      const currentAvg = this.cachedStats.statistics.average_response_time || 0;
+      this.cachedStats.statistics.average_response_time = 
+        ((currentAvg * (totalQuestions - 1)) + timeTaken) / totalQuestions;
       
-      // Try to sync with Supabase if online
-      if (navigator.onLine && window.supabaseClient?.isAuthenticated()) {
-        try {
-          const profile = await window.supabaseClient.getUserProfile();
-          if (profile) {
-            this.userStats.totalPoints = Math.max(this.userStats.totalPoints, profile.total_points || 0);
-            this.userStats.currentLevel = Math.max(this.userStats.currentLevel, profile.current_level || 1);
-            this.userStats.currentStreak = Math.max(this.userStats.currentStreak, profile.current_streak || 0);
+      // Update gamification stats
+      if (correct) {
+        this.cachedStats.gamification.total_points += pointsEarned;
+        this.cachedStats.gamification.experience_points += pointsEarned;
+        this.cachedStats.gamification.current_streak++;
+        this.cachedStats.gamification.longest_streak = Math.max(
+          this.cachedStats.gamification.longest_streak,
+          this.cachedStats.gamification.current_streak
+        );
+      } else {
+        this.cachedStats.gamification.current_streak = 0;
+      }
+      
+      // Check for level up
+      const newLevel = this.calculateLevel(this.cachedStats.gamification.total_points);
+      const levelUp = newLevel.level > this.cachedStats.gamification.current_level;
+      if (levelUp) {
+        this.cachedStats.gamification.current_level = newLevel.level;
+        console.log('🎉 Level up!', newLevel);
+      }
+      
+      // Check for new achievements
+      const newAchievements = await this.checkAndUnlockAchievements();
+      
+      // Save to database
+      const saved = await this.saveUserStatsToDatabase();
+      if (!saved) {
+        console.warn('⚠️ Failed to save stats to database');
+      }
+      
+      console.log('✅ Stats updated successfully');
+      
+      return {
+        pointsEarned,
+        levelUp,
+        newLevel: levelUp ? newLevel : null,
+        newAchievements,
+        streakBonus: correct && this.cachedStats.gamification.current_streak > 1,
+        totalPoints: this.cachedStats.gamification.total_points
+      };
+      
+    } catch (error) {
+      console.error('❌ Failed to update stats:', error);
+      return { pointsEarned: 0, levelUp: false, newAchievements: [] };
+    }
+  }
+
+  async loadUserStatsFromDatabase() {
+    try {
+      if (!window.supabaseClient || !window.supabaseClient.isAuthenticated()) {
+        console.log('📊 User not authenticated, using default stats');
+        this.initializeDefaultStats();
+        return;
+      }
+
+      console.log('📊 Loading user stats from database...');
+      const userProfile = await window.supabaseClient.getUserProfile();
+      
+      if (userProfile && userProfile.profile) {
+        this.cachedStats = {
+          gamification: userProfile.profile.gamification || {
+            total_points: 0,
+            current_level: 1,
+            current_streak: 0,
+            longest_streak: 0,
+            achievements: [],
+            badges: [],
+            experience_points: 0
+          },
+          statistics: userProfile.profile.statistics || {
+            total_questions_answered: 0,
+            total_correct_answers: 0,
+            average_response_time: 0,
+            favorite_topics: [],
+            weak_areas: []
           }
-        } catch (error) {
-          console.error('Failed to sync stats from Supabase:', error);
-        }
+        };
+        
+        // Mark achievements as unlocked
+        const achievements = this.cachedStats.gamification.achievements || [];
+        achievements.forEach(achievement => {
+          if (this.achievements[achievement.id]) {
+            this.achievements[achievement.id].unlocked = true;
+            this.achievements[achievement.id].unlocked_at = achievement.unlocked_at;
+          }
+        });
+        
+        this.lastSyncTime = Date.now();
+        console.log('✅ Loaded stats from database:', this.cachedStats);
+      } else {
+        console.log('📊 No profile found, initializing default stats');
+        this.initializeDefaultStats();
       }
       
     } catch (error) {
-      console.error('Failed to load user stats:', error);
+      console.error('❌ Failed to load user stats from database:', error);
+      this.initializeDefaultStats();
     }
   }
 
-  async saveUserStats() {
+  async saveUserStatsToDatabase() {
     try {
-      // Save to offline storage
-      await window.offlineManager.saveSetting('userStats', this.userStats);
-      await window.offlineManager.saveSetting('unlockedAchievements', this.userStats.unlockedAchievements);
-      
-      // Sync to Supabase if online
-      if (navigator.onLine && window.supabaseClient?.isAuthenticated()) {
-        try {
-          await window.supabaseClient.updateUserProfile({
-            total_points: this.userStats.totalPoints,
-            current_level: this.userStats.currentLevel,
-            current_streak: this.userStats.currentStreak
-          });
-        } catch (error) {
-          console.error('Failed to sync stats to Supabase:', error);
-        }
+      if (!window.supabaseClient || !window.supabaseClient.isAuthenticated()) {
+        console.warn('⚠️ Cannot save stats - user not authenticated');
+        return false;
       }
+
+      if (!this.cachedStats) {
+        console.warn('⚠️ No cached stats to save');
+        return false;
+      }
+
+      console.log('💾 Saving stats to database...');
+      
+      // Update the user profile with new stats
+      const updateData = {
+        profile: {
+          gamification: this.cachedStats.gamification,
+          statistics: this.cachedStats.statistics
+        },
+        updated_at: new Date().toISOString()
+      };
+
+      await window.supabaseClient.updateUserProfile(updateData);
+      this.lastSyncTime = Date.now();
+      
+      console.log('✅ Stats saved to database successfully');
+      return true;
+      
     } catch (error) {
-      console.error('Failed to save user stats:', error);
+      console.error('❌ Failed to save stats to database:', error);
+      return false;
     }
   }
 
   async saveAchievementUnlock(achievementId) {
     try {
-      // Save locally
-      await window.offlineManager.saveSetting('unlockedAchievements', this.userStats.unlockedAchievements);
+      if (!this.cachedStats) {
+        console.warn('No cached stats available for saving achievement');
+        return;
+      }
       
-      // Sync to Supabase if online
+      // Get list of unlocked achievement IDs
+      const unlockedIds = this.cachedStats.gamification.achievements.map(a => a.id);
+      
+      // Save locally
+      await window.offlineManager.saveSetting('unlockedAchievements', unlockedIds);
+      
+      // Save the entire stats to database (includes the new achievement)
       if (navigator.onLine && window.supabaseClient?.isAuthenticated()) {
         try {
-          await window.supabaseClient.updateUserSettings({
-            unlockedAchievements: this.userStats.unlockedAchievements
-          });
+          await this.saveUserStatsToDatabase();
         } catch (error) {
           console.error('Failed to sync achievement to Supabase:', error);
         }
@@ -444,9 +616,72 @@ class GamificationManager {
     }
   }
 
-  // Getters
+  // Getters - updated for database structure
   getUserStats() {
-    return { ...this.userStats };
+    if (!this.cachedStats) {
+      return {
+        totalPoints: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        totalQuestions: 0,
+        correctAnswers: 0,
+        currentLevel: 1
+      };
+    }
+    
+    const gamification = this.cachedStats.gamification;
+    const statistics = this.cachedStats.statistics;
+    
+    return {
+      totalPoints: gamification.total_points || 0,
+      currentStreak: gamification.current_streak || 0,
+      longestStreak: gamification.longest_streak || 0,
+      totalQuestions: statistics.total_questions_answered || 0,
+      correctAnswers: statistics.total_correct_answers || 0,
+      currentLevel: gamification.current_level || 1,
+      experiencePoints: gamification.experience_points || 0,
+      averageResponseTime: statistics.average_response_time || 0
+    };
+  }
+
+  // Debug method to initialize test stats with database structure
+  async initializeTestStats() {
+    console.log('🧪 Initializing test stats for debugging...');
+    
+    this.cachedStats = {
+      gamification: {
+        total_points: 150,
+        current_level: 2,
+        current_streak: 3,
+        longest_streak: 5,
+        achievements: [{
+          id: 'first_correct',
+          name: 'First Success',
+          description: 'Answer your first question correctly',
+          icon: '🎯',
+          points: 50,
+          unlocked_at: new Date().toISOString()
+        }],
+        badges: [],
+        experience_points: 150
+      },
+      statistics: {
+        total_questions_answered: 12,
+        total_correct_answers: 9,
+        average_response_time: 15000,
+        favorite_topics: [],
+        weak_areas: []
+      }
+    };
+    
+    // Mark first achievement as unlocked
+    if (this.achievements.first_correct) {
+      this.achievements.first_correct.unlocked = true;
+    }
+    
+    // Save to database
+    await this.saveUserStatsToDatabase();
+    console.log('✅ Test stats initialized with database structure:', this.cachedStats);
   }
 
   getAchievements() {
@@ -462,11 +697,13 @@ class GamificationManager {
   }
 
   getCurrentLevel() {
-    return this.calculateLevel(this.userStats.totalPoints);
+    const stats = this.getUserStats();
+    return this.calculateLevel(stats.totalPoints);
   }
 
   getNextLevelProgress() {
-    return this.getProgressToNextLevel(this.userStats.totalPoints);
+    const stats = this.getUserStats();
+    return this.getProgressToNextLevel(stats.totalPoints);
   }
 
   // Motivation messages
