@@ -50,7 +50,13 @@ class PopupManager {
   async waitForDependencies() {
     let attempts = 0;
     while (attempts < 50) {
-      if (window.stateManager && window.errorHandler && window.authManager) {
+      if (window.coreManager && window.errorHandler && window.authManager) {
+        // Wait for core manager to be initialized
+        if (window.coreManager.isInitialized) {
+          return;
+        }
+        // If not initialized, wait for it
+        await window.coreManager.init();
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -82,14 +88,7 @@ class PopupManager {
         if (e.key === 'Enter') this.handleLogin();
       });
 
-      // Online/offline listeners
-      window.addEventListener('online', () => {
-        window.stateManager.updateAppState({ isOnline: true });
-      });
-      
-      window.addEventListener('offline', () => {
-        window.stateManager.updateAppState({ isOnline: false });
-      });
+      // Online/offline listeners are now handled by CoreManager automatically
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'setup-listeners' });
     }
@@ -111,19 +110,19 @@ class PopupManager {
   subscribeToState() {
     try {
       // Subscribe to auth state changes
-      const unsubAuth = window.stateManager.subscribe('auth', (authState) => {
+      const unsubAuth = window.coreManager.subscribe('auth', (authState) => {
         this.handleAuthStateChange(authState);
       });
       this.unsubscribers.push(unsubAuth);
 
       // Subscribe to user state changes
-      const unsubUser = window.stateManager.subscribe('user', (userState) => {
+      const unsubUser = window.coreManager.subscribe('user', (userState) => {
         this.handleUserStateChange(userState);
       });
       this.unsubscribers.push(unsubUser);
 
       // Subscribe to app state changes
-      const unsubApp = window.stateManager.subscribe('app', (appState) => {
+      const unsubApp = window.coreManager.subscribe('app', (appState) => {
         this.handleAppStateChange(appState);
       });
       this.unsubscribers.push(unsubApp);
@@ -178,9 +177,9 @@ class PopupManager {
 
   updateUI() {
     try {
-      const authState = window.stateManager.getAuthState();
-      const userState = window.stateManager.getUserState();
-      const appState = window.stateManager.getAppState();
+      const authState = window.coreManager.getState('auth');
+      const userState = window.coreManager.getState('user');
+      const appState = window.coreManager.getState('app');
 
       // Update based on current state
       this.handleAuthStateChange(authState);
