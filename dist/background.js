@@ -345,13 +345,12 @@ class BackgroundManager {
       return true;
     }
 
-    // Check if question is due
+    // FIXED: Only block if explicitly marked as blocked by the alarm system
+    // This prevents questions from appearing on every refresh
     const timeSinceLastQuestion = Date.now() - tabState.lastQuestionTime;
-    const isQuestionDue = timeSinceLastQuestion >= this.periodicInterval;
-    
-    console.log(`🔍 Tab ${tabId} block check: timeSince=${Math.round(timeSinceLastQuestion/1000)}s, interval=${this.periodicInterval/1000}s, due=${isQuestionDue}, blocked=${tabState.isBlocked}`);
+    console.log(`🔍 Tab ${tabId} block check: timeSince=${Math.round(timeSinceLastQuestion/1000)}s, interval=${this.periodicInterval/1000}s, blocked=${tabState.isBlocked}, reason=${tabState.blockReason}`);
 
-    return tabState.isBlocked || isQuestionDue;
+    return tabState.isBlocked;
   }
 
   async triggerQuestion(tabId, reason) {
@@ -423,6 +422,15 @@ class BackgroundManager {
     
     if (alarmName.startsWith('vocabbreak_tab_')) {
       const tabId = parseInt(alarmName.replace('vocabbreak_tab_', ''));
+      
+      // FIXED: Mark tab as blocked when the periodic timer fires
+      const tabState = this.tabStates.get(tabId);
+      if (tabState) {
+        tabState.isBlocked = true;
+        tabState.blockReason = 'periodic';
+        console.log(`⏰ Periodic timer fired for tab ${tabId}, marking as blocked`);
+      }
+      
       await this.triggerQuestion(tabId, 'periodic');
       
     } else if (alarmName.startsWith('vocabbreak_penalty_')) {

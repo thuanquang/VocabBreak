@@ -190,7 +190,7 @@ VocabBreak STRUCTURE (for assistant reference)
 - **Content Script Problems**: Loading order, timing, permissions
 - **Background Script**: Service worker lifecycle, message handling
 - **Offline Scenarios**: Fallback behavior, sync queue, data persistence
-- **Question Timing**: ✅ FIXED: Questions now appear immediately on first visit instead of 30-minute delay
+- **Question Timing**: ✅ FIXED: Questions appear immediately on first visit, then only when 30-minute alarm fires (not on refresh)
 
 ## Internationalization Architecture
 

@@ -221,7 +221,7 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 - **Background Script Issues**: Confirm importScripts path via chrome.runtime.getURL works
 - **Content Script Loading**: Verify manifest content_scripts load order and timing
 - **Questions Not Appearing**: ✅ FIXED: Tab initialization now triggers immediate questions instead of 30-minute delay
-- **Questions on Every Refresh**: ✅ FIXED: Smart timer management preserves timing on same-URL refreshes
+- **Questions on Every Refresh**: ✅ FIXED: Questions now only appear when periodic timer fires, not on every refresh - removed time-based blocking logic from shouldBlockTab
 - **Gamification Stats**: ✅ FIXED: Replaced undefined `this.userStats` references with proper `this.cachedStats` usage
 
 ### Debug Workflow
