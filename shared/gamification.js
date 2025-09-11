@@ -511,42 +511,90 @@ class GamificationManager {
       }
 
       console.log('📊 Loading user stats from database...');
-      const userProfile = await window.supabaseClient.getUserProfile();
       
-      if (userProfile && userProfile.profile) {
-        this.cachedStats = {
-          gamification: userProfile.profile.gamification || {
-            total_points: 0,
-            current_level: 1,
-            current_streak: 0,
-            longest_streak: 0,
-            achievements: [],
-            badges: [],
-            experience_points: 0
-          },
-          statistics: userProfile.profile.statistics || {
-            total_questions_answered: 0,
-            total_correct_answers: 0,
-            average_response_time: 0,
-            favorite_topics: [],
-            weak_areas: []
-          }
-        };
+      try {
+        const userProfile = await window.supabaseClient.getUserProfile();
         
-        // Mark achievements as unlocked
-        const achievements = this.cachedStats.gamification.achievements || [];
-        achievements.forEach(achievement => {
-          if (this.achievements[achievement.id]) {
-            this.achievements[achievement.id].unlocked = true;
-            this.achievements[achievement.id].unlocked_at = achievement.unlocked_at;
-          }
-        });
+        if (userProfile && userProfile.profile) {
+          this.cachedStats = {
+            gamification: userProfile.profile.gamification || {
+              total_points: 0,
+              current_level: 1,
+              current_streak: 0,
+              longest_streak: 0,
+              achievements: [],
+              badges: [],
+              experience_points: 0
+            },
+            statistics: userProfile.profile.statistics || {
+              total_questions_answered: 0,
+              total_correct_answers: 0,
+              average_response_time: 0,
+              favorite_topics: [],
+              weak_areas: []
+            }
+          };
+          
+          // Mark achievements as unlocked
+          const achievements = this.cachedStats.gamification.achievements || [];
+          achievements.forEach(achievement => {
+            if (this.achievements[achievement.id]) {
+              this.achievements[achievement.id].unlocked = true;
+              this.achievements[achievement.id].unlocked_at = achievement.unlocked_at;
+            }
+          });
+          
+          this.lastSyncTime = Date.now();
+          console.log('✅ Loaded stats from database:', this.cachedStats);
+        } else {
+          console.log('📊 No profile found, initializing default stats');
+          this.initializeDefaultStats();
+        }
+      } catch (profileError) {
+        console.log('📝 User profile not found, attempting to create...');
         
-        this.lastSyncTime = Date.now();
-        console.log('✅ Loaded stats from database:', this.cachedStats);
-      } else {
-        console.log('📊 No profile found, initializing default stats');
-        this.initializeDefaultStats();
+        // Try to create profile if it doesn't exist
+        try {
+          await window.supabaseClient.createUserProfileWithRetry({
+            displayName: window.supabaseClient.user?.email?.split('@')[0] || 'User'
+          });
+          
+          console.log('✅ User profile created, retrying stats load...');
+          
+          // Retry loading profile
+          const userProfile = await window.supabaseClient.getUserProfile();
+          
+          if (userProfile && userProfile.profile) {
+            this.cachedStats = {
+              gamification: userProfile.profile.gamification || {
+                total_points: 0,
+                current_level: 1,
+                current_streak: 0,
+                longest_streak: 0,
+                achievements: [],
+                badges: [],
+                experience_points: 0
+              },
+              statistics: userProfile.profile.statistics || {
+                total_questions_answered: 0,
+                total_correct_answers: 0,
+                average_response_time: 0,
+                favorite_topics: [],
+                weak_areas: []
+              }
+            };
+            
+            this.lastSyncTime = Date.now();
+            console.log('✅ Loaded stats from newly created profile:', this.cachedStats);
+          } else {
+            console.log('⚠️ Profile creation succeeded but could not load stats');
+            this.initializeDefaultStats();
+          }
+        } catch (createError) {
+          console.error('❌ Could not create user profile:', createError);
+          console.log('📊 Falling back to default stats');
+          this.initializeDefaultStats();
+        }
       }
       
     } catch (error) {

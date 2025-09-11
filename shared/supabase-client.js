@@ -248,28 +248,46 @@ class SupabaseClient {
   async signUp(email, password, additionalData = {}) {
     await this.waitForInitialization();
     this.assertClient('signUp');
-    const { data, error } = await this.client.auth.signUp({
-      email: email,
-      password: password,
-      options: {
-        data: additionalData
+    
+    try {
+      const { data, error } = await this.client.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: additionalData
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Create user profile after successful signup
+      if (data.user) {
+        this.user = data.user;
+        
+        try {
+          // Attempt to create user profile with retry logic
+          await this.createUserProfileWithRetry(additionalData);
+          console.log('✅ User profile created successfully');
+        } catch (profileError) {
+          console.error('❌ Failed to create user profile:', profileError);
+          
+          // Don't fail the entire signup - user can still use the app
+          // The profile can be created later when they first interact with gamification
+          console.warn('⚠️ User signed up but profile creation failed. Will retry later.');
+        }
       }
-    });
-    
-    if (error) throw error;
-    
-    // Create user profile after successful signup
-    if (data.user) {
-      this.user = data.user;
-      await this.createUserProfile(additionalData);
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Signup failed:', error);
+      throw error;
     }
-    
-    return data;
   }
 
   async signIn(email, password) {
     await this.waitForInitialization();
     this.assertClient('signIn');
+    
     const { data, error } = await this.client.auth.signInWithPassword({
       email: email,
       password: password
@@ -277,8 +295,26 @@ class SupabaseClient {
     
     if (error) throw error;
     
-    // Start a new learning session
+    // Check if user profile exists, create if missing
     if (data.user) {
+      this.user = data.user;
+      
+      try {
+        await this.getUserProfile();
+        console.log('✅ User profile exists');
+      } catch (profileError) {
+        console.log('📝 User profile missing, creating...');
+        try {
+          await this.createUserProfileWithRetry({
+            displayName: data.user.email.split('@')[0]
+          });
+          console.log('✅ User profile created during sign-in');
+        } catch (createError) {
+          console.warn('⚠️ Could not create profile during sign-in:', createError);
+        }
+      }
+      
+      // Start a new learning session
       await this.startLearningSession();
     }
     
@@ -306,6 +342,31 @@ class SupabaseClient {
   // =====================================================
   // USER PROFILE OPERATIONS
   // =====================================================
+
+  async createUserProfileWithRetry(userData = {}, maxRetries = 3) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Creating user profile (attempt ${attempt}/${maxRetries})`);
+        const result = await this.createUserProfile(userData);
+        console.log('✅ User profile created successfully');
+        return result;
+      } catch (error) {
+        lastError = error;
+        console.warn(`⚠️ Profile creation attempt ${attempt} failed:`, error.message);
+        
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff)
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          console.log(`⏳ Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw new Error(`Failed to create user profile after ${maxRetries} attempts: ${lastError.message}`);
+  }
 
   async createUserProfile(userData = {}) {
     await this.waitForInitialization();
