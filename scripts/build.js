@@ -94,15 +94,6 @@ function injectCredentials(env, buildDir) {
   console.log('✅ Credentials injected into supabase-client.js');
   
   console.log('🎉 All credentials injected successfully!');
-  
-  // Copy Supabase library locally (required for Manifest V3 CSP)
-  console.log('📦 Copying Supabase library...');
-  const { copySupabase } = require('./copy-supabase.js');
-  if (copySupabase()) {
-    console.log('✅ Supabase library copied successfully');
-  } else {
-    console.error('❌ Failed to copy Supabase library');
-  }
 }
 
 // Main build function
@@ -157,17 +148,19 @@ function build() {
     // Inject credentials into build (not source)
     injectCredentials(env, buildDir);
 
-    // Always copy Supabase library regardless of credentials presence
+    // Copy Supabase library - HARD REQUIREMENT for extension functionality
+    console.log('📦 Copying Supabase library...');
     try {
-      console.log('📦 Ensuring Supabase library is available...');
       const { copySupabase } = require('./copy-supabase.js');
-      if (copySupabase()) {
-        console.log('✅ Supabase library available in build');
-      } else {
-        console.warn('⚠️ Supabase library not copied. Ensure @supabase/supabase-js is installed.');
+      if (!copySupabase()) {
+        throw new Error('Failed to copy Supabase library. Ensure @supabase/supabase-js is installed via npm.');
       }
+      console.log('✅ Supabase library copied successfully');
     } catch (e) {
-      console.warn('⚠️ Could not run Supabase copy step:', e.message);
+      console.error('❌ Critical build error: Cannot copy Supabase library');
+      console.error('   Error:', e.message);
+      console.error('   Fix: Run "npm install @supabase/supabase-js"');
+      process.exit(1);
     }
     
     console.log('✅ Build complete! Extension built in ./dist directory');

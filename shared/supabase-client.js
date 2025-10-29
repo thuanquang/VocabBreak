@@ -70,8 +70,8 @@ class SupabaseClient {
 
   async initClient() {
     try {
-      // Initialize credentials first
-      await initializeCredentials();
+      // Initialize credentials first with timeout guard
+      await this.waitForCredentials(5000);
       
       // Check if Supabase is available globally (loaded via CDN)
       if (!(typeof window !== 'undefined' && window.supabase)) {
@@ -119,6 +119,30 @@ class SupabaseClient {
         console.error('Failed to initialize Supabase client:', error);
       }
     }
+  }
+
+  async waitForCredentials(timeoutMs = 5000) {
+    const startTime = Date.now();
+    const checkInterval = 100; // Check every 100ms
+    
+    while (Date.now() - startTime < timeoutMs) {
+      try {
+        // Attempt to initialize credentials
+        const result = await initializeCredentials();
+        if (result) {
+          return true;
+        }
+      } catch (e) {
+        // Credentials not ready yet, will retry
+      }
+      
+      // Wait before checking again
+      await new Promise(resolve => setTimeout(resolve, checkInterval));
+    }
+    
+    // Timeout reached - log warning but allow extension to continue with placeholder credentials
+    console.warn(`⚠️ Credentials not initialized within ${timeoutMs}ms - using placeholders`);
+    return false;
   }
 
   async loadSupabaseLibrary() {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VocabBreak - Language Learning Extension",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Learn English vocabulary through strategic web interruptions. Gamified language learning that blocks websites until you answer questions correctly.",
   
   "permissions": [
@@ -43,6 +43,7 @@
         "shared/offline-manager.js",
         "shared/question-manager.js",
         "shared/gamification.js",
+        "shared/site-filter.js",
         "content/blocker.js"
       ],
       "css": ["content/blocker.css"],
@@ -75,7 +76,6 @@
     {
       "resources": [
         "assets/*",
-        "content/question-ui.html",
         "shared/*",
         "scripts/*",
         "_locales/*"

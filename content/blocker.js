@@ -28,42 +28,63 @@ class VocabBreakBlocker {
   }
 
   async setup() {
-    // Wait for i18n system to be ready
-    if (window.i18n && window.i18n.ready) {
-      try {
-        await window.i18n.ready;
-        console.log('i18n system ready in content script');
-      } catch (error) {
-        console.warn('Failed to wait for i18n system:', error);
+    try {
+      // Wait for i18n system to be ready
+      if (window.i18n && window.i18n.ready) {
+        try {
+          await window.i18n.ready;
+          console.log('✅ i18n system ready in content script');
+        } catch (error) {
+          console.warn('⚠️ Failed to wait for i18n system:', error);
+        }
+      } else {
+        console.warn('⚠️ i18n system not available in content script');
       }
-    } else {
-      console.warn('i18n system not available in content script');
+
+      // Check if we should block this page
+      console.log('🔍 VocabBreak content script checking if should block...');
+      const response = await this.sendMessage({ type: 'REQUEST_BLOCK_CHECK' });
+      console.log('🔍 Block check response:', response);
+      
+      if (response && response.shouldBlock) {
+        console.log('❌ BLOCKING: Showing question overlay');
+        this.showQuestion();
+      } else {
+        console.log('✅ NOT BLOCKING: Continuing normal browsing');
+      }
+
+      // Set up message listener
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        this.handleMessage(message, sender, sendResponse);
+      });
+
+      // Prevent easy bypassing
+      this.setupBypassPrevention();
+
+      this.isInitialized = true;
+      window.vocabBreakBlocker = this;
+      
+      console.log('✅ VocabBreak blocker initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize VocabBreak blocker:', error);
+      console.error('📝 Stack:', error.stack);
+      
+      // Still register the blocker even if initialization failed
+      this.isInitialized = true;
+      window.vocabBreakBlocker = this;
+      
+      // Notify background script of initialization error
+      try {
+        await this.sendMessage({
+          type: 'LOG_ERROR',
+          error: error.message,
+          stack: error.stack,
+          stage: 'content-script-init'
+        });
+      } catch (e) {
+        console.error('Could not notify background of error:', e);
+      }
     }
-
-    // Check if we should block this page
-    console.log('🔍 VocabBreak content script checking if should block...');
-    const response = await this.sendMessage({ type: 'REQUEST_BLOCK_CHECK' });
-    console.log('🔍 Block check response:', response);
-    
-    if (response && response.shouldBlock) {
-      console.log('❌ BLOCKING: Showing question overlay');
-      this.showQuestion();
-    } else {
-      console.log('✅ NOT BLOCKING: Continuing normal browsing');
-    }
-
-    // Set up message listener
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      this.handleMessage(message, sender, sendResponse);
-    });
-
-    // Prevent easy bypassing
-    this.setupBypassPrevention();
-
-    this.isInitialized = true;
-    window.vocabBreakBlocker = this;
-    
-    console.log('VocabBreak blocker initialized');
   }
 
   setupBypassPrevention() {

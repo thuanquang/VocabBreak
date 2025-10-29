@@ -402,7 +402,7 @@ class BackgroundManager {
 
     const alarmName = `vocabbreak_tab_${tabId}`;
     chrome.alarms.create(alarmName, {
-      delayInMinutes: this.periodicInterval / 60000
+      delayInMinutes: Math.ceil(this.periodicInterval / 60000)
     });
 
     this.tabTimers.set(tabId, {
@@ -417,7 +417,7 @@ class BackgroundManager {
   schedulePenaltyEnd(tabId) {
     const alarmName = `vocabbreak_penalty_${tabId}`;
     chrome.alarms.create(alarmName, {
-      delayInMinutes: this.wrongAnswerPenalty / 60000
+      delayInMinutes: Math.ceil(this.wrongAnswerPenalty / 60000)
     });
 
     this.tabTimers.set(tabId, {
@@ -750,11 +750,11 @@ class BackgroundManager {
           if (timeLeft > 0) {
             if (timer.type === 'periodic') {
               chrome.alarms.create(timer.alarmName, {
-                delayInMinutes: timeLeft / 60000
+                delayInMinutes: Math.ceil(timeLeft / 60000)
               });
             } else if (timer.type === 'penalty') {
               chrome.alarms.create(timer.alarmName, {
-                delayInMinutes: timeLeft / 60000
+                delayInMinutes: Math.ceil(timeLeft / 60000)
               });
             }
             this.tabTimers.set(timerId, timer);

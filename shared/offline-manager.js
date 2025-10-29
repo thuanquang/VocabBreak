@@ -18,9 +18,12 @@ class OfflineManager {
   async init() {
     try {
       this.db = await this.openDatabase();
-      console.log('IndexedDB initialized successfully');
+      console.log('✅ IndexedDB initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize IndexedDB:', error);
+      console.error('❌ Failed to initialize IndexedDB:', error);
+      console.warn('⚠️ IndexedDB unavailable (incognito mode, quota exceeded, or permissions denied)');
+      console.log('📝 Extension will continue with limited offline support');
+      this.db = null; // Disable IndexedDB features
     }
   }
 
@@ -84,6 +87,12 @@ class OfflineManager {
 
   // Question caching methods
   async cacheQuestions(questions) {
+    // Check if IndexedDB is available
+    if (!this.db) {
+      console.warn('⚠️ IndexedDB not available - skipping offline cache');
+      return false;
+    }
+
     const transaction = this.db.transaction(['questions', 'cacheMetadata'], 'readwrite');
     const questionsStore = transaction.objectStore('questions');
     const metadataStore = transaction.objectStore('cacheMetadata');
@@ -107,15 +116,21 @@ class OfflineManager {
         questionCount: questions.length
       });
       
-      console.log(`Cached ${questions.length} questions offline`);
+      console.log(`✅ Cached ${questions.length} questions offline`);
       return true;
     } catch (error) {
-      console.error('Failed to cache questions:', error);
+      console.error('❌ Failed to cache questions:', error);
       return false;
     }
   }
 
   async getCachedQuestions(filters = {}) {
+    // Check if IndexedDB is available
+    if (!this.db) {
+      console.warn('⚠️ IndexedDB not available - returning empty cache');
+      return [];
+    }
+
     const transaction = this.db.transaction(['questions'], 'readonly');
     const store = transaction.objectStore('questions');
     
