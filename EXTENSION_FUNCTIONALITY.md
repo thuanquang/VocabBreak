@@ -1,5 +1,19 @@
 VocabBreak Extension Functionality Notes (for assistant reference)
 
+## ✨ REFACTORED ARCHITECTURE (Phase 1 Complete)
+
+### Key Improvements Made
+- **🔄 Consolidated State Management**: Replaced separate StateManager + OfflineManager with unified CoreManager
+- **📚 Eliminated Code Duplication**: Single QuestionBank replaces multiple duplicate question arrays (reduced from 3 copies to 1)
+- **⚡ Simplified Dependencies**: Reduced 11-step loading chain to more efficient initialization
+- **🎯 Centralized Caching**: Unified caching system with IndexedDB, Chrome Storage, and memory cache
+- **🧹 Cleaner Architecture**: Single source of truth for questions, state, and cache management
+
+### New Core Files
+- **shared/core-manager.js**: Unified state management, caching, initialization, and sync system
+- **shared/question-bank.js**: Centralized question repository with validation, filtering, and fuzzy matching
+- **Backward compatibility**: window.stateManager now points to window.coreManager
+
 ## Core Architecture & MV3 Implementation
 
 ### Extension Contexts & Script Roles
@@ -8,10 +22,10 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 - **Popup**: popup/popup.html + popup-refactored.js - User dashboard, stats display, authentication, settings access
 - **Options**: options/options.html + options.js - Comprehensive settings management, site filtering, learning preferences
 
-### Script Loading Order & Dependencies
-- **Manifest content_scripts**: shared/supabase.js → shared/error-handler.js → shared/state-manager.js → shared/setup-credentials.js → shared/i18n.js → shared/supabase-client.js → shared/auth-manager.js → shared/offline-manager.js → shared/question-manager.js → content/blocker.js
-- **Popup/Options HTML**: supabase.js → error-handler/state/setup → supabase-client → auth-manager → others
-- **Background**: Uses importScripts for shared/supabase.js when needed (service worker limitation)
+### Script Loading Order & Dependencies ✅ REFACTORED: Simplified chain
+- **Manifest content_scripts**: shared/error-handler.js → shared/question-bank.js → shared/core-manager.js → shared/supabase.js → shared/setup-credentials.js → shared/i18n.js → shared/supabase-client.js → shared/auth-manager.js → shared/question-manager.js → shared/gamification.js → content/blocker.js
+- **Popup/Options HTML**: error-handler.js → question-bank.js → core-manager.js → supabase.js → setup-credentials.js → i18n.js → supabase-client.js → auth-manager.js → question-manager.js → gamification.js → application scripts
+- **Background**: Uses importScripts for shared/question-bank.js for local question access
 
 ## Supabase Integration & Database Operations
 
@@ -88,10 +102,11 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 - **Real-time Updates**: Settings changes apply immediately
 
 ### Timing & Penalties
-- **Question Frequency**: 5-120 minutes (default 30 minutes) ✅ FIXED: Questions appear immediately on first visit
+- **Question Frequency**: 5-120 minutes (default 30 minutes) ✅ FIXED: Questions appear immediately on first visit, respect intervals on refresh
 - **Wrong Answer Penalty**: 10-300 seconds (default 30 seconds)
 - **Persistent Timers**: Uses chrome.alarms for cross-session persistence
 - **Tab State Tracking**: Individual timer per tab with state persistence
+- **Smart Refresh Handling**: ✅ FIXED: Page refreshes no longer reset timers - only URL changes trigger new timers
 
 ## Gamification & User Motivation
 
@@ -206,6 +221,7 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 - **Background Script Issues**: Confirm importScripts path via chrome.runtime.getURL works
 - **Content Script Loading**: Verify manifest content_scripts load order and timing
 - **Questions Not Appearing**: ✅ FIXED: Tab initialization now triggers immediate questions instead of 30-minute delay
+- **Questions on Every Refresh**: ✅ FIXED: Questions now only appear when periodic timer fires, not on every refresh - removed time-based blocking logic from shouldBlockTab
 - **Gamification Stats**: ✅ FIXED: Replaced undefined `this.userStats` references with proper `this.cachedStats` usage
 
 ### Debug Workflow

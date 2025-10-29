@@ -131,9 +131,10 @@ class VocabBreakBlocker {
     if (this.isBlocked) return; // Already showing
 
     try {
-      // Try to get question from Supabase first (if available)
+      // CORRECT FLOW: Try Supabase first → IndexedDB cache → QuestionBank fallback
       let question = null;
       
+      // 1. FIRST: Try Supabase (dynamic questions based on user settings)
       if (typeof window !== 'undefined' && window.supabaseClient) {
         try {
           // Wait for client to be ready, but don't block forever
@@ -144,73 +145,83 @@ class VocabBreakBlocker {
             ]);
           }
 
-          // console.log('🔍 Attempting to fetch question from Supabase...');
+          // Get user settings from core manager or storage
+          let userSettings = { difficultyLevels: ['A1', 'A2'], questionTypes: ['multiple-choice', 'text-input'], topics: ['general'] };
           
-          // Get user settings from chrome storage
-          let userSettings = null;
-          try {
-            const result = await chrome.storage.sync.get([
-              'difficultyLevels', 
-              'questionTypes', 
-              'topics'
-            ]);
-            userSettings = {
-              difficultyLevels: result.difficultyLevels || ['A1', 'A2'],
-              questionTypes: result.questionTypes || ['multiple-choice', 'text-input'],
-              topics: result.topics || ['general']
-            };
-            // console.log('🔍 Loaded user settings:', userSettings);
-          } catch (error) {
-            console.warn('⚠️ Failed to load user settings, using defaults:', error);
-            userSettings = {
-              difficultyLevels: ['A1', 'A2'],
-              questionTypes: ['multiple-choice', 'text-input'],
-              topics: ['general']
-            };
+          if (window.coreManager) {
+            const userState = window.coreManager.getState('user');
+            if (userState?.preferences) {
+              userSettings = userState.preferences;
+            }
+          } else {
+            // Fallback to chrome storage
+            try {
+              const result = await chrome.storage.sync.get(['difficultyLevels', 'questionTypes', 'topics']);
+              userSettings = {
+                difficultyLevels: result.difficultyLevels || ['A1', 'A2'],
+                questionTypes: result.questionTypes || ['multiple-choice', 'text-input'],
+                topics: result.topics || ['general']
+              };
+            } catch (error) {
+              console.warn('⚠️ Failed to load user settings, using defaults:', error);
+            }
           }
           
-          // Define filters for question selection based on user settings
+          // Define filters for question selection
           const questionFilters = {
             level: userSettings.difficultyLevels,
             type: userSettings.questionTypes,
             topics: userSettings.topics.length > 0 && userSettings.topics[0] !== 'general' ? userSettings.topics : undefined
           };
           
-          // console.log('🔍 Using question filters based on user settings:', JSON.stringify(questionFilters, null, 2));
           const dbQuestion = await window.supabaseClient.getRandomQuestion(questionFilters);
           
           if (dbQuestion) {
             // Transform database question to expected format
             question = this.transformDatabaseQuestion(dbQuestion);
-            // console.log('✅ Question fetched from Supabase:', dbQuestion.id);
-            // console.log('🔍 Raw database question structure:', dbQuestion);
-            // console.log('🔍 Transformed question structure:', question);
+            console.log('✅ Question fetched from Supabase:', dbQuestion.id);
+            
+            // Cache this question to IndexedDB for connection failure fallback
+            await this.cacheQuestionToIndexedDB(question, userSettings);
+            
           } else {
-            // console.log('📝 No questions returned from Supabase');
+            console.log('📝 No questions returned from Supabase');
           }
         } catch (dbError) {
+          console.warn('⚠️ Supabase failed, will try cache:', dbError);
           if (window.errorHandler) {
             window.errorHandler.handleDatabaseError(dbError, { stage: 'fetch-question', context: 'content-script' });
-          } else {
-            console.warn('Failed to fetch question from Supabase:', dbError);
           }
         }
       }
       
-      // Fallback to background script (local questions) if no database question
-      if (!question) {
-        console.log('📝 No Supabase question available, falling back to local questions');
-        const response = await this.sendMessage({ type: 'GET_QUESTION' });
-        
-        if (!response || !response.success) {
-          console.error('Failed to get question from background script');
-          return;
+      // 2. SECOND: Try IndexedDB cache if Supabase failed or no internet
+      if (!question && window.coreManager) {
+        try {
+          console.log('🗄️ Trying IndexedDB cache for questions...');
+          const userState = window.coreManager.getState('user');
+          const userPreferences = userState?.preferences || {
+            difficultyLevels: ['A1', 'A2'],
+            questionTypes: ['multiple-choice', 'text-input'],
+            topics: ['general']
+          };
+          
+          // Try to get cached questions matching user preferences
+          const cachedQuestion = await this.getCachedQuestionFromIndexedDB(userPreferences);
+          if (cachedQuestion) {
+            question = cachedQuestion;
+            console.log('✅ Using cached question from IndexedDB:', question.id);
+          }
+        } catch (cacheError) {
+          console.warn('⚠️ IndexedDB cache failed:', cacheError);
         }
-        
-        question = response.question;
-        console.log('📝 Using local question from background script');
-      } else {
-        console.log('✅ Using Supabase question:', question.id);
+      }
+      
+      // 3. FINAL: If no cached questions available, fail gracefully
+      if (!question) {
+        console.error('❌ No questions available: Supabase connection failed and no cached questions matching user preferences');
+        this.showNoQuestionsAvailable();
+        return;
       }
 
       this.currentQuestion = question;
@@ -848,6 +859,11 @@ class VocabBreakBlocker {
       case 'PENALTY_CLEARED':
         this.hideOverlay();
         break;
+      
+      case 'SETTINGS_CHANGED':
+        console.log('🔄 Settings changed, refreshing question cache...');
+        setTimeout(() => this.checkAndRefreshCacheIfNeeded(), 1000);
+        break;
         
       default:
         // Unknown message type
@@ -1076,6 +1092,323 @@ class VocabBreakBlocker {
         resolve(response);
       });
     });
+  }
+
+  /**
+   * Cache a Supabase question to IndexedDB for connection failure fallback
+   */
+  async cacheQuestionToIndexedDB(question, userSettings) {
+    try {
+      if (!window.coreManager || !window.coreManager.storage.indexedDB) {
+        return;
+      }
+
+      const cacheKey = `question_${question.id}`;
+      const cacheData = {
+        question: question,
+        userSettings: userSettings,
+        timestamp: Date.now(),
+        source: 'supabase'
+      };
+
+      await window.coreManager.setCache(cacheKey, cacheData, {
+        persist: true,
+        type: 'question'
+      });
+
+      console.log('📦 Cached question to IndexedDB:', question.id);
+    } catch (error) {
+      console.warn('Failed to cache question to IndexedDB:', error);
+    }
+  }
+
+  /**
+   * Get a cached question from IndexedDB that matches user preferences
+   */
+  async getCachedQuestionFromIndexedDB(userPreferences) {
+    try {
+      if (!window.coreManager || !window.coreManager.storage.indexedDB) {
+        return null;
+      }
+
+      // Get all cached questions
+      const db = window.coreManager.storage.indexedDB;
+      const transaction = db.transaction(['cache'], 'readonly');
+      const store = transaction.objectStore('cache');
+      const index = store.index('type');
+      
+      return new Promise((resolve, reject) => {
+        const request = index.getAll('question');
+        
+        request.onsuccess = () => {
+          const cachedQuestions = request.result || [];
+          console.log(`🗄️ Found ${cachedQuestions.length} cached questions in IndexedDB`);
+          
+          // Filter questions that match user preferences and are not expired
+          const validQuestions = cachedQuestions.filter(cached => {
+            if (!cached.data || !cached.data.question) return false;
+            
+            // Check if cache is not expired (1 hour)
+            const maxAge = 3600000; // 1 hour
+            if (Date.now() - cached.timestamp > maxAge) {
+              return false;
+            }
+            
+            const question = cached.data.question;
+            
+            // Check if question matches user preferences
+            const matchesLevel = !userPreferences.difficultyLevels || 
+              userPreferences.difficultyLevels.includes(question.level);
+            
+            const matchesType = !userPreferences.questionTypes || 
+              userPreferences.questionTypes.includes(question.type);
+            
+            const matchesTopic = !userPreferences.topics || 
+              userPreferences.topics.includes('general') ||
+              (question.topic && userPreferences.topics.includes(question.topic));
+            
+            return matchesLevel && matchesType && matchesTopic;
+          });
+
+          if (validQuestions.length > 0) {
+            // Return a random valid question
+            const randomIndex = Math.floor(Math.random() * validQuestions.length);
+            const selectedQuestion = validQuestions[randomIndex].data.question;
+            console.log(`✅ Selected cached question: ${selectedQuestion.id} (${validQuestions.length} available)`);
+            resolve(selectedQuestion);
+          } else {
+            console.log('📝 No valid cached questions found matching user preferences');
+            resolve(null);
+          }
+        };
+        
+        request.onerror = () => {
+          console.warn('Failed to retrieve cached questions from IndexedDB');
+          resolve(null);
+        };
+      });
+    } catch (error) {
+      console.warn('Error getting cached question from IndexedDB:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Preload questions from Supabase for connection failure fallback
+   * This runs in the background to build up a cache of questions
+   */
+  async preloadQuestionsForCache() {
+    try {
+      if (!window.supabaseClient) {
+        console.log('📝 Skipping question preload: no Supabase client available');
+        return;
+      }
+
+      console.log('🔄 Preloading questions for connection failure fallback...');
+
+      // Get user preferences
+      let userSettings = {
+        difficultyLevels: ['A1', 'A2'],
+        questionTypes: ['multiple-choice', 'text-input'],
+        topics: ['general']
+      };
+
+      if (window.coreManager) {
+        const userState = window.coreManager.getState('user');
+        if (userState?.preferences) {
+          userSettings = userState.preferences;
+        }
+      }
+
+      // Try to get multiple questions for caching
+      const questionFilters = {
+        level: userSettings.difficultyLevels,
+        type: userSettings.questionTypes,
+        topics: userSettings.topics.length > 0 && userSettings.topics[0] !== 'general' ? userSettings.topics : undefined
+      };
+
+      // Clear existing cached questions for these settings first
+      await this.clearCachedQuestionsForSettings(userSettings);
+      
+      // Get exactly 30 questions matching current settings
+      const questions = await window.supabaseClient.getQuestions(questionFilters);
+      
+      if (questions && questions.length > 0) {
+        console.log(`📦 Caching exactly 30 questions for current settings...`);
+        
+        // Cache exactly 30 questions for connection failure fallback
+        const questionsToCache = questions.slice(0, 30);
+        
+        for (const dbQuestion of questionsToCache) {
+          try {
+            const transformedQuestion = this.transformDatabaseQuestion(dbQuestion);
+            await this.cacheQuestionToIndexedDB(transformedQuestion, userSettings);
+          } catch (error) {
+            console.warn('Failed to cache individual question:', error);
+          }
+        }
+        
+        // Store settings hash to detect changes
+        const settingsHash = this.getSettingsHash(userSettings);
+        await window.coreManager?.setCache('cached_questions_settings', settingsHash, { persist: true });
+        
+        console.log(`✅ Successfully cached ${questionsToCache.length} questions for connection failure fallback`);
+      } else {
+        console.log('📝 No questions available for caching');
+      }
+    } catch (error) {
+      console.warn('Failed to preload questions for cache:', error);
+    }
+  }
+
+  /**
+   * Clear cached questions for specific settings to refresh cache
+   */
+  async clearCachedQuestionsForSettings(userSettings) {
+    try {
+      if (!window.coreManager || !window.coreManager.storage.indexedDB) {
+        return;
+      }
+
+      const db = window.coreManager.storage.indexedDB;
+      const transaction = db.transaction(['cache'], 'readwrite');
+      const store = transaction.objectStore('cache');
+      const index = store.index('type');
+      
+      return new Promise((resolve) => {
+        const request = index.getAll('question');
+        
+        request.onsuccess = async () => {
+          const cachedQuestions = request.result || [];
+          console.log(`🗑️ Clearing ${cachedQuestions.length} old cached questions...`);
+          
+          // Delete all cached questions
+          const deleteTransaction = db.transaction(['cache'], 'readwrite');
+          const deleteStore = deleteTransaction.objectStore('cache');
+          
+          for (const cached of cachedQuestions) {
+            try {
+              await deleteStore.delete(cached.key);
+            } catch (error) {
+              console.warn('Failed to delete cached question:', error);
+            }
+          }
+          
+          resolve();
+        };
+        
+        request.onerror = () => {
+          console.warn('Failed to clear cached questions');
+          resolve();
+        };
+      });
+    } catch (error) {
+      console.warn('Error clearing cached questions:', error);
+    }
+  }
+
+  /**
+   * Generate hash of user settings to detect changes
+   */
+  getSettingsHash(userSettings) {
+    const settingsString = JSON.stringify({
+      difficultyLevels: (userSettings.difficultyLevels || []).sort(),
+      questionTypes: (userSettings.questionTypes || []).sort(), 
+      topics: (userSettings.topics || []).sort()
+    });
+    
+    // Simple hash function
+    let hash = 0;
+    for (let i = 0; i < settingsString.length; i++) {
+      const char = settingsString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
+  }
+
+  /**
+   * Check if settings have changed and refresh cache if needed
+   */
+  async checkAndRefreshCacheIfNeeded() {
+    try {
+      if (!window.coreManager) return;
+
+      const userState = window.coreManager.getState('user');
+      const currentSettings = userState?.preferences || {
+        difficultyLevels: ['A1', 'A2'],
+        questionTypes: ['multiple-choice', 'text-input'],
+        topics: ['general']
+      };
+
+      const currentHash = this.getSettingsHash(currentSettings);
+      const cachedHash = await window.coreManager.getCache('cached_questions_settings');
+
+      if (cachedHash !== currentHash) {
+        console.log('🔄 User settings changed, refreshing question cache...');
+        await this.preloadQuestionsForCache();
+      }
+    } catch (error) {
+      console.warn('Failed to check cache refresh need:', error);
+    }
+  }
+
+  /**
+   * Show message when no questions are available
+   */
+  showNoQuestionsAvailable() {
+    try {
+      // Create a simple message overlay
+      if (this.overlay) {
+        this.overlay.remove();
+      }
+
+      this.overlay = document.createElement('div');
+      this.overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: Arial, sans-serif;
+      `;
+
+      this.overlay.innerHTML = `
+        <div style="
+          background: white;
+          padding: 40px;
+          border-radius: 10px;
+          text-align: center;
+          max-width: 500px;
+          margin: 20px;
+        ">
+          <h2 style="color: #e74c3c; margin-bottom: 20px;">📶 Connection Required</h2>
+          <p style="color: #333; margin-bottom: 20px; line-height: 1.5;">
+            VocabBreak needs an internet connection to load questions matching your learning preferences. 
+            Please check your connection and refresh the page.
+          </p>
+          <button onclick="window.location.reload()" style="
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+          ">Refresh Page</button>
+        </div>
+      `;
+
+      document.body.appendChild(this.overlay);
+      console.log('📶 Showed no questions available message');
+    } catch (error) {
+      console.error('Failed to show no questions message:', error);
+    }
   }
 
   /**

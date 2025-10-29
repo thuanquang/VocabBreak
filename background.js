@@ -1,23 +1,11 @@
 /**
  * Background service worker for VocabBreak extension
- * Handles tab tracking, question scheduling (30-minute intervals), and cross-component communication
+ * Handles tab tracking, question scheduling, and cross-component communication
+ * Refactored to use consolidated CoreManager and QuestionBank
  */
 
-// Import shared modules for service worker
-// Note: Service workers cannot use Supabase CDN, so database operations are handled by content scripts
-
-// Initialize Supabase client for background script
-async function initializeSupabase() {
-  try {
-    // Service workers can't use CDN scripts, so we'll skip Supabase initialization here
-    // Questions will be handled through content script communication
-    // console.log('📝 Background script will use local question bank');
-    // console.log('📝 Supabase operations will be handled by content scripts when needed');
-  } catch (error) {
-    console.warn('⚠️ Supabase client not available in background:', error);
-    // console.log('📝 Extension will work with local question bank instead');
-  }
-}
+// Background script no longer manages questions - all questions come from Supabase/cache
+// Questions are handled entirely by content scripts with Supabase integration
 
 class BackgroundManager {
   constructor() {
@@ -32,16 +20,7 @@ class BackgroundManager {
   }
 
   async init() {
-    // console.log('VocabBreak background script initializing...');
-    
-    // Initialize Supabase client
-    await initializeSupabase();
-    
-    // Initialize question manager if available
-    if (typeof QuestionManager !== 'undefined') {
-      window.questionManager = new QuestionManager();
-      // console.log('✅ Question manager initialized in background');
-    }
+    console.log('🚀 VocabBreak background script initializing...');
     
     // Set up event listeners
     this.setupEventListeners();
@@ -53,7 +32,7 @@ class BackgroundManager {
     await this.initializeExistingTabs();
     
     this.isInitialized = true;
-    // console.log('VocabBreak background script initialized');
+    console.log('✅ VocabBreak background script initialized');
   }
 
   setupEventListeners() {
@@ -106,22 +85,23 @@ class BackgroundManager {
     }
   }
 
-  async initializeTab(tabId, url) {
+  async initializeTab(tabId, url, urlChanged = true) {
     if (!url || !this.shouldBlockUrl(url)) {
       return;
     }
 
-    // Check if tab already has a timer
-    if (this.tabTimers.has(tabId)) {
+    // Check if tab already has a timer and URL didn't change (refresh case)
+    if (this.tabTimers.has(tabId) && !urlChanged) {
+      console.log(`⏭️ Skipping timer setup for tab ${tabId} - existing timer preserved for same URL`);
       return;
     }
 
     // Check if tab state already exists (preserve lastQuestionTime)
     let tabState = this.tabStates.get(tabId);
     
-    if (!tabState) {
-      // Create new tab state only if none exists
-      // Set lastQuestionTime to trigger immediate question for new tabs
+    if (!tabState || urlChanged) {
+      // Create new tab state only if none exists OR URL changed
+      // Set lastQuestionTime to trigger immediate question for new tabs/URLs
       const now = Date.now();
       tabState = {
         url: url,
@@ -133,7 +113,7 @@ class BackgroundManager {
       };
       console.log(`🆕 Created NEW tab state for ${tabId}: lastQuestionTime set to trigger immediate question`);
     } else {
-      // Update URL but preserve timing data
+      // Update URL but preserve timing data (should rarely happen now)
       const oldLastQuestionTime = tabState.lastQuestionTime;
       tabState.url = url;
       console.log(`♻️ PRESERVED tab state for ${tabId}: lastQuestionTime = ${oldLastQuestionTime} (${Math.round((Date.now() - oldLastQuestionTime) / 1000)}s ago)`);
@@ -141,8 +121,13 @@ class BackgroundManager {
 
     this.tabStates.set(tabId, tabState);
 
-    // Set up periodic timer
-    this.schedulePeriodicQuestion(tabId);
+    // Set up periodic timer only if URL changed or no timer exists
+    if (urlChanged || !this.tabTimers.has(tabId)) {
+      console.log(`⏰ Setting up new timer for tab ${tabId}`);
+      this.schedulePeriodicQuestion(tabId);
+    } else {
+      console.log(`⏰ Preserving existing timer for tab ${tabId}`);
+    }
 
     // console.log(`Initialized tab ${tabId} for URL: ${url}`);
   }
@@ -177,16 +162,27 @@ class BackgroundManager {
 
   async handleTabUpdated(tabId, url) {
     try {
-      // Clear existing timer if any
-      this.clearTabTimer(tabId);
+      // Get existing tab state to check if URL actually changed
+      const existingTabState = this.tabStates.get(tabId);
+      const urlChanged = !existingTabState || existingTabState.url !== url;
+      
+      console.log(`📍 Tab ${tabId} updated: ${urlChanged ? 'URL CHANGED' : 'SAME URL (refresh)'} - ${url}`);
+      
+      // Only clear timer if URL actually changed (not on refresh)
+      if (urlChanged) {
+        console.log(`🗑️ Clearing timer for tab ${tabId} due to URL change`);
+        this.clearTabTimer(tabId);
+      } else {
+        console.log(`⏰ Preserving existing timer for tab ${tabId} (same URL refresh)`);
+      }
 
       if (!this.shouldBlockUrl(url)) {
         this.tabStates.delete(tabId);
         return;
       }
 
-      // Initialize/update tab - questions only appear every 30 minutes, not on new site visits
-      await this.initializeTab(tabId, url);
+      // Initialize/update tab - preserve timing for same URL
+      await this.initializeTab(tabId, url, urlChanged);
 
     } catch (error) {
       console.error('Failed to handle tab update:', error);
@@ -203,17 +199,9 @@ class BackgroundManager {
     try {
       switch (message.type) {
         case 'GET_QUESTION':
-          try {
-            // Background script uses local question bank only
-            // Content scripts can handle Supabase integration if needed
-            const question = this.getRandomLocalQuestion();
-            sendResponse({ success: true, question: question });
-          } catch (error) {
-            console.error('Error getting question:', error);
-            // Final fallback to sample question
-            const sampleQuestion = this.getRandomLocalQuestion();
-            sendResponse({ success: true, question: sampleQuestion });
-          }
+          // Background script no longer provides questions - all questions come from Supabase/cache
+          console.warn('Background script question request - this should not happen in new architecture');
+          sendResponse({ success: false, error: 'Questions should come from Supabase or cache only' });
           break;
 
         case 'SUBMIT_ANSWER':
@@ -273,29 +261,22 @@ class BackgroundManager {
       let feedback = '';
       let pointsEarned = 0;
 
-      // Validate answer based on question ID pattern
-      if (questionId.startsWith('local_')) {
-        const questionNumber = parseInt(questionId.replace('local_', ''));
-        const question = this.getQuestionById(questionNumber);
+      // Use consolidated question bank for validation
+      if (questionBank) {
+        const validation = questionBank.validateAnswer(questionId, userAnswer);
+        isCorrect = validation.isCorrect;
+        correctAnswer = validation.correctAnswer;
+        explanation = validation.explanation?.en || 'No explanation available.';
+        pointsEarned = isCorrect ? validation.pointsValue : 0;
         
-        if (question) {
-          correctAnswer = question.correctAnswer;
-          isCorrect = userAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
-          pointsEarned = isCorrect ? question.pointsValue : 0;
-          
-          // Generate feedback based on question
-          if (isCorrect) {
-            feedback = 'Correct! Well done!';
-            explanation = 'Great job! You got it right.';
-          } else {
-            feedback = `Not quite right. The correct answer is: ${correctAnswer}`;
-            explanation = this.getExplanationForQuestion(questionNumber);
-          }
+        if (isCorrect) {
+          feedback = 'Correct! Well done!';
+        } else {
+          feedback = `Not quite right. The correct answer is: ${correctAnswer}`;
         }
       } else {
-        // For non-local questions (like Supabase questions), we need to validate properly
-        // This should rarely happen since content script should handle Supabase validation
-        console.warn('Background script received non-local question ID:', questionId);
+        // Fallback validation
+        console.warn('Question bank not available for validation:', questionId);
         isCorrect = false;
         correctAnswer = 'unknown';
         pointsEarned = 0;
@@ -364,13 +345,12 @@ class BackgroundManager {
       return true;
     }
 
-    // Check if question is due
+    // FIXED: Only block if explicitly marked as blocked by the alarm system
+    // This prevents questions from appearing on every refresh
     const timeSinceLastQuestion = Date.now() - tabState.lastQuestionTime;
-    const isQuestionDue = timeSinceLastQuestion >= this.periodicInterval;
-    
-    console.log(`🔍 Tab ${tabId} block check: timeSince=${Math.round(timeSinceLastQuestion/1000)}s, interval=${this.periodicInterval/1000}s, due=${isQuestionDue}, blocked=${tabState.isBlocked}`);
+    console.log(`🔍 Tab ${tabId} block check: timeSince=${Math.round(timeSinceLastQuestion/1000)}s, interval=${this.periodicInterval/1000}s, blocked=${tabState.isBlocked}, reason=${tabState.blockReason}`);
 
-    return tabState.isBlocked || isQuestionDue;
+    return tabState.isBlocked;
   }
 
   async triggerQuestion(tabId, reason) {
@@ -442,6 +422,15 @@ class BackgroundManager {
     
     if (alarmName.startsWith('vocabbreak_tab_')) {
       const tabId = parseInt(alarmName.replace('vocabbreak_tab_', ''));
+      
+      // FIXED: Mark tab as blocked when the periodic timer fires
+      const tabState = this.tabStates.get(tabId);
+      if (tabState) {
+        tabState.isBlocked = true;
+        tabState.blockReason = 'periodic';
+        console.log(`⏰ Periodic timer fired for tab ${tabId}, marking as blocked`);
+      }
+      
       await this.triggerQuestion(tabId, 'periodic');
       
     } else if (alarmName.startsWith('vocabbreak_penalty_')) {
@@ -500,6 +489,26 @@ class BackgroundManager {
       console.error('❌ Failed to save settings to storage:', error);
     }
 
+    // Notify all content scripts that settings changed so they can refresh their cache
+    try {
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        if (tab.url && !tab.url.startsWith('chrome://')) {
+          try {
+            await chrome.tabs.sendMessage(tab.id, {
+              type: 'SETTINGS_CHANGED',
+              settings: settings
+            });
+          } catch (error) {
+            // Tab might not have content script loaded
+            console.log(`Could not notify tab ${tab.id} about settings change`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to notify tabs about settings change:', error);
+    }
+
     // Reinitialize tabs with new settings
     await this.initializeExistingTabs();
   }
@@ -518,213 +527,7 @@ class BackgroundManager {
     }
   }
 
-  getRandomLocalQuestion() {
-    // Local question bank for when Supabase is not available
-    const questions = [
-      {
-        id: 'local_1',
-        level: 'A1',
-        type: 'multiple-choice',
-        questionText: { en: 'What color is the sky?', vi: 'Bầu trời có màu gì?' },
-        correctAnswer: 'blue',
-        options: ['red', 'blue', 'green', 'yellow'],
-        pointsValue: 10
-      },
-      {
-        id: 'local_2',
-        level: 'A1',
-        type: 'multiple-choice',
-        questionText: { en: 'How many days are in a week?', vi: 'Có bao nhiêu ngày trong một tuần?' },
-        correctAnswer: 'seven',
-        options: ['five', 'six', 'seven', 'eight'],
-        pointsValue: 10
-      },
-      {
-        id: 'local_3',
-        level: 'A1',
-        type: 'multiple-choice',
-        questionText: { en: 'What is the opposite of "hot"?', vi: 'Từ trái nghĩa của "nóng" là gì?' },
-        correctAnswer: 'cold',
-        options: ['warm', 'cold', 'cool', 'freezing'],
-        pointsValue: 10
-      },
-      {
-        id: 'local_4',
-        level: 'A2',
-        type: 'multiple-choice',
-        questionText: { en: 'Which season comes after summer?', vi: 'Mùa nào đến sau mùa hè?' },
-        correctAnswer: 'autumn',
-        options: ['spring', 'autumn', 'winter', 'summer'],
-        pointsValue: 15
-      },
-      {
-        id: 'local_5',
-        level: 'A2',
-        type: 'multiple-choice',
-        questionText: { en: 'What do you use to write on paper?', vi: 'Bạn dùng gì để viết trên giấy?' },
-        correctAnswer: 'pen',
-        options: ['pen', 'fork', 'book', 'phone'],
-        pointsValue: 15
-      },
-      {
-        id: 'local_6',
-        level: 'B1',
-        type: 'multiple-choice',
-        questionText: { en: 'What is the capital of England?', vi: 'Thủ đô của nước Anh là gì?' },
-        correctAnswer: 'london',
-        options: ['paris', 'london', 'berlin', 'madrid'],
-        pointsValue: 20
-      },
-      {
-        id: 'local_7',
-        level: 'B1',
-        type: 'multiple-choice',
-        questionText: { en: 'Which planet is closest to the Sun?', vi: 'Hành tinh nào gần Mặt Trời nhất?' },
-        correctAnswer: 'mercury',
-        options: ['venus', 'mercury', 'earth', 'mars'],
-        pointsValue: 20
-      },
-      {
-        id: 'local_8',
-        level: 'A1',
-        type: 'text-input',
-        questionText: { en: 'Complete the sentence: "The sun is ___."', vi: 'Hoàn thành câu: "Mặt trời ___."' },
-        correctAnswer: 'bright',
-        pointsValue: 10
-      },
-      {
-        id: 'local_9',
-        level: 'A2',
-        type: 'text-input',
-        questionText: { en: 'What is the opposite of "big"?', vi: 'Từ trái nghĩa của "to" là gì?' },
-        correctAnswer: 'small',
-        pointsValue: 15
-      },
-      {
-        id: 'local_10',
-        level: 'B1',
-        type: 'text-input',
-        questionText: { en: 'What is the past tense of "go"?', vi: 'Thì quá khứ của "đi" là gì?' },
-        correctAnswer: 'went',
-        pointsValue: 20
-      }
-    ];
 
-    // Return a random question
-    const randomIndex = Math.floor(Math.random() * questions.length);
-    return questions[randomIndex];
-  }
-
-  getQuestionById(questionNumber) {
-    const questions = [
-      {
-        id: 'local_1',
-        level: 'A1',
-        type: 'multiple-choice',
-        questionText: { en: 'What color is the sky?', vi: 'Bầu trời có màu gì?' },
-        correctAnswer: 'blue',
-        options: ['red', 'blue', 'green', 'yellow'],
-        pointsValue: 10
-      },
-      {
-        id: 'local_2',
-        level: 'A1',
-        type: 'multiple-choice',
-        questionText: { en: 'How many days are in a week?', vi: 'Có bao nhiêu ngày trong một tuần?' },
-        correctAnswer: 'seven',
-        options: ['five', 'six', 'seven', 'eight'],
-        pointsValue: 10
-      },
-      {
-        id: 'local_3',
-        level: 'A1',
-        type: 'multiple-choice',
-        questionText: { en: 'What is the opposite of "hot"?', vi: 'Từ trái nghĩa của "nóng" là gì?' },
-        correctAnswer: 'cold',
-        options: ['warm', 'cold', 'cool', 'freezing'],
-        pointsValue: 10
-      },
-      {
-        id: 'local_4',
-        level: 'A2',
-        type: 'multiple-choice',
-        questionText: { en: 'Which season comes after summer?', vi: 'Mùa nào đến sau mùa hè?' },
-        correctAnswer: 'autumn',
-        options: ['spring', 'autumn', 'winter', 'summer'],
-        pointsValue: 15
-      },
-      {
-        id: 'local_5',
-        level: 'A2',
-        type: 'multiple-choice',
-        questionText: { en: 'What do you use to write on paper?', vi: 'Bạn dùng gì để viết trên giấy?' },
-        correctAnswer: 'pen',
-        options: ['pen', 'fork', 'book', 'phone'],
-        pointsValue: 15
-      },
-      {
-        id: 'local_6',
-        level: 'B1',
-        type: 'multiple-choice',
-        questionText: { en: 'What is the capital of England?', vi: 'Thủ đô của nước Anh là gì?' },
-        correctAnswer: 'london',
-        options: ['paris', 'london', 'berlin', 'madrid'],
-        pointsValue: 20
-      },
-      {
-        id: 'local_7',
-        level: 'B1',
-        type: 'multiple-choice',
-        questionText: { en: 'Which planet is closest to the Sun?', vi: 'Hành tinh nào gần Mặt Trời nhất?' },
-        correctAnswer: 'mercury',
-        options: ['venus', 'mercury', 'earth', 'mars'],
-        pointsValue: 20
-      },
-      {
-        id: 'local_8',
-        level: 'A1',
-        type: 'text-input',
-        questionText: { en: 'Complete the sentence: "The sun is ___."', vi: 'Hoàn thành câu: "Mặt trời ___."' },
-        correctAnswer: 'bright',
-        pointsValue: 10
-      },
-      {
-        id: 'local_9',
-        level: 'A2',
-        type: 'text-input',
-        questionText: { en: 'What is the opposite of "big"?', vi: 'Từ trái nghĩa của "to" là gì?' },
-        correctAnswer: 'small',
-        pointsValue: 15
-      },
-      {
-        id: 'local_10',
-        level: 'B1',
-        type: 'text-input',
-        questionText: { en: 'What is the past tense of "go"?', vi: 'Thì quá khứ của "đi" là gì?' },
-        correctAnswer: 'went',
-        pointsValue: 20
-      }
-    ];
-
-    return questions[questionNumber - 1] || null;
-  }
-
-  getExplanationForQuestion(questionNumber) {
-    const explanations = {
-      1: 'The sky appears blue due to light scattering in the atmosphere.',
-      2: 'There are seven days in a week: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, and Sunday.',
-      3: 'The opposite of "hot" is "cold". Hot means high temperature, cold means low temperature.',
-      4: 'The seasons in order are: spring, summer, autumn, winter. Autumn comes after summer.',
-      5: 'A pen is a writing instrument used to write on paper.',
-      6: 'London is the capital city of England and the United Kingdom.',
-      7: 'Mercury is the closest planet to the Sun in our solar system.',
-      8: 'The sun is bright because it emits light and heat.',
-      9: 'The opposite of "big" is "small". Big means large in size, small means little in size.',
-      10: 'The past tense of "go" is "went". For example: I go to school (present) → I went to school (past).'
-    };
-
-    return explanations[questionNumber] || 'This is the correct answer.';
-  }
 
   async loadPersistedStates() {
     try {

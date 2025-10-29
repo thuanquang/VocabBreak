@@ -18,15 +18,15 @@ VocabBreak STRUCTURE (for assistant reference)
 
 ### Core Directories
 
-#### `/shared/` - Shared Modules (Loaded by All Contexts)
+#### `/shared/` - Shared Modules (Consolidated Architecture)
+- **core-manager.js**: ✨ NEW - Unified state management, caching, and initialization system (replaces state-manager.js and offline-manager.js)
+- **question-bank.js**: ✨ NEW - Centralized question repository with validation and filtering (eliminates duplication)
+- **error-handler.js**: Centralized error handling with context-aware routing
 - **supabase.js**: UMD Supabase library (copied from @supabase/supabase-js)
 - **supabase-client.js**: Client wrapper with initialization, timeout handling, error management
-- **error-handler.js**: Centralized error handling with context-aware routing
-- **state-manager.js**: Application state management with subscription system
 - **auth-manager.js**: Authentication flow management and user session handling
-- **question-manager.js**: Question selection, filtering, validation, and caching
-- **gamification.js**: Points, streaks, levels, achievements, and motivation system ✅ FIXED: Now properly loaded
-- **offline-manager.js**: IndexedDB operations, offline sync, data persistence
+- **question-manager.js**: Question selection, filtering, validation, and caching (now uses question-bank.js)
+- **gamification.js**: Points, streaks, levels, achievements, and motivation system
 - **site-filter.js**: URL pattern matching, blocking logic, site list management
 - **i18n.js**: Internationalization for English/Vietnamese with message loading
 - **setup-credentials.js**: Supabase credentials management and injection
@@ -65,35 +65,35 @@ VocabBreak STRUCTURE (for assistant reference)
 
 ## Script Loading Order & Dependencies
 
-### Content Scripts (manifest.json) ✅ FIXED: Added gamification.js
-1. **shared/supabase.js** - Supabase library (must load first)
-2. **shared/error-handler.js** - Error handling system
-3. **shared/state-manager.js** - Application state management
-4. **shared/setup-credentials.js** - Credentials initialization
-5. **shared/i18n.js** - Internationalization system
-6. **shared/supabase-client.js** - Supabase client wrapper
-7. **shared/auth-manager.js** - Authentication management
-8. **shared/offline-manager.js** - Offline data management
+### Content Scripts (manifest.json) ✅ REFACTORED: Simplified loading chain
+1. **shared/error-handler.js** - Error handling system (loads first)
+2. **shared/question-bank.js** - ✨ NEW: Centralized question repository
+3. **shared/core-manager.js** - ✨ NEW: Unified state & cache management (replaces state-manager.js + offline-manager.js)
+4. **shared/supabase.js** - Supabase library
+5. **shared/setup-credentials.js** - Credentials initialization
+6. **shared/i18n.js** - Internationalization system
+7. **shared/supabase-client.js** - Supabase client wrapper
+8. **shared/auth-manager.js** - Authentication management
+9. **shared/question-manager.js** - Question system (now uses question-bank.js)
+10. **shared/gamification.js** - Gamification system
+11. **content/blocker.js** - Main content script ✅ UPDATED: Uses consolidated system
+
+### Popup/Options HTML Loading ✅ REFACTORED: Consolidated system
+1. **shared/error-handler.js** - Error handling (loads first)
+2. **shared/question-bank.js** - ✨ NEW: Centralized question repository
+3. **shared/core-manager.js** - ✨ NEW: Unified state & cache management
+4. **shared/supabase.js** - Supabase library
+5. **shared/setup-credentials.js** - Credentials
+6. **shared/i18n.js** - Internationalization
+7. **shared/supabase-client.js** - Supabase client
+8. **shared/auth-manager.js** - Authentication
 9. **shared/question-manager.js** - Question system
-10. **shared/gamification.js** - Gamification system ✅ ADDED
-11. **content/blocker.js** - Main content script ✅ UPDATED: Integrated gamification calls
+10. **shared/gamification.js** - Gamification system
+11. **Application-specific scripts** - Popup/options managers ✅ UPDATED: Uses CoreManager
 
-### Popup/Options HTML Loading ✅ FIXED: Added missing scripts
-1. **shared/supabase.js** - Supabase library
-2. **shared/error-handler.js** - Error handling
-3. **shared/state-manager.js** - State management
-4. **shared/setup-credentials.js** - Credentials
-5. **shared/i18n.js** - Internationalization
-6. **shared/supabase-client.js** - Supabase client
-7. **shared/auth-manager.js** - Authentication
-8. **shared/offline-manager.js** - Offline management ✅ ADDED
-9. **shared/question-manager.js** - Question system ✅ ADDED
-10. **shared/gamification.js** - Gamification system ✅ ADDED
-11. **Application-specific scripts** - Popup/options managers ✅ UPDATED: Enhanced with gamification integration
-
-### Background Script (Service Worker)
-- **background.js** - Main service worker ✅ FIXED: Questions now appear immediately on first visit
-- **Dynamic importScripts** - Loads shared/supabase.js when needed
+### Background Script (Service Worker) ✅ REFACTORED: Uses consolidated system
+- **background.js** - Main service worker ✅ UPDATED: Uses QuestionBank, eliminates duplicate question arrays
+- **Dynamic importScripts** - Loads shared/question-bank.js for local questions
 
 ## Data Flow & Communication
 
@@ -190,7 +190,7 @@ VocabBreak STRUCTURE (for assistant reference)
 - **Content Script Problems**: Loading order, timing, permissions
 - **Background Script**: Service worker lifecycle, message handling
 - **Offline Scenarios**: Fallback behavior, sync queue, data persistence
-- **Question Timing**: ✅ FIXED: Questions now appear immediately on first visit instead of 30-minute delay
+- **Question Timing**: ✅ FIXED: Questions appear immediately on first visit, then only when 30-minute alarm fires (not on refresh)
 
 ## Internationalization Architecture
 

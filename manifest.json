@@ -33,14 +33,13 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "shared/supabase.js",
         "shared/error-handler.js",
-        "shared/state-manager.js",
+        "shared/core-manager.js",
+        "shared/supabase.js",
         "shared/setup-credentials.js",
         "shared/i18n.js",
         "shared/supabase-client.js",
         "shared/auth-manager.js",
-        "shared/offline-manager.js",
         "shared/question-manager.js",
         "shared/gamification.js",
         "shared/site-filter.js",
