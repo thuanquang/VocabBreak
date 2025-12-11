@@ -11,6 +11,40 @@
 let SUPABASE_URL = 'YOUR_SUPABASE_URL';
 let SUPABASE_ANON_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
 
+/**
+ * Chrome storage adapter for Supabase auth sessions.
+ * Uses chrome.storage.local so session is shared across extension contexts.
+ */
+class ChromeStorageAdapter {
+  async getItem(key) {
+    try {
+      const result = await chrome.storage.local.get([key]);
+      return result[key] || null;
+    } catch (error) {
+      console.warn('ChromeStorageAdapter.getItem failed', error);
+      return null;
+    }
+  }
+
+  async setItem(key, value) {
+    try {
+      await chrome.storage.local.set({ [key]: value });
+      return value;
+    } catch (error) {
+      console.warn('ChromeStorageAdapter.setItem failed', error);
+      return null;
+    }
+  }
+
+  async removeItem(key) {
+    try {
+      await chrome.storage.local.remove([key]);
+    } catch (error) {
+      console.warn('ChromeStorageAdapter.removeItem failed', error);
+    }
+  }
+}
+
 // Initialize credentials from storage
 async function initializeCredentials() {
   try {
@@ -61,12 +95,22 @@ async function initializeCredentials() {
 
 class SupabaseClient {
   constructor() {
+    // Reuse singleton if it already exists in this context to avoid multiple GoTrue clients
+    if (typeof window !== 'undefined' && window.__vbSupabaseSingleton) {
+      return window.__vbSupabaseSingleton;
+    }
+
     this.client = null;
     this.user = null;
     this.sessionId = null;
     this.initialized = false;
     this._initializing = null;
+    this.authStorage = new ChromeStorageAdapter();
     this.initClient();
+
+    if (typeof window !== 'undefined') {
+      window.__vbSupabaseSingleton = this;
+    }
   }
 
   async initClient() {
@@ -84,7 +128,9 @@ class SupabaseClient {
           auth: {
             persistSession: true,
             autoRefreshToken: true,
-            detectSessionInUrl: false // Disable for extension
+            detectSessionInUrl: false, // Disable for extension
+            storageKey: 'vb-auth',
+            storage: this.authStorage
           }
         });
         // console.log('✅ Supabase client created successfully');
@@ -207,6 +253,15 @@ class SupabaseClient {
       }
       throw err;
     }
+  }
+
+  async ensureUser() {
+    if (this.user) return this.user;
+    await this.waitForInitialization();
+    const { data, error } = await this.client.auth.getUser();
+    if (error) throw error;
+    this.user = data?.user || null;
+    return this.user;
   }
 
   async withTimeout(promise, ms = 10000, context = 'operation') {
@@ -472,6 +527,7 @@ class SupabaseClient {
 
   async getUserProfile() {
     await this.waitForInitialization();
+    await this.ensureUser();
     this.assertClient('getUserProfile');
     const op = this.client
       .from('users')
@@ -486,12 +542,13 @@ class SupabaseClient {
 
   async updateUserProfile(updates) {
     await this.waitForInitialization();
+    await this.ensureUser();
     this.assertClient('updateUserProfile');
     // Get current profile for deep merge
-    const { data: currentProfile } = await this.getUserProfile();
+    const currentProfile = await this.getUserProfile();
     
     // Deep merge updates into existing profile
-    const mergedProfile = this.deepMerge(currentProfile.profile, updates.profile || {});
+    const mergedProfile = this.deepMerge(currentProfile?.profile || {}, updates.profile || {});
     
     const op = this.client
       .from('users')
@@ -694,6 +751,7 @@ class SupabaseClient {
 
   async recordInteraction(interactionData) {
     await this.waitForInitialization();
+    await this.ensureUser();
     this.assertClient('recordInteraction');
     const op = this.client
       .from('user_interactions')
@@ -739,6 +797,7 @@ class SupabaseClient {
 
   async recordBlockingEvent(blockData) {
     await this.waitForInitialization();
+    await this.ensureUser();
     this.assertClient('recordBlockingEvent');
     const op = this.client
       .from('blocking_events')

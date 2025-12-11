@@ -297,7 +297,6 @@ class PopupManager {
       const targetScreen = document.getElementById(`${screenName}-screen`);
       if (targetScreen) {
         targetScreen.classList.remove('hidden');
-        window.stateManager.updateAppState({ currentScreen: screenName });
       }
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'show-screen' });
