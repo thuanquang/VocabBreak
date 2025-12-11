@@ -5,7 +5,9 @@
   "scripts": {
     "build": "node scripts/build.js",
     "dev": "npm run build && echo \"Extension built in ./dist! Load it in Chrome at chrome://extensions/\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "copy:supabase": "node scripts/copy-supabase.js",
+    "spec:validate": "openspec validate --strict",
+    "test": "npm run spec:validate"
   },
   "keywords": [],
   "author": "",

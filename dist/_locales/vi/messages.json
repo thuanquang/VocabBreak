@@ -304,6 +304,26 @@
   "close": {
     "message": "Đóng",
     "description": "Close button text"
+  },
+  "comfort_settings": {
+    "message": "Thoải mái & Phản hồi",
+    "description": "Section heading for comfort related settings"
+  },
+  "reduced_motion": {
+    "message": "Giảm chuyển động",
+    "description": "Label for reduced motion toggle"
+  },
+  "reduced_motion_desc": {
+    "message": "Giảm hoạt ảnh và hiệu ứng nhẹ để trải nghiệm dễ chịu, dễ tiếp cận hơn.",
+    "description": "Description for reduced motion toggle"
+  },
+  "sound_feedback": {
+    "message": "Âm thanh phản hồi",
+    "description": "Label for soft click/chime toggle"
+  },
+  "sound_feedback_desc": {
+    "message": "Phát tiếng click/chime nhẹ khi thao tác (tắt để im lặng).",
+    "description": "Description for sound feedback toggle"
   }
 }
 

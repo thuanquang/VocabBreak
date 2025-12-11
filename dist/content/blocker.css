@@ -6,14 +6,17 @@
 :root {
   --vb-overlay: rgba(15, 23, 42, 0.65);
   --vb-surface: #ffffff;
-  --vb-muted-surface: #f6f7fb;
-  --vb-accent: #4f46e5;
-  --vb-accent-strong: #4338ca;
+  --vb-muted-surface: #f3fbff;
+  --vb-accent: #2fb7d9;
+  --vb-accent-strong: #1f9ac1;
   --vb-text: #0f172a;
-  --vb-muted: #6b7280;
-  --vb-border: #e5e7eb;
+  --vb-muted: #4b5563;
+  --vb-border: #d7e6ed;
   --vb-radius: 14px;
-  --vb-shadow: 0 16px 40px rgba(15, 23, 42, 0.2);
+  --vb-shadow: 0 16px 40px rgba(47, 183, 217, 0.18);
+  --vb-success: #2fb58c;
+  --vb-danger: #ef4444;
+  --vb-warning: #f5a524;
 }
 
 /* Reset and base styles for overlay */
@@ -41,6 +44,20 @@
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+}
+
+#vocabbreak-overlay.vb-reduced-motion *,
+#vocabbreak-overlay.vb-reduced-motion *::before,
+#vocabbreak-overlay.vb-reduced-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+#vocabbreak-overlay.vb-reduced-motion .vocabbreak-option:hover,
+#vocabbreak-overlay.vb-reduced-motion .vocabbreak-submit:hover,
+#vocabbreak-overlay.vb-reduced-motion .vocabbreak-timer {
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 /* Modal container */
@@ -153,9 +170,9 @@
 
 .vocabbreak-option:hover {
   border-color: var(--vb-accent) !important;
-  background: var(--vb-muted-surface) !important;
+  background: #e0f7ff !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15) !important;
+  box-shadow: 0 8px 25px rgba(47, 183, 217, 0.18) !important;
 }
 
 .vocabbreak-option:hover::before {
@@ -167,7 +184,7 @@
   background: var(--vb-accent) !important;
   color: white !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.28) !important;
+  box-shadow: 0 8px 25px rgba(47, 183, 217, 0.24) !important;
 }
 
 /* Text input */
@@ -186,7 +203,7 @@
 .vocabbreak-text-input:focus {
   outline: none !important;
   border-color: var(--vb-accent) !important;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(47, 183, 217, 0.18) !important;
   background: var(--vb-muted-surface) !important;
 }
 
@@ -207,7 +224,7 @@
 .vocabbreak-points {
   font-size: 16px !important;
   font-weight: 600 !important;
-  color: #38a169 !important;
+  color: var(--vb-success) !important;
   display: flex !important;
   align-items: center !important;
 }
@@ -246,7 +263,7 @@
 
 .vocabbreak-submit:hover {
   transform: translateY(-1px) !important;
-  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.25) !important;
+  box-shadow: 0 8px 25px rgba(47, 183, 217, 0.25) !important;
 }
 
 .vocabbreak-submit:hover::before {
@@ -280,9 +297,9 @@
 }
 
 .vocabbreak-feedback.correct {
-  background: linear-gradient(135deg, #48bb78, #38a169) !important;
+  background: linear-gradient(135deg, #2fb58c, #2fb7d9) !important;
   color: white !important;
-  box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3) !important;
+  box-shadow: 0 4px 15px rgba(47, 183, 217, 0.25) !important;
 }
 
 .vocabbreak-feedback.correct::before {
@@ -290,9 +307,9 @@
 }
 
 .vocabbreak-feedback.incorrect {
-  background: linear-gradient(135deg, #f56565, #e53e3e) !important;
+  background: linear-gradient(135deg, #ff6b6b, #ef4444) !important;
   color: white !important;
-  box-shadow: 0 4px 15px rgba(245, 101, 101, 0.3) !important;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.28) !important;
 }
 
 .vocabbreak-feedback.incorrect::before {
@@ -302,7 +319,7 @@
 /* Penalty section */
 .vocabbreak-penalty {
   text-align: center !important;
-  color: #e53e3e !important;
+  color: var(--vb-danger) !important;
   font-weight: 600 !important;
   width: 100% !important;
   display: flex !important;
@@ -315,8 +332,8 @@
   font-size: 48px !important;
   font-weight: 800 !important;
   margin: 20px 0 !important;
-  color: #e53e3e !important;
-  text-shadow: 0 2px 4px rgba(229, 62, 62, 0.3) !important;
+  color: var(--vb-danger) !important;
+  text-shadow: 0 2px 4px rgba(239, 68, 68, 0.3) !important;
   animation: vocabbreak-pulse 1s infinite !important;
 }
 
@@ -335,7 +352,7 @@
   margin-top: 20px !important;
   font-size: 20px !important;
   font-weight: bold !important;
-  color: #38a169 !important;
+  color: var(--vb-success) !important;
   animation: vocabbreak-bounce 0.6s ease-out !important;
 }
 

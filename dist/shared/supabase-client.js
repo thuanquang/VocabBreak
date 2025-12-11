@@ -8,8 +8,8 @@
 // Note: Supabase client will be loaded via CDN in HTML files or bundled
 
 // Get credentials from chrome storage (set from .env during build)
-let SUPABASE_URL = 'YOUR_SUPABASE_URL';
-let SUPABASE_ANON_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
+let SUPABASE_URL = 'https://nyxtigtweenrnsmaaoic.supabase.co';
+let SUPABASE_ANON_KEY = 'sb_publishable_V8LlV7Wjb4ssGpGtpP-52A_6XX2rmRA';
 
 /**
  * Chrome storage adapter for Supabase auth sessions.

@@ -550,6 +550,26 @@
   "close": {
     "message": "Close",
     "description": "Close button text"
+  },
+  "comfort_settings": {
+    "message": "Comfort & Feedback",
+    "description": "Section heading for comfort related settings"
+  },
+  "reduced_motion": {
+    "message": "Reduced Motion",
+    "description": "Label for reduced motion toggle"
+  },
+  "reduced_motion_desc": {
+    "message": "Minimize animations and subtle effects for a calmer, accessible experience.",
+    "description": "Description for reduced motion toggle"
+  },
+  "sound_feedback": {
+    "message": "Sound Feedback",
+    "description": "Label for soft click/chime toggle"
+  },
+  "sound_feedback_desc": {
+    "message": "Play soft clicks/chimes for answers and actions (mute to silence).",
+    "description": "Description for sound feedback toggle"
   }
 }
 

@@ -13,6 +13,8 @@ class VocabBreakBlocker {
     this.startTime = null;
     this.penaltyTimer = null;
     this.isInitialized = false;
+    this.userPrefs = { soundEnabled: true, reducedMotion: false };
+    this.audioContext = null;
     
     this.init();
   }
@@ -42,6 +44,18 @@ class VocabBreakBlocker {
       } else {
         console.warn('⚠️ i18n system not available in content script');
       }
+
+      await this.loadUserPreferences();
+
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'sync' && (changes.soundEnabled || changes.reducedMotion)) {
+          this.userPrefs = {
+            soundEnabled: changes.soundEnabled ? changes.soundEnabled.newValue !== false : this.userPrefs.soundEnabled,
+            reducedMotion: changes.reducedMotion ? !!changes.reducedMotion.newValue : this.userPrefs.reducedMotion
+          };
+          this.applyPreferencesToOverlay();
+        }
+      });
 
       // Check if we should block this page
       console.log('🔍 VocabBreak content script checking if should block...');
@@ -91,6 +105,49 @@ class VocabBreakBlocker {
       } catch (e) {
         console.error('Could not notify background of error:', e);
       }
+    }
+  }
+
+  async loadUserPreferences() {
+    try {
+      const result = await chrome.storage.sync.get(['soundEnabled', 'reducedMotion']);
+      this.userPrefs = {
+        soundEnabled: result.soundEnabled !== false,
+        reducedMotion: !!result.reducedMotion
+      };
+      this.applyPreferencesToOverlay();
+    } catch (error) {
+      console.warn('Failed to load comfort preferences, using defaults', error);
+      this.userPrefs = { soundEnabled: true, reducedMotion: false };
+    }
+  }
+
+  applyPreferencesToOverlay() {
+    if (!this.overlay) return;
+    this.overlay.classList.toggle('vb-reduced-motion', !!this.userPrefs.reducedMotion);
+  }
+
+  maybePlayClick(frequency = 240, duration = 0.08) {
+    if (!this.userPrefs || !this.userPrefs.soundEnabled || this.userPrefs.reducedMotion) {
+      return;
+    }
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      this.audioContext = this.audioContext || new AudioCtx();
+      const ctx = this.audioContext;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration + 0.02);
+    } catch (error) {
+      console.warn('Soft click playback failed', error);
     }
   }
 
@@ -281,6 +338,7 @@ class VocabBreakBlocker {
 
     // Add to page
     document.body.appendChild(this.overlay);
+    this.applyPreferencesToOverlay();
 
     // Force overlay to be on top and unbypassable
     this.overlay.style.cssText = `
@@ -645,9 +703,11 @@ class VocabBreakBlocker {
     
     // Select clicked option
     element.classList.add('selected');
+    this.maybePlayClick(300);
   }
 
   async submitAnswer() {
+    this.maybePlayClick(240);
     let userAnswer = '';
 
     if (this.currentQuestion.type === 'multiple-choice') {
@@ -765,6 +825,7 @@ class VocabBreakBlocker {
     const footer = this.overlay.querySelector('#vocabbreak-footer');
 
     if (isCorrect) {
+      this.maybePlayClick(520);
       let gamificationHTML = '';
       
       // Add gamification feedback if available
@@ -826,6 +887,7 @@ class VocabBreakBlocker {
       }, 3000);
       
     } else {
+      this.maybePlayClick(160);
       // Show penalty timer
       const penaltyEndTime = response.penaltyEndTime || (Date.now() + 30000);
       this.startPenaltyTimer(penaltyEndTime);

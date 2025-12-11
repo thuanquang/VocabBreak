@@ -7,6 +7,8 @@ class PopupManager {
   constructor() {
     this.unsubscribers = [];
     this.isInitialized = false;
+    this.userPrefs = { soundEnabled: true, reducedMotion: false };
+    this.audioContext = null;
     
     this.init();
   }
@@ -17,6 +19,19 @@ class PopupManager {
 
       // Wait for dependencies
       await this.waitForDependencies();
+
+      // Load comfort preferences (sound/motion)
+      await this.loadUserPreferences();
+
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'sync' && (changes.soundEnabled || changes.reducedMotion)) {
+          this.userPrefs = {
+            soundEnabled: changes.soundEnabled ? changes.soundEnabled.newValue !== false : this.userPrefs.soundEnabled,
+            reducedMotion: changes.reducedMotion ? !!changes.reducedMotion.newValue : this.userPrefs.reducedMotion
+          };
+          this.applyUserPreferences();
+        }
+      });
 
       // Set up event listeners
       this.setupEventListeners();
@@ -63,6 +78,53 @@ class PopupManager {
       attempts++;
     }
     throw new Error('Required dependencies not available');
+  }
+
+  async loadUserPreferences() {
+    try {
+      const result = await chrome.storage.sync.get(['soundEnabled', 'reducedMotion']);
+      this.userPrefs = {
+        soundEnabled: result.soundEnabled !== false,
+        reducedMotion: !!result.reducedMotion
+      };
+      this.applyUserPreferences();
+    } catch (error) {
+      console.warn('Failed to load comfort preferences, using defaults', error);
+      this.userPrefs = { soundEnabled: true, reducedMotion: false };
+      this.applyUserPreferences();
+    }
+  }
+
+  applyUserPreferences() {
+    try {
+      document.body.classList.toggle('reduced-motion', !!this.userPrefs.reducedMotion);
+    } catch (error) {
+      console.warn('Failed to apply user preferences', error);
+    }
+  }
+
+  maybePlayClick(frequency = 240, duration = 0.08) {
+    if (!this.userPrefs || !this.userPrefs.soundEnabled || this.userPrefs.reducedMotion) {
+      return;
+    }
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      this.audioContext = this.audioContext || new AudioCtx();
+      const ctx = this.audioContext;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.14, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration + 0.02);
+    } catch (error) {
+      console.warn('Soft click playback failed', error);
+    }
   }
 
   setupEventListeners() {
@@ -183,6 +245,7 @@ class PopupManager {
 
   async handleGoogleLogin() {
     try {
+      this.maybePlayClick(320);
       this.showAuthError('');
       const button = document.getElementById('google-login-btn');
       if (button) {
@@ -208,6 +271,7 @@ class PopupManager {
 
   async handleTestTrigger() {
     try {
+      this.maybePlayClick(260);
       await chrome.runtime.sendMessage({ type: 'TRIGGER_BLOCK_NOW' });
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'test-trigger-block' });
@@ -224,6 +288,7 @@ class PopupManager {
 
   async handleLogout() {
     try {
+      this.maybePlayClick(200);
       const result = await window.authManager.signOut();
       
       if (!result.success) {
@@ -244,6 +309,7 @@ class PopupManager {
 
   async handleSync() {
     try {
+      this.maybePlayClick(250);
       window.stateManager.updateAppState({ syncStatus: 'syncing' });
       
       // Simulate sync delay
@@ -266,6 +332,7 @@ class PopupManager {
 
   handleRetry() {
     try {
+      this.maybePlayClick(250);
       // Clear auth/app errors and return to loading
       window.stateManager.updateAuthState({ lastError: null, isLoading: false });
       window.stateManager.updateAppState({ currentScreen: 'loading', lastError: null });
@@ -279,6 +346,7 @@ class PopupManager {
 
   openSettings() {
     try {
+      this.maybePlayClick(240);
       chrome.runtime.openOptionsPage();
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'open-settings' });

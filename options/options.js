@@ -16,7 +16,9 @@ class OptionsManager {
       penaltyDuration: 30,
       interfaceLanguage: 'en',
       gamificationEnabled: true,
-      streakNotifications: true
+      streakNotifications: true,
+      reducedMotion: false,
+      soundEnabled: true
     };
     this.user = null;
     this.isDirty = false;
@@ -149,7 +151,9 @@ class OptionsManager {
         'penaltyDuration',
         'interfaceLanguage',
         'gamificationEnabled',
-        'streakNotifications'
+        'streakNotifications',
+        'reducedMotion',
+        'soundEnabled'
       ]);
 
       // Merge with defaults
@@ -243,6 +247,18 @@ class OptionsManager {
     // Gamification settings
     document.getElementById('gamification-enabled').checked = this.settings.gamificationEnabled;
     document.getElementById('streak-notifications').checked = this.settings.streakNotifications;
+
+    const reducedMotionToggle = document.getElementById('reduced-motion');
+    if (reducedMotionToggle) {
+      reducedMotionToggle.checked = !!this.settings.reducedMotion;
+    }
+
+    const soundToggle = document.getElementById('sound-enabled');
+    if (soundToggle) {
+      soundToggle.checked = this.settings.soundEnabled !== false;
+    }
+
+    document.body.classList.toggle('reduced-motion', !!this.settings.reducedMotion);
   }
 
   updateTopicsList() {
@@ -435,6 +451,13 @@ class OptionsManager {
       } else if (e.target.id === 'streak-notifications') {
         this.settings.streakNotifications = e.target.checked;
         this.markDirty();
+      } else if (e.target.id === 'reduced-motion') {
+        this.settings.reducedMotion = e.target.checked;
+        document.body.classList.toggle('reduced-motion', !!this.settings.reducedMotion);
+        this.markDirty();
+      } else if (e.target.id === 'sound-enabled') {
+        this.settings.soundEnabled = e.target.checked;
+        this.markDirty();
       }
     });
   }
@@ -619,7 +642,9 @@ class OptionsManager {
         penaltyDuration: 30,
         interfaceLanguage: 'en',
         gamificationEnabled: true,
-        streakNotifications: true
+        streakNotifications: true,
+        reducedMotion: false,
+        soundEnabled: true
       };
       
       this.updateFormValues();

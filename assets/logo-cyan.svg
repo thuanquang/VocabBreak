@@ -1,0 +1,17 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">VocabBreak Cyan Logo</title>
+  <desc id="desc">Playful cyan spark composed of overlapping circles</desc>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4cd3ff"/>
+      <stop offset="100%" stop-color="#2aa9d6"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="60" fill="url(#g)" opacity="0.18"/>
+  <circle cx="76" cy="68" r="34" fill="url(#g)" opacity="0.9"/>
+  <circle cx="98" cy="86" r="28" fill="url(#g)" opacity="0.8"/>
+  <circle cx="64" cy="96" r="22" fill="url(#g)" opacity="0.85"/>
+  <path d="M72 50c0-6.6 5.4-12 12-12s12 5.4 12 12-5.4 12-12 12-12-5.4-12-12z" fill="#e8fbff"/>
+  <path d="M60 104c0-6.6 5.4-12 12-12h16c6.6 0 12 5.4 12 12s-5.4 12-12 12H72c-6.6 0-12-5.4-12-12z" fill="#e8fbff" opacity="0.9"/>
+</svg>
+
