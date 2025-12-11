@@ -12,11 +12,29 @@
   --vb-text: #0f172a;
   --vb-muted: #4b5563;
   --vb-border: #d7e6ed;
-  --vb-radius: 14px;
+  --vb-radius: var(--vb-radius-lg);
   --vb-shadow: 0 16px 40px rgba(47, 183, 217, 0.18);
   --vb-success: #2fb58c;
   --vb-danger: #ef4444;
   --vb-warning: #f5a524;
+  /* Fibonacci-based spacing scale */
+  --vb-space-1: 1px;
+  --vb-space-2: 2px;
+  --vb-space-3: 3px;
+  --vb-space-4: 5px;
+  --vb-space-5: 8px;
+  --vb-space-6: 13px;
+  --vb-space-7: 21px;
+  --vb-space-8: 34px;
+  --vb-space-xs: var(--vb-space-3);
+  --vb-space-sm: var(--vb-space-4);
+  --vb-space-md: var(--vb-space-5);
+  --vb-space-lg: var(--vb-space-6);
+  --vb-space-xl: var(--vb-space-7);
+  --vb-space-xxl: var(--vb-space-8);
+  --vb-radius-sm: var(--vb-space-4);
+  --vb-radius-md: var(--vb-space-5);
+  --vb-radius-lg: var(--vb-space-6);
 }
 
 /* Reset and base styles for overlay */
@@ -89,7 +107,7 @@
 .vocabbreak-header {
   background: var(--vb-muted-surface) !important;
   color: var(--vb-text) !important;
-  padding: 28px 32px 24px 32px !important;
+  padding: var(--vb-space-8) var(--vb-space-8) var(--vb-space-7) var(--vb-space-8) !important;
   text-align: center !important;
   position: relative !important;
 }
@@ -114,7 +132,7 @@
 }
 
 .vocabbreak-streak {
-  margin-top: 8px !important;
+  margin-top: var(--vb-space-5) !important;
   font-size: 15px !important;
   opacity: 0.9 !important;
   position: relative !important;
@@ -123,7 +141,7 @@
 
 /* Content section */
 .vocabbreak-content {
-  padding: 32px !important;
+  padding: var(--vb-space-8) !important;
   min-height: 200px !important;
 }
 
@@ -131,7 +149,7 @@
   font-size: 20px !important;
   font-weight: 600 !important;
   color: var(--vb-text) !important;
-  margin-bottom: 24px !important;
+  margin-bottom: var(--vb-space-7) !important;
   line-height: 1.6 !important;
   text-align: center !important;
 }
@@ -140,13 +158,13 @@
 .vocabbreak-options {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: var(--vb-space-6) !important;
 }
 
 .vocabbreak-option {
-  padding: 16px 20px !important;
+  padding: var(--vb-space-6) var(--vb-space-7) !important;
   border: 2px solid var(--vb-border) !important;
-  border-radius: 12px !important;
+  border-radius: var(--vb-radius-lg) !important;
   background: var(--vb-surface) !important;
   cursor: pointer !important;
   font-size: 16px !important;
@@ -171,7 +189,7 @@
 .vocabbreak-option:hover {
   border-color: var(--vb-accent) !important;
   background: #e0f7ff !important;
-  transform: translateY(-2px) !important;
+  transform: translateY(calc(-1 * var(--vb-space-2))) !important;
   box-shadow: 0 8px 25px rgba(47, 183, 217, 0.18) !important;
 }
 
@@ -183,15 +201,15 @@
   border-color: var(--vb-accent) !important;
   background: var(--vb-accent) !important;
   color: white !important;
-  transform: translateY(-2px) !important;
+  transform: translateY(calc(-1 * var(--vb-space-2))) !important;
   box-shadow: 0 8px 25px rgba(47, 183, 217, 0.24) !important;
 }
 
 /* Text input */
 .vocabbreak-text-input {
-  padding: 16px 20px !important;
+  padding: var(--vb-space-6) var(--vb-space-7) !important;
   border: 2px solid var(--vb-border) !important;
-  border-radius: 12px !important;
+  border-radius: var(--vb-radius-lg) !important;
   font-size: 16px !important;
   font-weight: 500 !important;
   width: 100% !important;
@@ -213,10 +231,10 @@
 
 /* Footer section */
 .vocabbreak-footer {
-  padding: 20px 32px 32px 32px !important;
+  padding: var(--vb-space-7) var(--vb-space-8) var(--vb-space-8) var(--vb-space-8) !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: var(--vb-space-6) !important;
   justify-content: center !important;
   align-items: center !important;
   background: var(--vb-muted-surface) !important;
@@ -236,7 +254,7 @@
 
 .vocabbreak-points::before {
   content: '🎯' !important;
-  margin-right: 8px !important;
+  margin-right: var(--vb-space-5) !important;
 }
 
 /* Submit button */
@@ -244,8 +262,8 @@
   background: var(--vb-accent) !important;
   color: white !important;
   border: none !important;
-  padding: 14px 28px !important;
-  border-radius: 10px !important;
+  padding: var(--vb-space-6) var(--vb-space-8) !important;
+  border-radius: var(--vb-radius-md) !important;
   font-size: 16px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
@@ -267,7 +285,7 @@
 }
 
 .vocabbreak-submit:hover {
-  transform: translateY(-1px) !important;
+  transform: translateY(calc(-1 * var(--vb-space-2))) !important;
   box-shadow: 0 8px 25px rgba(47, 183, 217, 0.25) !important;
 }
 
@@ -292,9 +310,9 @@
 
 /* Feedback messages */
 .vocabbreak-feedback {
-  padding: 20px !important;
-  border-radius: 12px !important;
-  margin-top: 20px !important;
+  padding: var(--vb-space-7) !important;
+  border-radius: var(--vb-radius-lg) !important;
+  margin-top: var(--vb-space-7) !important;
   font-size: 16px !important;
   font-weight: 500 !important;
   text-align: center !important;
@@ -336,7 +354,7 @@
 .vocabbreak-timer {
   font-size: 48px !important;
   font-weight: 800 !important;
-  margin: 20px 0 !important;
+  margin: var(--vb-space-7) 0 !important;
   color: var(--vb-danger) !important;
   text-shadow: 0 2px 4px rgba(239, 68, 68, 0.3) !important;
   animation: vocabbreak-pulse 1s infinite !important;
@@ -354,7 +372,7 @@
 /* Points earned animation */
 .vocabbreak-points-earned {
   text-align: center !important;
-  margin-top: 20px !important;
+  margin-top: var(--vb-space-7) !important;
   font-size: 20px !important;
   font-weight: bold !important;
   color: var(--vb-success) !important;
@@ -376,13 +394,13 @@
 /* Responsive design */
 @media (max-width: 480px) {
   .vocabbreak-modal {
-    margin: 16px !important;
-    width: calc(100% - 32px) !important;
-    max-height: calc(100vh - 32px) !important;
+    margin: var(--vb-space-6) !important;
+    width: calc(100% - (2 * var(--vb-space-8))) !important;
+    max-height: calc(100vh - (2 * var(--vb-space-8))) !important;
   }
   
   .vocabbreak-header {
-    padding: 24px 24px 20px 24px !important;
+    padding: var(--vb-space-7) var(--vb-space-7) var(--vb-space-6) var(--vb-space-7) !important;
   }
   
   #vocabbreak-title {
@@ -390,7 +408,7 @@
   }
   
   .vocabbreak-content {
-    padding: 24px !important;
+    padding: var(--vb-space-7) !important;
   }
   
   .vocabbreak-question {
@@ -398,9 +416,9 @@
   }
   
   .vocabbreak-footer {
-    padding: 16px 24px 24px 24px !important;
+    padding: var(--vb-space-6) var(--vb-space-7) var(--vb-space-7) var(--vb-space-7) !important;
     flex-direction: column !important;
-    gap: 16px !important;
+    gap: var(--vb-space-6) !important;
   }
   
   .vocabbreak-submit {

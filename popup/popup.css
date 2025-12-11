@@ -12,11 +12,29 @@
     --vb-text: #0f172a;
     --vb-muted: #4b5563;
     --vb-border: #d7e6ed;
-    --vb-radius: 14px;
+    --vb-radius: var(--vb-radius-lg);
     --vb-shadow: 0 12px 30px rgba(47, 183, 217, 0.18);
     --vb-success: #2fb58c;
     --vb-warning: #f5a524;
     --vb-danger: #ef4444;
+    /* Fibonacci-based spacing scale */
+    --vb-space-1: 1px;
+    --vb-space-2: 2px;
+    --vb-space-3: 3px;
+    --vb-space-4: 5px;
+    --vb-space-5: 8px;
+    --vb-space-6: 13px;
+    --vb-space-7: 21px;
+    --vb-space-8: 34px;
+    --vb-space-xs: var(--vb-space-3);
+    --vb-space-sm: var(--vb-space-4);
+    --vb-space-md: var(--vb-space-5);
+    --vb-space-lg: var(--vb-space-6);
+    --vb-space-xl: var(--vb-space-7);
+    --vb-space-xxl: var(--vb-space-8);
+    --vb-radius-sm: var(--vb-space-4);
+    --vb-radius-md: var(--vb-space-5);
+    --vb-radius-lg: var(--vb-space-6);
 }
 
 /* Reset and base styles */
@@ -36,8 +54,8 @@ body {
 }
 
 .logo-mark {
-    width: 40px;
-    height: 40px;
+    width: var(--vb-space-8);
+    height: var(--vb-space-8);
     display: inline-block;
 }
 
@@ -84,13 +102,13 @@ body {
 }
 
 .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top: 4px solid white;
+    width: var(--vb-space-8);
+    height: var(--vb-space-8);
+    border: var(--vb-space-4) solid rgba(255, 255, 255, 0.3);
+    border-top: var(--vb-space-4) solid white;
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin: 0 auto 20px;
+    margin: 0 auto var(--vb-space-7);
 }
 
 @keyframes spin {
@@ -101,25 +119,25 @@ body {
 /* Login Screen */
 #login-screen {
     background: white;
-    padding: 32px 24px;
+    padding: var(--vb-space-8) var(--vb-space-7);
 }
 
 .header {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: var(--vb-space-8);
 }
 
 .header .logo-mark {
-    width: 44px;
-    height: 44px;
-    margin-bottom: 10px;
+    width: var(--vb-space-8);
+    height: var(--vb-space-8);
+    margin-bottom: var(--vb-space-5);
 }
 
 .header h1 {
     font-size: 28px;
     font-weight: 700;
     color: var(--vb-accent);
-    margin-bottom: 8px;
+    margin-bottom: var(--vb-space-5);
 }
 
 .header p {
@@ -129,23 +147,23 @@ body {
 }
 
 .auth-form {
-    margin-bottom: 24px;
+    margin-bottom: var(--vb-space-7);
 }
 
 .auth-helper {
     color: var(--vb-muted);
     font-size: 13px;
-    margin-top: 12px;
+    margin-top: var(--vb-space-6);
     text-align: center;
 }
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: var(--vb-space-7);
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: var(--vb-space-4);
     font-weight: 500;
     color: #4a5568;
     font-size: 14px;
@@ -153,9 +171,9 @@ body {
 
 .form-group input {
     width: 100%;
-    padding: 12px 16px;
+    padding: var(--vb-space-6) var(--vb-space-6);
     border: 2px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: var(--vb-radius-md);
     font-size: 14px;
     transition: all 0.2s ease;
     background: white;
@@ -169,13 +187,13 @@ body {
 
 .auth-buttons {
     display: flex;
-    gap: 12px;
-    margin-top: 24px;
+    gap: var(--vb-space-6);
+    margin-top: var(--vb-space-7);
 }
 
 .auth-footer {
     text-align: center;
-    padding-top: 16px;
+    padding-top: var(--vb-space-6);
     border-top: 1px solid #e2e8f0;
 }
 
@@ -200,7 +218,7 @@ body {
 #dashboard-screen .header {
     background: var(--vb-accent);
     color: white;
-    padding: 20px 24px;
+    padding: var(--vb-space-7);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -208,20 +226,20 @@ body {
 }
 
 #dashboard-screen .header .logo-mark {
-    width: 32px;
-    height: 32px;
-    margin: 0 6px 0 0;
+    width: var(--vb-space-8);
+    height: var(--vb-space-8);
+    margin: 0 var(--vb-space-4) 0 0;
 }
 
 .user-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--vb-space-6);
 }
 
 .user-avatar {
-    width: 40px;
-    height: 40px;
+    width: var(--vb-space-8);
+    height: var(--vb-space-8);
     background: rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     display: flex;
@@ -234,13 +252,13 @@ body {
 .user-details h3 {
     font-size: 16px;
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: var(--vb-space-2);
 }
 
 .level-badge {
     background: rgba(255, 255, 255, 0.2);
-    padding: 2px 8px;
-    border-radius: 12px;
+    padding: var(--vb-space-2) var(--vb-space-5);
+    border-radius: var(--vb-radius-lg);
     font-size: 12px;
     font-weight: 500;
 }
@@ -249,15 +267,15 @@ body {
     background: rgba(255, 255, 255, 0.2);
     border: none;
     color: white;
-    min-height: 32px;
-    border-radius: 8px;
+    min-height: var(--vb-space-8);
+    border-radius: var(--vb-radius-md);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 12px;
+    padding: var(--vb-space-5) var(--vb-space-6);
     cursor: pointer;
     transition: background 0.2s ease, padding 0.2s ease;
-    gap: 6px;
+    gap: var(--vb-space-4);
 }
 
 .btn-icon:hover {
@@ -268,35 +286,35 @@ body {
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    padding: 24px;
-    padding-bottom: 16px;
+    gap: var(--vb-space-6);
+    padding: var(--vb-space-7);
+    padding-bottom: var(--vb-space-6);
 }
 
 .stat-card {
     background: #f0f8fb;
     border: 1px solid var(--vb-border);
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: var(--vb-radius-lg);
+    padding: var(--vb-space-6);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--vb-space-6);
     transition: transform 0.2s ease;
 }
 
 .stat-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(calc(-1 * var(--vb-space-2)));
 }
 
 .stat-icon {
     font-size: 24px;
-    width: 40px;
-    height: 40px;
+    width: var(--vb-space-8);
+    height: var(--vb-space-8);
     display: flex;
     align-items: center;
     justify-content: center;
     background: white;
-    border-radius: 8px;
+    border-radius: var(--vb-radius-md);
 }
 
 .stat-content {
@@ -315,41 +333,41 @@ body {
     display: block;
     font-size: 12px;
     color: #4b5563;
-    margin-top: 2px;
+    margin-top: var(--vb-space-2);
 }
 
 /* Progress Section */
 .progress-section {
-    padding: 0 24px 16px;
+    padding: 0 var(--vb-space-7) var(--vb-space-6);
 }
 
 .progress-section h3 {
     font-size: 16px;
     font-weight: 600;
-    margin-bottom: 12px;
+    margin-bottom: var(--vb-space-6);
     color: #1f2933;
 }
 
 .level-progress {
     background: #f0f8fb;
     border: 1px solid var(--vb-border);
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: var(--vb-radius-lg);
+    padding: var(--vb-space-6);
 }
 
 .progress-bar {
     width: 100%;
-    height: 8px;
+    height: var(--vb-space-5);
     background: #d7e6ed;
-    border-radius: 4px;
+    border-radius: var(--vb-space-4);
     overflow: hidden;
-    margin-bottom: 8px;
+    margin-bottom: var(--vb-space-5);
 }
 
 .progress-fill {
     height: 100%;
     background: var(--vb-accent);
-    border-radius: 4px;
+    border-radius: var(--vb-space-4);
     transition: width 0.3s ease;
     width: 0%;
 }
@@ -371,18 +389,18 @@ body {
 
 /* Recent Achievements */
 .recent-achievements {
-    padding: 0 24px 16px;
+    padding: 0 var(--vb-space-7) var(--vb-space-6);
 }
 
 .achievement-item {
     background: #e8f7fb;
     color: var(--vb-text);
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 8px;
+    padding: var(--vb-space-6);
+    border-radius: var(--vb-radius-md);
+    margin-bottom: var(--vb-space-5);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--vb-space-6);
     animation: achievementPop 0.5s ease-out;
 }
 
@@ -405,7 +423,7 @@ body {
 .achievement-content h4 {
     font-size: 14px;
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: var(--vb-space-2);
     color: var(--vb-text);
 }
 
@@ -417,16 +435,16 @@ body {
 
 /* Action Buttons */
 .action-buttons {
-    padding: 16px 24px;
+    padding: var(--vb-space-6) var(--vb-space-7);
     display: flex;
-    gap: 12px;
+    gap: var(--vb-space-6);
 }
 
 .btn {
     flex: 1;
-    padding: 12px 16px;
+    padding: var(--vb-space-6);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--vb-radius-md);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -434,7 +452,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--vb-space-5);
 }
 
 .btn-primary {
@@ -443,7 +461,7 @@ body {
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
+    transform: translateY(calc(-1 * var(--vb-space-2)));
     box-shadow: 0 4px 12px rgba(47, 183, 217, 0.3);
 }
 
@@ -482,8 +500,8 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: var(--vb-space-7);
+    height: var(--vb-space-7);
     border-radius: 50%;
     background: #fff;
     color: #4285F4;
@@ -498,7 +516,7 @@ body {
 
 /* Footer */
 .footer {
-    padding: 16px 24px;
+    padding: var(--vb-space-6) var(--vb-space-7);
     border-top: 1px solid #e2e8f0;
     margin-top: auto;
 }
@@ -506,15 +524,15 @@ body {
 .sync-status {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--vb-space-5);
     justify-content: center;
     font-size: 12px;
     color: #718096;
 }
 
 .sync-indicator {
-    width: 8px;
-    height: 8px;
+    width: var(--vb-space-5);
+    height: var(--vb-space-5);
     background: var(--vb-success);
     border-radius: 50%;
 }
@@ -543,7 +561,7 @@ body {
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 32px 24px;
+    padding: var(--vb-space-8) var(--vb-space-7);
 }
 
 .error-content {
@@ -552,19 +570,19 @@ body {
 
 .error-icon {
     font-size: 48px;
-    margin-bottom: 16px;
+    margin-bottom: var(--vb-space-6);
 }
 
 .error-content h2 {
     font-size: 20px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--vb-space-5);
     color: #2d3748;
 }
 
 .error-content p {
     color: #718096;
-    margin-bottom: 24px;
+    margin-bottom: var(--vb-space-7);
     line-height: 1.5;
 }
 
@@ -572,10 +590,10 @@ body {
 .error-message {
     background: #fed7d7;
     color: #c53030;
-    padding: 12px 16px;
-    border-radius: 8px;
+    padding: var(--vb-space-6);
+    border-radius: var(--vb-radius-md);
     font-size: 14px;
-    margin-top: 16px;
+    margin-top: var(--vb-space-6);
     border: 1px solid #feb2b2;
 }
 
@@ -585,21 +603,21 @@ body {
 
 /* Achievements Section */
 .recent-achievements {
-    margin: 20px 0;
-    padding: 0 20px;
+    margin: var(--vb-space-7) 0;
+    padding: 0 var(--vb-space-7);
     color: var(--vb-text);
 }
 
 .recent-achievements h3 {
     color: var(--vb-text);
     font-size: 16px;
-    margin-bottom: 12px;
+    margin-bottom: var(--vb-space-6);
     font-weight: 600;
 }
 
 .no-achievements {
     text-align: center;
-    padding: 20px;
+    padding: var(--vb-space-7);
     color: #1f2933;
     font-size: 14px;
 }
@@ -607,16 +625,16 @@ body {
 .achievements-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--vb-space-5);
 }
 
 .achievement-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
+    gap: var(--vb-space-6);
+    padding: var(--vb-space-6);
     background: #e8f7fb;
-    border-radius: 8px;
+    border-radius: var(--vb-radius-md);
     border: 1px solid var(--vb-border);
     transition: all 0.2s ease;
     animation: achievementSlideIn 0.3s ease-out;
@@ -624,13 +642,13 @@ body {
 
 .achievement-item:hover {
     background: #d7e6ed;
-    transform: translateY(-1px);
+    transform: translateY(calc(-1 * var(--vb-space-2)));
 }
 
 @keyframes achievementSlideIn {
     from {
         opacity: 0;
-        transform: translateX(-20px);
+        transform: translateX(calc(-1 * var(--vb-space-7)));
     }
     to {
         opacity: 1;
@@ -660,7 +678,7 @@ body {
     color: #1f2933;
     font-size: 11px;
     line-height: 1.3;
-    margin-top: 2px;
+    margin-top: var(--vb-space-2);
 }
 
 .achievement-points {
