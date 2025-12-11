@@ -215,10 +215,13 @@
 .vocabbreak-footer {
   padding: 20px 32px 32px 32px !important;
   display: flex !important;
-  justify-content: space-between !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  justify-content: center !important;
   align-items: center !important;
   background: var(--vb-muted-surface) !important;
   border-top: 1px solid var(--vb-border) !important;
+  text-align: center !important;
 }
 
 .vocabbreak-points {
@@ -227,6 +230,8 @@
   color: var(--vb-success) !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
 }
 
 .vocabbreak-points::before {
