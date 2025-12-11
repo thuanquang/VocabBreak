@@ -20,7 +20,7 @@ Successfully refactored the VocabBreak extension to address code complexity, dup
 
 **Files Created/Modified**:
 - ✨ **NEW**: `shared/core-manager.js` - Unified system replacing StateManager + OfflineManager
-- ✅ **UPDATED**: `popup/popup-refactored.js` - Now uses CoreManager instead of StateManager
+- ✅ **UPDATED**: `popup/popup.js` - Now uses CoreManager instead of StateManager
 - ✅ **UPDATED**: All HTML files updated to use new loading order
 
 **Benefits**:
@@ -97,7 +97,7 @@ error-handler.js → question-bank.js → core-manager.js → [other modules] �
 
 ### Files Significantly Modified (6)
 - `background.js` - Removed 188 lines of duplication, integrated QuestionBank
-- `popup/popup-refactored.js` - Updated to use CoreManager
+- `popup/popup.js` - Updated to use CoreManager
 - `content/blocker.js` - Updated to use QuestionBank and CoreManager
 - `manifest.json` - Updated script loading order
 - `popup/popup.html` - Simplified script includes

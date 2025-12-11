@@ -8,6 +8,8 @@ class VocabBreakBlocker {
     this.overlay = null;
     this.isBlocked = false;
     this.currentQuestion = null;
+    this.lastTriggerReason = 'periodic';
+    this.lastTimerSettings = { intervalMinutes: 30, penaltySeconds: 30 };
     this.startTime = null;
     this.penaltyTimer = null;
     this.isInitialized = false;
@@ -47,8 +49,13 @@ class VocabBreakBlocker {
       console.log('🔍 Block check response:', response);
       
       if (response && response.shouldBlock) {
-        console.log('❌ BLOCKING: Showing question overlay');
-        this.showQuestion();
+        if (response.reason === 'penalty') {
+          console.log('⏳ Global penalty active: showing penalty overlay');
+          this.showPenaltyOverlay(response.penaltyEndTime);
+        } else {
+          console.log('❌ BLOCKING: Showing question overlay');
+          this.showQuestion(response.reason || 'periodic');
+        }
       } else {
         console.log('✅ NOT BLOCKING: Continuing normal browsing');
       }
@@ -127,8 +134,11 @@ class VocabBreakBlocker {
     }, true);
   }
 
-  async showQuestion() {
+  async showQuestion(reason = 'periodic') {
     if (this.isBlocked) return; // Already showing
+
+    const triggerReason = reason || 'periodic';
+    this.lastTriggerReason = triggerReason;
 
     try {
       // CORRECT FLOW: Try Supabase first → IndexedDB cache → QuestionBank fallback
@@ -228,6 +238,15 @@ class VocabBreakBlocker {
       this.isBlocked = true;
       this.startTime = Date.now();
 
+      const timerSettings = await this.getTimerSettings();
+      await this.recordBlockingEvent({
+        triggerType: triggerReason,
+        intervalMinutes: timerSettings.intervalMinutes,
+        penaltySeconds: timerSettings.penaltySeconds,
+        outcome: 'question_shown',
+        metadata: { questionId: question.id }
+      });
+
       this.createOverlay();
       await this.renderQuestion();
 
@@ -270,23 +289,24 @@ class VocabBreakBlocker {
       left: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
-      background: rgba(0, 0, 0, 0.9) !important;
-      backdrop-filter: blur(10px) !important;
+      background: rgba(15, 23, 42, 0.6) !important;
+      backdrop-filter: blur(8px) !important;
       z-index: 2147483647 !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      font-family: 'Inter', 'Segoe UI', Roboto, sans-serif !important;
       pointer-events: all !important;
     `;
 
     // Style the modal
     const modal = this.overlay.querySelector('.vocabbreak-modal');
     modal.style.cssText = `
-      background: white !important;
-      border-radius: 12px !important;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
-      max-width: 500px !important;
+      background: #ffffff !important;
+      border-radius: 16px !important;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.25) !important;
+      border: 1px solid #e2e8f0 !important;
+      max-width: 520px !important;
       width: 90% !important;
       max-height: 80vh !important;
       overflow-y: auto !important;
@@ -309,7 +329,7 @@ class VocabBreakBlocker {
       
       .vocabbreak-header {
         padding: 24px 24px 16px 24px !important;
-        border-bottom: 1px solid #eee !important;
+        border-bottom: 1px solid #e2e8f0 !important;
         text-align: center !important;
       }
       
@@ -317,13 +337,13 @@ class VocabBreakBlocker {
         margin: 0 !important;
         font-size: 24px !important;
         font-weight: 600 !important;
-        color: #333 !important;
+        color: #0f172a !important;
       }
       
       .vocabbreak-streak {
         margin-top: 8px !important;
         font-size: 14px !important;
-        color: #666 !important;
+        color: #475569 !important;
       }
       
       .vocabbreak-content {
@@ -332,7 +352,7 @@ class VocabBreakBlocker {
       
       .vocabbreak-instruction {
         font-size: 14px !important;
-        color: #666 !important;
+        color: #475569 !important;
         margin-bottom: 12px !important;
         font-style: italic !important;
       }
@@ -340,7 +360,7 @@ class VocabBreakBlocker {
       .vocabbreak-question {
         font-size: 18px !important;
         font-weight: 500 !important;
-        color: #333 !important;
+        color: #0f172a !important;
         margin-bottom: 20px !important;
         line-height: 1.5 !important;
       }
@@ -353,27 +373,27 @@ class VocabBreakBlocker {
       
       .vocabbreak-option {
         padding: 12px 16px !important;
-        border: 2px solid #e0e0e0 !important;
+        border: 2px solid #e2e8f0 !important;
         border-radius: 8px !important;
-        background: white !important;
+        background: #fff !important;
         cursor: pointer !important;
         font-size: 16px !important;
         transition: all 0.2s ease !important;
       }
       
       .vocabbreak-option:hover {
-        border-color: #007bff !important;
-        background: #f8f9fa !important;
+        border-color: #4f46e5 !important;
+        background: #eef2ff !important;
       }
       
       .vocabbreak-option.selected {
-        border-color: #007bff !important;
-        background: #e3f2fd !important;
+        border-color: #4f46e5 !important;
+        background: #e0e7ff !important;
       }
       
       .vocabbreak-text-input {
         padding: 12px 16px !important;
-        border: 2px solid #e0e0e0 !important;
+        border: 2px solid #e2e8f0 !important;
         border-radius: 8px !important;
         font-size: 16px !important;
         width: 100% !important;
@@ -382,7 +402,7 @@ class VocabBreakBlocker {
       
       .vocabbreak-text-input:focus {
         outline: none !important;
-        border-color: #007bff !important;
+        border-color: #4f46e5 !important;
       }
       
       .vocabbreak-footer {
@@ -393,7 +413,7 @@ class VocabBreakBlocker {
       }
       
       .vocabbreak-submit {
-        background: #007bff !important;
+        background: #4f46e5 !important;
         color: white !important;
         border: none !important;
         padding: 12px 24px !important;
@@ -405,7 +425,7 @@ class VocabBreakBlocker {
       }
       
       .vocabbreak-submit:hover {
-        background: #0056b3 !important;
+        background: #4338ca !important;
       }
       
       .vocabbreak-submit:disabled {
@@ -450,6 +470,33 @@ class VocabBreakBlocker {
     `;
     
     document.head.appendChild(style);
+  }
+
+  showPenaltyOverlay(endTime) {
+    this.isBlocked = true;
+    this.currentQuestion = null;
+    this.startTime = null;
+
+    this.createOverlay();
+
+    const content = this.overlay.querySelector('#vocabbreak-content');
+    const footer = this.overlay.querySelector('#vocabbreak-footer');
+
+    content.innerHTML = `
+      <div class="vocabbreak-penalty">
+        <div class="vocabbreak-question">${this.getMessage('please_wait')}</div>
+        <div class="vocabbreak-instruction">${this.getMessage('question_instruction_mc')}</div>
+      </div>
+    `;
+
+    footer.innerHTML = `
+      <div class="vocabbreak-penalty">
+        <div class="vocabbreak-timer" id="vocabbreak-penalty-timer">--</div>
+      </div>
+    `;
+
+    const fallbackEndTime = Date.now() + (this.lastTimerSettings?.penaltySeconds || 30) * 1000;
+    this.startPenaltyTimer(endTime || fallbackEndTime);
   }
 
   async renderQuestion() {
@@ -853,9 +900,13 @@ class VocabBreakBlocker {
   handleMessage(message, sender, sendResponse) {
     switch (message.type) {
       case 'SHOW_QUESTION':
-        this.showQuestion();
+        this.showQuestion(message.reason || 'periodic');
         break;
         
+      case 'GLOBAL_PENALTY':
+        this.showPenaltyOverlay(message.penaltyEndTime);
+        break;
+
       case 'PENALTY_CLEARED':
         this.hideOverlay();
         break;
@@ -871,10 +922,47 @@ class VocabBreakBlocker {
     }
   }
 
+  async getTimerSettings() {
+    try {
+      const result = await chrome.storage.sync.get(['periodicInterval', 'penaltyDuration']);
+      const intervalMinutes = Number.isFinite(Number(result.periodicInterval)) && Number(result.periodicInterval) > 0
+        ? Number(result.periodicInterval)
+        : 30;
+      const penaltySeconds = Number.isFinite(Number(result.penaltyDuration)) && Number(result.penaltyDuration) > 0
+        ? Number(result.penaltyDuration)
+        : 30;
+
+      this.lastTimerSettings = { intervalMinutes, penaltySeconds };
+      return this.lastTimerSettings;
+    } catch (error) {
+      console.warn('Failed to load timer settings for analytics:', error);
+      this.lastTimerSettings = { intervalMinutes: 30, penaltySeconds: 30 };
+      return this.lastTimerSettings;
+    }
+  }
+
+  async recordBlockingEvent(eventData) {
+    try {
+      if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+        await window.supabaseClient.recordBlockingEvent({
+          triggerType: eventData.triggerType,
+          intervalMinutes: eventData.intervalMinutes,
+          penaltySeconds: eventData.penaltySeconds,
+          siteUrl: window.location.href,
+          outcome: eventData.outcome,
+          metadata: eventData.metadata || {}
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to record blocking event:', error);
+    }
+  }
+
   async recordInteractionToDatabase(response, timeTaken) {
     try {
       // Check if Supabase client is available and authenticated
       if (typeof window !== 'undefined' && window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+        const timerSettings = this.lastTimerSettings || await this.getTimerSettings();
         await window.supabaseClient.recordInteraction({
           type: 'question_answer',
           targetId: this.currentQuestion.id,
@@ -884,9 +972,17 @@ class VocabBreakBlocker {
           streakAtTime: response.currentStreak || 0,
           answerGiven: response.userAnswer,
           siteUrl: window.location.href,
-          triggerType: 'periodic', // Since we only use 30-min timer now
+          triggerType: this.lastTriggerReason || 'periodic',
           deviceInfo: this.getDeviceInfo(),
           browserInfo: this.getBrowserInfo()
+        });
+
+        await this.recordBlockingEvent({
+          triggerType: this.lastTriggerReason || 'periodic',
+          intervalMinutes: timerSettings.intervalMinutes,
+          penaltySeconds: timerSettings.penaltySeconds,
+          outcome: response.validation.isCorrect ? 'answered_correct' : 'wrong_answer',
+          metadata: { questionId: this.currentQuestion.id }
         });
         console.log('✅ Interaction recorded to Supabase');
       } else {
@@ -978,8 +1074,8 @@ class VocabBreakBlocker {
         // Get penalty time from user settings or use default
         let penaltyTime = 30; // default 30 seconds
         try {
-          const result = await chrome.storage.sync.get(['wrongAnswerPenalty']);
-          penaltyTime = result.wrongAnswerPenalty || 30;
+          const result = await chrome.storage.sync.get(['penaltyDuration']);
+          penaltyTime = result.penaltyDuration || 30;
         } catch (error) {
           console.warn('Failed to get penalty time setting:', error);
         }
@@ -1387,13 +1483,13 @@ class VocabBreakBlocker {
           max-width: 500px;
           margin: 20px;
         ">
-          <h2 style="color: #e74c3c; margin-bottom: 20px;">📶 Connection Required</h2>
-          <p style="color: #333; margin-bottom: 20px; line-height: 1.5;">
+          <h2 style="color: #4f46e5; margin-bottom: 20px;">📶 Connection Required</h2>
+          <p style="color: #0f172a; margin-bottom: 20px; line-height: 1.5;">
             VocabBreak needs an internet connection to load questions matching your learning preferences. 
             Please check your connection and refresh the page.
           </p>
           <button onclick="window.location.reload()" style="
-            background: #3498db;
+            background: #4f46e5;
             color: white;
             border: none;
             padding: 12px 24px;
@@ -1465,7 +1561,16 @@ class VocabBreakBlocker {
 }
 
 // Initialize the blocker
-const vocabBreakBlocker = new VocabBreakBlocker();
+(() => {
+  const blocker = new VocabBreakBlocker();
+  window.vocabBreakBlocker = blocker;
+  // Listen for manual trigger messages
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'SHOW_QUESTION') {
+      blocker.showQuestion();
+    }
+  });
+})();
 
 
 

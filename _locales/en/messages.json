@@ -446,6 +446,18 @@
   "confirm": {
     "message": "Confirm"
   },
+  "continue_with_google": {
+    "message": "Continue with Google"
+  },
+  "google_only_notice": {
+    "message": "We use Google to sign you in securely. Other providers are hidden."
+  },
+  "minutes_label": {
+    "message": "min"
+  },
+  "seconds_label": {
+    "message": "sec"
+  },
   "settings_saved": {
     "message": "Settings saved successfully!"
   },

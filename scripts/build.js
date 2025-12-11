@@ -50,7 +50,10 @@ function copyDir(src, dest) {
 
 // Inject credentials into build directory
 function injectCredentials(env, buildDir) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+  const supabaseUrl = env.SUPABASE_URL;
+  const supabaseKey = env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
     console.log('📝 No credentials found - extension will use manual setup');
     return;
   }
@@ -64,12 +67,12 @@ function injectCredentials(env, buildDir) {
   // Replace placeholder values with actual credentials in setup-credentials.js
   setupContent = setupContent.replace(
     /let supabaseUrl = 'YOUR_SUPABASE_URL'/g,
-    `let supabaseUrl = '${env.SUPABASE_URL}'`
+    `let supabaseUrl = '${supabaseUrl}'`
   );
   
   setupContent = setupContent.replace(
-    /let supabaseKey = 'YOUR_SUPABASE_ANON_KEY'/g,
-    `let supabaseKey = '${env.SUPABASE_ANON_KEY}'`
+    /let supabaseKey = 'YOUR_SUPABASE_(?:ANON|PUBLISHABLE)_KEY'/g,
+    `let supabaseKey = '${supabaseKey}'`
   );
   
   fs.writeFileSync(setupPath, setupContent);
@@ -82,12 +85,12 @@ function injectCredentials(env, buildDir) {
   // Replace placeholder values with actual credentials in supabase-client.js
   clientContent = clientContent.replace(
     /let SUPABASE_URL = 'YOUR_SUPABASE_URL'/g,
-    `let SUPABASE_URL = '${env.SUPABASE_URL}'`
+    `let SUPABASE_URL = '${supabaseUrl}'`
   );
   
   clientContent = clientContent.replace(
-    /let SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'/g,
-    `let SUPABASE_ANON_KEY = '${env.SUPABASE_ANON_KEY}'`
+    /let SUPABASE_ANON_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY'/g,
+    `let SUPABASE_ANON_KEY = '${supabaseKey}'`
   );
   
   fs.writeFileSync(clientPath, clientContent);

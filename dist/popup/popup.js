@@ -74,6 +74,7 @@ class PopupManager {
       this.addEventListenerSafely('logout-btn', 'click', () => this.handleLogout());
       this.addEventListenerSafely('settings-btn', 'click', () => this.openSettings());
       this.addEventListenerSafely('sync-btn', 'click', () => this.handleSync());
+      this.addEventListenerSafely('test-trigger-block', 'click', () => this.handleTestTrigger());
       
       // Error screen
       this.addEventListenerSafely('retry-btn', 'click', () => this.handleRetry());
@@ -205,6 +206,14 @@ class PopupManager {
     }
   }
 
+  async handleTestTrigger() {
+    try {
+      await chrome.runtime.sendMessage({ type: 'TRIGGER_BLOCK_NOW' });
+    } catch (error) {
+      window.errorHandler?.handleUIError(error, { context: 'test-trigger-block' });
+    }
+  }
+
   async handleLogin() {
     return this.handleGoogleLogin();
   }
@@ -257,7 +266,9 @@ class PopupManager {
 
   handleRetry() {
     try {
-      window.stateManager.updateAppState({ currentScreen: 'loading' });
+      // Clear auth/app errors and return to loading
+      window.stateManager.updateAuthState({ lastError: null, isLoading: false });
+      window.stateManager.updateAppState({ currentScreen: 'loading', lastError: null });
       setTimeout(() => {
         this.updateUI();
       }, 500);
@@ -371,18 +382,7 @@ class PopupManager {
         console.warn('Gamification manager failed to initialize');
         return;
       }
-      
-      // Check if user is authenticated and has no stats, initialize test data
-      if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
-        const currentStats = window.gamificationManager.getUserStats();
-        if (currentStats.totalPoints === 0 && currentStats.totalQuestions === 0) {
-          console.log('🧪 No existing stats found, initializing test stats...');
-          await window.gamificationManager.initializeTestStats();
-        }
-      } else {
-        console.log('📊 User not authenticated, using offline mode');
-      }
-      
+
     } catch (error) {
       console.error('Failed to initialize gamification stats:', error);
     }

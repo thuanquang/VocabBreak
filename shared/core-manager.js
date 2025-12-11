@@ -118,18 +118,6 @@ class CoreManager {
         this.storage.chrome = chrome.storage;
         console.log('✅ Chrome storage available');
       }
-
-      // IndexedDB for large data
-      if (typeof indexedDB !== 'undefined') {
-        this.storage.indexedDB = await this.initIndexedDB();
-        console.log('✅ IndexedDB available');
-      }
-
-      // LocalStorage as fallback
-      if (typeof localStorage !== 'undefined') {
-        this.storage.localStorage = localStorage;
-        console.log('✅ LocalStorage available');
-      }
     } catch (error) {
       console.error('Storage initialization error:', error);
       // Continue without storage - app can still work with memory only
@@ -236,7 +224,7 @@ class CoreManager {
     const validKeys = {
       auth: ['user', 'session', 'isAuthenticated', 'isLoading', 'lastError'],
       user: ['profile', 'settings', 'stats', 'preferences'],
-      app: ['isOnline', 'currentScreen', 'lastSync', 'syncStatus', 'version', 'initialized'],
+      app: ['isOnline', 'currentScreen', 'lastSync', 'syncStatus', 'version', 'initialized', 'lastError'],
       questions: ['current', 'cache', 'lastFetched', 'difficulty'],
       blocking: ['isActive', 'currentTab', 'reason', 'startTime', 'penaltyEndTime']
     };
@@ -273,6 +261,13 @@ class CoreManager {
   updateQuestionsState(updates) { this.updateState('questions', updates); }
   updateBlockingState(updates) { this.updateState('blocking', updates); }
 
+  // Compatibility getters (stateManager-style)
+  getAuthState() { return { ...this.state.auth }; }
+  getUserState() { return { ...this.state.user }; }
+  getAppState() { return { ...this.state.app }; }
+  getQuestionsState() { return { ...this.state.questions }; }
+  getBlockingState() { return { ...this.state.blocking }; }
+
   // === CACHING SYSTEM ===
 
   /**
@@ -286,16 +281,6 @@ class CoreManager {
       if (this.state.questions.cache.has(key)) {
         const cached = this.state.questions.cache.get(key);
         if (Date.now() - cached.timestamp < maxAge) {
-          return cached.data;
-        }
-      }
-
-      // Try IndexedDB
-      if (this.storage.indexedDB) {
-        const cached = await this.getFromIndexedDB('cache', key);
-        if (cached && Date.now() - cached.timestamp < maxAge) {
-          // Update memory cache
-          this.state.questions.cache.set(key, cached);
           return cached.data;
         }
       }
@@ -330,13 +315,8 @@ class CoreManager {
 
       if (!persist) return;
 
-      // Persist to IndexedDB (preferred for large data)
-      if (this.storage.indexedDB) {
-        await this.saveToIndexedDB('cache', cacheEntry);
-      }
-      
-      // Fallback to Chrome storage for small data
-      else if (this.storage.chrome && JSON.stringify(data).length < 8000) {
+      // Persist to Chrome storage for small data
+      if (this.storage.chrome && JSON.stringify(data).length < 8000) {
         await this.storage.chrome.local.set({ [key]: cacheEntry });
       }
     } catch (error) {
@@ -363,17 +343,6 @@ class CoreManager {
         this.state.questions.cache.clear();
       }
 
-      // Clear from persistent storage
-      if (this.storage.indexedDB) {
-        const transaction = this.storage.indexedDB.transaction(['cache'], 'readwrite');
-        const store = transaction.objectStore('cache');
-        if (pattern) {
-          // Selective clear would require cursor iteration
-          console.log('Selective IndexedDB clear not implemented yet');
-        } else {
-          await store.clear();
-        }
-      }
     } catch (error) {
       console.error('Cache clear error:', error);
     }
@@ -470,85 +439,20 @@ class CoreManager {
   /**
    * Add operation to sync queue
    */
-  addToSyncQueue(operation) {
-    this.syncQueue.push({
-      ...operation,
-      timestamp: Date.now(),
-      id: `sync_${Date.now()}_${Math.random()}`
-    });
-
-    if (this.state.app.isOnline) {
-      this.processSyncQueue();
-    }
-  }
+  addToSyncQueue() { /* offline sync removed */ }
 
   /**
    * Process sync queue when online
    */
-  async processSyncQueue() {
-    if (!this.state.app.isOnline || this.syncQueue.length === 0) {
-      return;
-    }
+  async processSyncQueue() { /* offline sync removed */ }
 
-    this.updateAppState({ syncStatus: 'syncing' });
-
-    try {
-      const operations = [...this.syncQueue];
-      this.syncQueue = [];
-
-      for (const operation of operations) {
-        try {
-          await this.processSync(operation);
-        } catch (error) {
-          console.error('Sync operation failed:', error);
-          // Re-add to queue for retry
-          this.syncQueue.push(operation);
-        }
-      }
-
-      this.updateAppState({ 
-        syncStatus: 'success',
-        lastSync: Date.now()
-      });
-    } catch (error) {
-      this.updateAppState({ syncStatus: 'error' });
-      console.error('Sync queue processing error:', error);
-    }
-  }
-
-  async processSync(operation) {
-    // Implementation depends on operation type
-    console.log('Processing sync operation:', operation);
-    // This would integrate with supabase client
-  }
+  async processSync() { /* offline sync removed */ }
 
   // === UTILITY METHODS ===
 
-  async getFromIndexedDB(storeName, key) {
-    if (!this.storage.indexedDB) return null;
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.storage.indexedDB.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-      const request = store.get(key);
-      
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
+  async getFromIndexedDB() { return null; }
 
-  async saveToIndexedDB(storeName, data) {
-    if (!this.storage.indexedDB) return;
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.storage.indexedDB.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-      const request = store.put(data);
-      
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
+  async saveToIndexedDB() { return null; }
 
   handleError(error, context) {
     console.error(`CoreManager error in ${context}:`, error);
@@ -559,9 +463,6 @@ class CoreManager {
 
   cleanup() {
     // Clear timers, close connections, etc.
-    if (this.storage.indexedDB) {
-      this.storage.indexedDB.close();
-    }
   }
 
   // === DEBUG METHODS ===

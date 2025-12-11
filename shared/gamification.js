@@ -48,8 +48,7 @@ class GamificationManager {
       console.log('✅ Gamification manager initialized with database connection');
     } catch (error) {
       console.error('❌ Failed to initialize gamification manager:', error);
-      // Initialize with defaults if database fails
-      this.initializeDefaultStats();
+      this.setEmptyStats();
       this.isInitialized = true;
     }
   }
@@ -67,7 +66,7 @@ class GamificationManager {
     throw new Error('Supabase client not available for gamification');
   }
 
-  initializeDefaultStats() {
+  setEmptyStats() {
     this.cachedStats = {
       gamification: {
         total_points: 0,
@@ -86,7 +85,6 @@ class GamificationManager {
         weak_areas: []
       }
     };
-    console.log('📊 Initialized default stats (offline mode)');
   }
 
   initializeAchievements() {
@@ -371,59 +369,11 @@ class GamificationManager {
   }
 
   async checkConsecutiveDays(days) {
-    try {
-      const progress = await window.offlineManager.getProgress();
-      if (progress.length === 0) return false;
-      
-      // Group progress by date
-      const dateGroups = {};
-      progress.filter(p => p.correct).forEach(p => {
-        const date = new Date(p.answeredAt).toDateString();
-        if (!dateGroups[date]) {
-          dateGroups[date] = [];
-        }
-        dateGroups[date].push(p);
-      });
-      
-      const dates = Object.keys(dateGroups).sort((a, b) => new Date(b) - new Date(a));
-      
-      // Check for consecutive days
-      let consecutiveDays = 0;
-      const today = new Date().toDateString();
-      let currentDate = new Date();
-      
-      for (let i = 0; i < days; i++) {
-        const dateString = currentDate.toDateString();
-        if (dateGroups[dateString]) {
-          consecutiveDays++;
-        } else {
-          break;
-        }
-        currentDate.setDate(currentDate.getDate() - 1);
-      }
-      
-      return consecutiveDays >= days;
-    } catch (error) {
-      console.error('Error checking consecutive days:', error);
-      return false;
-    }
+    return false; // Streak by day not tracked without offline history
   }
 
   async checkSpeedRecord(questionCount, maxTimePerQuestion) {
-    try {
-      const progress = await window.offlineManager.getProgress({ 
-        correct: true, 
-        limit: questionCount 
-      });
-      
-      if (progress.length < questionCount) return false;
-      
-      const fastQuestions = progress.filter(p => p.timeTaken <= maxTimePerQuestion);
-      return fastQuestions.length >= questionCount;
-    } catch (error) {
-      console.error('Error checking speed record:', error);
-      return false;
-    }
+    return false; // Speed records not tracked without history
   }
 
   // User stats management - completely overhauled for database integration
@@ -505,8 +455,7 @@ class GamificationManager {
   async loadUserStatsFromDatabase() {
     try {
       if (!window.supabaseClient || !window.supabaseClient.isAuthenticated()) {
-        console.log('📊 User not authenticated, using default stats');
-        this.initializeDefaultStats();
+        this.setEmptyStats();
         return;
       }
 
@@ -547,8 +496,7 @@ class GamificationManager {
           this.lastSyncTime = Date.now();
           console.log('✅ Loaded stats from database:', this.cachedStats);
         } else {
-          console.log('📊 No profile found, initializing default stats');
-          this.initializeDefaultStats();
+          this.setEmptyStats();
         }
       } catch (profileError) {
         console.log('📝 User profile not found, attempting to create...');
@@ -588,18 +536,17 @@ class GamificationManager {
             console.log('✅ Loaded stats from newly created profile:', this.cachedStats);
           } else {
             console.log('⚠️ Profile creation succeeded but could not load stats');
-            this.initializeDefaultStats();
+            this.setEmptyStats();
           }
         } catch (createError) {
           console.error('❌ Could not create user profile:', createError);
-          console.log('📊 Falling back to default stats');
-          this.initializeDefaultStats();
+          this.setEmptyStats();
         }
       }
       
     } catch (error) {
       console.error('❌ Failed to load user stats from database:', error);
-      this.initializeDefaultStats();
+      this.setEmptyStats();
     }
   }
 
@@ -648,9 +595,6 @@ class GamificationManager {
       // Get list of unlocked achievement IDs
       const unlockedIds = this.cachedStats.gamification.achievements.map(a => a.id);
       
-      // Save locally
-      await window.offlineManager.saveSetting('unlockedAchievements', unlockedIds);
-      
       // Save the entire stats to database (includes the new achievement)
       if (navigator.onLine && window.supabaseClient?.isAuthenticated()) {
         try {
@@ -690,46 +634,6 @@ class GamificationManager {
       experiencePoints: gamification.experience_points || 0,
       averageResponseTime: statistics.average_response_time || 0
     };
-  }
-
-  // Debug method to initialize test stats with database structure
-  async initializeTestStats() {
-    console.log('🧪 Initializing test stats for debugging...');
-    
-    this.cachedStats = {
-      gamification: {
-        total_points: 150,
-        current_level: 2,
-        current_streak: 3,
-        longest_streak: 5,
-        achievements: [{
-          id: 'first_correct',
-          name: 'First Success',
-          description: 'Answer your first question correctly',
-          icon: '🎯',
-          points: 50,
-          unlocked_at: new Date().toISOString()
-        }],
-        badges: [],
-        experience_points: 150
-      },
-      statistics: {
-        total_questions_answered: 12,
-        total_correct_answers: 9,
-        average_response_time: 15000,
-        favorite_topics: [],
-        weak_areas: []
-      }
-    };
-    
-    // Mark first achievement as unlocked
-    if (this.achievements.first_correct) {
-      this.achievements.first_correct.unlocked = true;
-    }
-    
-    // Save to database
-    await this.saveUserStatsToDatabase();
-    console.log('✅ Test stats initialized with database structure:', this.cachedStats);
   }
 
   getAchievements() {

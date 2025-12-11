@@ -210,22 +210,28 @@
                     <div class="form-group">
                         <label for="periodic-interval" data-i18n="question_frequency">Question Frequency</label>
                         <p class="form-description" data-i18n="question_frequency_desc">How often should questions appear (in minutes)</p>
-                        <input type="range" id="periodic-interval" min="5" max="120" value="30" step="5">
+                        <div class="input-with-unit">
+                            <input type="number" id="periodic-interval" min="0.1" value="30" step="0.1" inputmode="decimal">
+                            <span class="unit-label" data-i18n="minutes_label">min</span>
+                        </div>
                         <div class="range-labels">
-                            <span data-i18n="minutes_5">5 min</span>
+                            <span></span>
                             <span id="interval-value">30 min</span>
-                            <span data-i18n="minutes_120">120 min</span>
+                            <span></span>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="penalty-duration" data-i18n="wrong_answer_penalty">Wrong Answer Penalty</label>
                         <p class="form-description" data-i18n="wrong_answer_penalty_desc">How long to wait after wrong answers (in seconds)</p>
-                        <input type="range" id="penalty-duration" min="10" max="300" value="30" step="10">
+                        <div class="input-with-unit">
+                            <input type="number" id="penalty-duration" min="0.1" value="30" step="0.1" inputmode="decimal">
+                            <span class="unit-label" data-i18n="seconds_label">sec</span>
+                        </div>
                         <div class="range-labels">
-                            <span data-i18n="seconds_10">10 sec</span>
+                            <span></span>
                             <span id="penalty-value">30 sec</span>
-                            <span data-i18n="seconds_300">300 sec</span>
+                            <span></span>
                         </div>
                     </div>
                 </div>

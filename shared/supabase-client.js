@@ -8,8 +8,8 @@
 // Note: Supabase client will be loaded via CDN in HTML files or bundled
 
 // Get credentials from chrome storage (set from .env during build)
-let SUPABASE_URL = '';
-let SUPABASE_ANON_KEY = '';
+let SUPABASE_URL = 'YOUR_SUPABASE_URL';
+let SUPABASE_ANON_KEY = 'YOUR_SUPABASE_PUBLISHABLE_KEY';
 
 // Initialize credentials from storage
 async function initializeCredentials() {
@@ -18,7 +18,8 @@ async function initializeCredentials() {
     const result = await chrome.storage.local.get(['supabaseUrl', 'supabaseKey']);
     if (result.supabaseUrl && result.supabaseKey && 
         result.supabaseUrl !== 'YOUR_SUPABASE_URL' && 
-        result.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+        result.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY' &&
+        result.supabaseKey !== 'YOUR_SUPABASE_PUBLISHABLE_KEY') {
       
       SUPABASE_URL = result.supabaseUrl;
       SUPABASE_ANON_KEY = result.supabaseKey;
@@ -342,6 +343,31 @@ class SupabaseClient {
       await this.startLearningSession();
     }
     
+    return data;
+  }
+
+  async signInWithGoogle(redirectTo) {
+    await this.waitForInitialization();
+    this.assertClient('signInWithGoogle');
+
+    const { data, error } = await this.client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true
+      }
+    });
+
+    if (error) throw error;
+    return data?.url || null;
+  }
+
+  async exchangeCodeForSession(code) {
+    await this.waitForInitialization();
+    this.assertClient('exchangeCodeForSession');
+    const { data, error } = await this.client.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    this.user = data.user || null;
     return data;
   }
 
@@ -708,6 +734,27 @@ class SupabaseClient {
       await this.updateGamificationStats(interactionData.pointsEarned, interactionData.streakAtTime);
     }
     
+    return data[0];
+  }
+
+  async recordBlockingEvent(blockData) {
+    await this.waitForInitialization();
+    this.assertClient('recordBlockingEvent');
+    const op = this.client
+      .from('blocking_events')
+      .insert([{
+        user_id: this.user?.id || null,
+        trigger_type: blockData.triggerType || 'periodic',
+        interval_minutes: blockData.intervalMinutes || null,
+        penalty_seconds: blockData.penaltySeconds || null,
+        site_url: blockData.siteUrl || '',
+        outcome: blockData.outcome || '',
+        metadata: blockData.metadata || {}
+      }])
+      .select();
+
+    const { data, error } = await this.withTimeout(op, 8000, 'recordBlockingEvent');
+    if (error) throw error;
     return data[0];
   }
 

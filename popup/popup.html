@@ -34,24 +34,11 @@
         </div>
         
         <div class="auth-form">
-            <div class="form-group">
-                <label for="email" data-i18n="email">Email</label>
-                <input type="email" id="email" placeholder="Enter your email" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="password" data-i18n="password">Password</label>
-                <input type="password" id="password" placeholder="Enter your password" required>
-            </div>
-            
-            <div class="auth-buttons">
-                <button id="login-btn" class="btn btn-primary" data-i18n="login">Login</button>
-                <button id="signup-btn" class="btn btn-secondary" data-i18n="signup">Sign Up</button>
-            </div>
-        </div>
-        
-        <div class="auth-footer">
-            <button id="offline-mode-btn" class="btn-link">Continue Offline</button>
+            <button id="google-login-btn" class="btn btn-primary btn-google">
+                <span class="google-icon">G</span>
+                <span data-i18n="continue_with_google">Continue with Google</span>
+            </button>
+            <p class="auth-helper" data-i18n="google_only_notice">We use Google to sign you in securely. Other providers are hidden.</p>
         </div>
         
         <div id="auth-error" class="error-message hidden"></div>
@@ -141,6 +128,13 @@
                 </svg>
                 <span data-i18n="sync_now">Sync Now</span>
             </button>
+
+            <button id="test-trigger-block" class="btn btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5 3h14a2 2 0 012 2v2h-2V5H5v14h14v-2h2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zm6 4l5 5-5 5v-3H7v-4h4V7z"/>
+                </svg>
+                <span>Trigger Test Block</span>
+            </button>
         </div>
 
         <div class="footer">
@@ -162,7 +156,7 @@
     </div>
 
     <script src="../shared/site-filter.js"></script>
-    <script src="popup-refactored.js"></script>
+    <script src="popup.js"></script>
 </body>
 </html>
 

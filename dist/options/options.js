@@ -98,14 +98,20 @@ class OptionsManager {
     // Range inputs
     document.getElementById('periodic-interval').addEventListener('input', (e) => {
       document.getElementById('interval-value').textContent = `${e.target.value} min`;
-      this.settings.periodicInterval = parseInt(e.target.value);
-      this.markDirty();
+      const value = parseFloat(e.target.value);
+      if (Number.isFinite(value) && value > 0) {
+        this.settings.periodicInterval = value;
+        this.markDirty();
+      }
     });
 
     document.getElementById('penalty-duration').addEventListener('input', (e) => {
       document.getElementById('penalty-value').textContent = `${e.target.value} sec`;
-      this.settings.penaltyDuration = parseInt(e.target.value);
-      this.markDirty();
+      const value = parseFloat(e.target.value);
+      if (Number.isFinite(value) && value > 0) {
+        this.settings.penaltyDuration = value;
+        this.markDirty();
+      }
     });
 
     // Modal
@@ -527,6 +533,14 @@ class OptionsManager {
 
   async saveSettings() {
     try {
+      const interval = Number(this.settings.periodicInterval);
+      const penalty = Number(this.settings.penaltyDuration);
+
+      if (!Number.isFinite(interval) || interval <= 0 || !Number.isFinite(penalty) || penalty <= 0) {
+        this.showNotification('Intervals and penalties must be positive numbers', 'error');
+        return;
+      }
+
       await chrome.storage.sync.set(this.settings);
       
       // Notify background script about settings update

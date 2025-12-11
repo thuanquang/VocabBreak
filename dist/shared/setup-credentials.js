@@ -18,8 +18,8 @@ async function setupCredentials() {
     }
     
     // Use the hardcoded credentials that were injected by the setup script
-    let supabaseUrl = ''; // Will be injected by build script
-    let supabaseKey = ''; // Will be injected by build script
+    let supabaseUrl = 'https://nyxtigtweenrnsmaaoic.supabase.co'; // Will be injected by build script
+    let supabaseKey = 'sb_publishable_V8LlV7Wjb4ssGpGtpP-52A_6XX2rmRA'; // Will be injected by build script
     
     console.log('✅ Using injected Supabase credentials');
 
@@ -40,7 +40,7 @@ async function setupCredentials() {
     });
     
     // Check if using placeholder values
-    if (stored.supabaseUrl === 'YOUR_SUPABASE_URL' || stored.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
+    if (stored.supabaseUrl === 'YOUR_SUPABASE_URL' || stored.supabaseKey === 'YOUR_SUPABASE_ANON_KEY' || stored.supabaseKey === 'YOUR_SUPABASE_PUBLISHABLE_KEY') {
       console.error('❌ Please update the credentials in shared/setup-credentials.js with your actual Supabase values');
       console.log('📝 Instructions:');
       console.log('   1. Get your Supabase URL from your project dashboard');

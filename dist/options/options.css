@@ -3,6 +3,19 @@
  * Clean, modern interface for comprehensive settings management
  */
 
+:root {
+    --vb-bg: #f5f6fb;
+    --vb-surface: #ffffff;
+    --vb-muted-surface: #f8f9fc;
+    --vb-accent: #4f46e5;
+    --vb-accent-strong: #4338ca;
+    --vb-text: #0f172a;
+    --vb-muted: #6b7280;
+    --vb-border: #e5e7eb;
+    --vb-radius: 14px;
+    --vb-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
 /* Reset and base styles */
 * {
     margin: 0;
@@ -11,9 +24,9 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: #f8fafc;
-    color: #2d3748;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: var(--vb-bg);
+    color: var(--vb-text);
     line-height: 1.6;
 }
 
@@ -27,8 +40,8 @@ body {
 
 /* Header */
 .header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--vb-surface);
+    color: var(--vb-text);
     padding: 32px 0;
     box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
 }
@@ -55,8 +68,8 @@ body {
 
 /* Navigation Tabs */
 .nav-tabs {
-    background: white;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--vb-surface);
+    border-bottom: 1px solid var(--vb-border);
     padding: 0 24px;
     display: flex;
     gap: 0;
@@ -172,8 +185,23 @@ input[type="text"], input[type="email"], select {
 
 input[type="text"]:focus, input[type="email"]:focus, select:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--vb-accent);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.input-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input-with-unit input {
+    flex: 1;
+}
+
+.unit-label {
+    color: var(--vb-muted);
+    font-weight: 600;
 }
 
 /* Range Inputs */

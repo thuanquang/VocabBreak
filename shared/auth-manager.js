@@ -169,6 +169,80 @@ class AuthManager {
     }
   }
 
+  async signInWithGoogle() {
+    try {
+      window.stateManager.updateAuthState({
+        isLoading: true,
+        lastError: null
+      });
+
+      const redirectUri = (typeof chrome !== 'undefined' && chrome.identity && chrome.identity.getRedirectURL)
+        ? chrome.identity.getRedirectURL('supabase-auth')
+        : null;
+
+      const url = await this.withRetry(async () => {
+        return await this.supabaseClient.signInWithGoogle(redirectUri);
+      });
+
+      if (!url) {
+        throw new Error('Failed to start Google OAuth flow');
+      }
+
+      const redirectUrl = await this.launchWebAuthFlow(url);
+      const parsed = new URL(redirectUrl.replace('#', '?'));
+      const code = parsed.searchParams.get('code');
+      const accessToken = parsed.searchParams.get('access_token');
+      const refreshToken = parsed.searchParams.get('refresh_token');
+
+      if (code) {
+        const data = await this.supabaseClient.exchangeCodeForSession(code);
+        if (data?.session?.user) {
+          await this.handleAuthSuccess(data.session.user, data.session);
+          return { success: true, user: data.session.user };
+        }
+      } else if (accessToken && refreshToken) {
+        const { data, error } = await this.supabaseClient.client.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+        if (error) throw error;
+        if (data?.user) {
+          await this.handleAuthSuccess(data.user, data.session);
+          return { success: true, user: data.user };
+        }
+      }
+
+      throw new Error('Google sign-in did not return a session');
+    } catch (error) {
+      const errorInfo = window.errorHandler?.handleAuthError(error, { context: 'signInWithGoogle' });
+      window.stateManager.updateAuthState({
+        lastError: errorInfo?.userMessage || error.message,
+        isLoading: false
+      });
+      return { success: false, error: errorInfo?.userMessage || error.message };
+    }
+  }
+
+  async launchWebAuthFlow(url) {
+    return new Promise((resolve, reject) => {
+      if (!(typeof chrome !== 'undefined' && chrome.identity && chrome.identity.launchWebAuthFlow)) {
+        reject(new Error('chrome.identity.launchWebAuthFlow is not available'));
+        return;
+      }
+
+      chrome.identity.launchWebAuthFlow(
+        { url, interactive: true },
+        (redirectUrl) => {
+          if (chrome.runtime.lastError || !redirectUrl) {
+            reject(new Error(chrome.runtime.lastError?.message || 'Web auth flow failed'));
+            return;
+          }
+          resolve(redirectUrl);
+        }
+      );
+    });
+  }
+
   async signOut() {
     try {
       window.stateManager.updateAuthState({ isLoading: true });

@@ -67,26 +67,17 @@ class PopupManager {
 
   setupEventListeners() {
     try {
-      // Login form
-      this.addEventListenerSafely('login-btn', 'click', () => this.handleLogin());
-      this.addEventListenerSafely('signup-btn', 'click', () => this.handleSignup());
-      this.addEventListenerSafely('offline-mode-btn', 'click', () => this.handleOfflineMode());
+      // Google OAuth only
+      this.addEventListenerSafely('google-login-btn', 'click', () => this.handleGoogleLogin());
       
       // Dashboard buttons
       this.addEventListenerSafely('logout-btn', 'click', () => this.handleLogout());
       this.addEventListenerSafely('settings-btn', 'click', () => this.openSettings());
       this.addEventListenerSafely('sync-btn', 'click', () => this.handleSync());
+      this.addEventListenerSafely('test-trigger-block', 'click', () => this.handleTestTrigger());
       
       // Error screen
       this.addEventListenerSafely('retry-btn', 'click', () => this.handleRetry());
-      
-      // Enter key handling for login form
-      this.addEventListenerSafely('email', 'keypress', (e) => {
-        if (e.key === 'Enter') this.handleLogin();
-      });
-      this.addEventListenerSafely('password', 'keypress', (e) => {
-        if (e.key === 'Enter') this.handleLogin();
-      });
 
       // Online/offline listeners are now handled by CoreManager automatically
     } catch (error) {
@@ -190,50 +181,45 @@ class PopupManager {
     }
   }
 
-  async handleLogin() {
+  async handleGoogleLogin() {
     try {
-      const email = this.getInputValue('email');
-      const password = this.getInputValue('password');
-
-      if (!email || !password) {
-        this.showAuthError('Please enter both email and password');
-        return;
+      this.showAuthError('');
+      const button = document.getElementById('google-login-btn');
+      if (button) {
+        button.disabled = true;
+        button.classList.add('loading');
       }
 
-      const result = await window.authManager.signIn(email, password);
-      
+      const result = await window.authManager.signInWithGoogle();
       if (!result.success) {
-        this.showAuthError(result.error);
+        this.showAuthError(result.error || 'Google sign-in failed. Please try again.');
       }
-      // Success is handled by state change
     } catch (error) {
-      window.errorHandler?.handleAuthError(error, { context: 'login' });
-      this.showAuthError('Login failed. Please try again.');
+      window.errorHandler?.handleAuthError(error, { context: 'google-login' });
+      this.showAuthError('Google sign-in failed. Please try again.');
+    } finally {
+      const button = document.getElementById('google-login-btn');
+      if (button) {
+        button.disabled = false;
+        button.classList.remove('loading');
+      }
     }
   }
 
-  async handleSignup() {
+  async handleTestTrigger() {
     try {
-      const email = this.getInputValue('email');
-      const password = this.getInputValue('password');
-
-      if (!email || !password) {
-        this.showAuthError('Please enter both email and password');
-        return;
-      }
-
-      const result = await window.authManager.signUp(email, password, {
-        displayName: email.split('@')[0]
-      });
-      
-      if (!result.success) {
-        this.showAuthError(result.error);
-      }
-      // Success is handled by state change
+      await chrome.runtime.sendMessage({ type: 'TRIGGER_BLOCK_NOW' });
     } catch (error) {
-      window.errorHandler?.handleAuthError(error, { context: 'signup' });
-      this.showAuthError('Signup failed. Please try again.');
+      window.errorHandler?.handleUIError(error, { context: 'test-trigger-block' });
     }
+  }
+
+  async handleLogin() {
+    return this.handleGoogleLogin();
+  }
+
+  async handleSignup() {
+    return this.handleGoogleLogin();
   }
 
   async handleLogout() {
@@ -253,34 +239,7 @@ class PopupManager {
   }
 
   async handleOfflineMode() {
-    try {
-      // Set offline user state
-      window.stateManager.updateAuthState({
-        user: {
-          id: 'offline-user',
-          email: 'offline@vocabbreak.local',
-          created_at: new Date().toISOString()
-        },
-        isAuthenticated: true,
-        session: null
-      });
-
-      // Set default user data
-      window.stateManager.updateUserState({
-        stats: {
-          totalPoints: 0,
-          currentStreak: 0,
-          questionsAnswered: 0,
-          accuracyRate: 0,
-          currentLevel: 1,
-          levelName: 'Beginner',
-          levelProgress: 0,
-          pointsToNextLevel: 500
-        }
-      });
-    } catch (error) {
-      window.errorHandler?.handleUIError(error, { context: 'offline-mode' });
-    }
+    // Offline mode disabled in Google OAuth-only flow
   }
 
   async handleSync() {
@@ -307,7 +266,9 @@ class PopupManager {
 
   handleRetry() {
     try {
-      window.stateManager.updateAppState({ currentScreen: 'loading' });
+      // Clear auth/app errors and return to loading
+      window.stateManager.updateAuthState({ lastError: null, isLoading: false });
+      window.stateManager.updateAppState({ currentScreen: 'loading', lastError: null });
       setTimeout(() => {
         this.updateUI();
       }, 500);
@@ -421,18 +382,7 @@ class PopupManager {
         console.warn('Gamification manager failed to initialize');
         return;
       }
-      
-      // Check if user is authenticated and has no stats, initialize test data
-      if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
-        const currentStats = window.gamificationManager.getUserStats();
-        if (currentStats.totalPoints === 0 && currentStats.totalQuestions === 0) {
-          console.log('🧪 No existing stats found, initializing test stats...');
-          await window.gamificationManager.initializeTestStats();
-        }
-      } else {
-        console.log('📊 User not authenticated, using offline mode');
-      }
-      
+
     } catch (error) {
       console.error('Failed to initialize gamification stats:', error);
     }

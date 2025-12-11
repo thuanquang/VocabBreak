@@ -19,7 +19,7 @@ VocabBreak Extension Functionality Notes (for assistant reference)
 ### Extension Contexts & Script Roles
 - **Background (Service Worker)**: background.js - Tab tracking, question scheduling (30-min intervals), cross-component communication, local question bank fallback
 - **Content Script**: content/blocker.js - Blocking overlay injection, question UI rendering, answer validation, bypass prevention
-- **Popup**: popup/popup.html + popup-refactored.js - User dashboard, stats display, authentication, settings access
+- **Popup**: popup/popup.html + popup.js - User dashboard, stats display, authentication, settings access
 - **Options**: options/options.html + options.js - Comprehensive settings management, site filtering, learning preferences
 
 ### Script Loading Order & Dependencies ✅ REFACTORED: Simplified chain

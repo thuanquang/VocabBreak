@@ -37,7 +37,7 @@ VocabBreak STRUCTURE (for assistant reference)
 
 #### `/popup/` - Extension Popup Interface
 - **popup.html**: Popup HTML structure with authentication and dashboard screens
-- **popup-refactored.js**: Popup manager with state management and UI updates
+- **popup.js**: Popup manager with state management and UI updates
 - **popup.css**: Popup styling and responsive design
 
 #### `/options/` - Settings & Configuration Page

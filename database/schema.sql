@@ -1,7 +1,7 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
-CREATE TABLE public.achievements (
+CREATE TABLE IF NOT EXISTS public.achievements (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   achievement_data jsonb NOT NULL DEFAULT jsonb_build_object('name', jsonb_build_object('en', '', 'vi', ''), 'description', jsonb_build_object('en', '', 'vi', ''), 'icon', '', 'category', '', 'tier', 'bronze', 'points_value', 0, 'requirements', jsonb_build_object(), 'rewards', jsonb_build_object()),
   metadata jsonb DEFAULT '{}'::jsonb,
@@ -11,7 +11,7 @@ CREATE TABLE public.achievements (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT achievements_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.analytics_events (
+CREATE TABLE IF NOT EXISTS public.analytics_events (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid,
   event_type text NOT NULL,
@@ -22,7 +22,21 @@ CREATE TABLE public.analytics_events (
   CONSTRAINT analytics_events_pkey PRIMARY KEY (id),
   CONSTRAINT analytics_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.backup_questions (
+
+CREATE TABLE IF NOT EXISTS public.blocking_events (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  trigger_type text NOT NULL,
+  interval_minutes numeric,
+  penalty_seconds numeric,
+  site_url text,
+  outcome text,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT blocking_events_pkey PRIMARY KEY (id),
+  CONSTRAINT blocking_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE IF NOT EXISTS public.backup_questions (
   id uuid,
   content jsonb,
   answers jsonb,
@@ -38,7 +52,7 @@ CREATE TABLE public.backup_questions (
   version integer,
   schema_version integer
 );
-CREATE TABLE public.backup_users (
+CREATE TABLE IF NOT EXISTS public.backup_users (
   id uuid,
   username text,
   profile jsonb,
@@ -51,7 +65,7 @@ CREATE TABLE public.backup_users (
   subscription_tier text,
   schema_version integer
 );
-CREATE TABLE public.configurations (
+CREATE TABLE IF NOT EXISTS public.configurations (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   scope text NOT NULL,
   scope_id uuid,
@@ -69,7 +83,7 @@ CREATE TABLE public.configurations (
   CONSTRAINT configurations_pkey PRIMARY KEY (id),
   CONSTRAINT configurations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
-CREATE TABLE public.feedback (
+CREATE TABLE IF NOT EXISTS public.feedback (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid,
   feedback_type text NOT NULL,
@@ -84,7 +98,7 @@ CREATE TABLE public.feedback (
   CONSTRAINT feedback_pkey PRIMARY KEY (id),
   CONSTRAINT feedback_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.learning_sessions (
+CREATE TABLE IF NOT EXISTS public.learning_sessions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid,
   session_data jsonb NOT NULL DEFAULT jsonb_build_object('questions_answered', 0, 'correct_answers', 0, 'points_earned', 0, 'streak_count', 0, 'topics_covered', ARRAY[]::text[], 'levels_covered', ARRAY[]::text[], 'achievements_unlocked', ARRAY[]::uuid[]),
@@ -96,7 +110,7 @@ CREATE TABLE public.learning_sessions (
   CONSTRAINT learning_sessions_pkey PRIMARY KEY (id),
   CONSTRAINT learning_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.question_set_items (
+CREATE TABLE IF NOT EXISTS public.question_set_items (
   set_id uuid NOT NULL,
   question_id uuid NOT NULL,
   order_index integer,
@@ -105,7 +119,7 @@ CREATE TABLE public.question_set_items (
   CONSTRAINT question_set_items_set_id_fkey FOREIGN KEY (set_id) REFERENCES public.question_sets(id),
   CONSTRAINT question_set_items_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id)
 );
-CREATE TABLE public.question_sets (
+CREATE TABLE IF NOT EXISTS public.question_sets (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   set_data jsonb NOT NULL DEFAULT jsonb_build_object('name', jsonb_build_object(), 'description', jsonb_build_object(), 'type', 'standard', 'difficulty_range', jsonb_build_object('min', 1, 'max', 10), 'time_limit', 0, 'pass_threshold', 0.7, 'order_type', 'random'),
   metadata jsonb DEFAULT '{}'::jsonb,
@@ -117,7 +131,7 @@ CREATE TABLE public.question_sets (
   CONSTRAINT question_sets_pkey PRIMARY KEY (id),
   CONSTRAINT question_sets_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
-CREATE TABLE public.questions (
+CREATE TABLE IF NOT EXISTS public.questions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   content jsonb NOT NULL DEFAULT jsonb_build_object('text', jsonb_build_object(), 'media', jsonb_build_object('images', ARRAY[]::text[], 'audio', ARRAY[]::text[], 'video', ARRAY[]::text[]), 'context', '', 'instructions', jsonb_build_object(), 'hints', ARRAY[]::jsonb[], 'explanation', jsonb_build_object()),
   answers jsonb NOT NULL DEFAULT jsonb_build_object('correct', ARRAY[]::text[], 'options', ARRAY[]::jsonb[], 'alternatives', ARRAY[]::text[], 'validation_rules', jsonb_build_object('case_sensitive', false, 'trim_whitespace', true, 'fuzzy_match', false, 'fuzzy_threshold', 0.8)),
@@ -135,7 +149,7 @@ CREATE TABLE public.questions (
   CONSTRAINT questions_pkey PRIMARY KEY (id),
   CONSTRAINT questions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
-CREATE TABLE public.user_achievements (
+CREATE TABLE IF NOT EXISTS public.user_achievements (
   user_id uuid NOT NULL,
   achievement_id uuid NOT NULL,
   unlocked_at timestamp with time zone DEFAULT now(),
@@ -145,7 +159,7 @@ CREATE TABLE public.user_achievements (
   CONSTRAINT user_achievements_achievement_id_fkey FOREIGN KEY (achievement_id) REFERENCES public.achievements(id),
   CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.user_interactions (
+CREATE TABLE IF NOT EXISTS public.user_interactions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid,
   interaction_type text NOT NULL,
@@ -162,7 +176,7 @@ CREATE TABLE public.user_interactions (
   CONSTRAINT user_interactions_pkey PRIMARY KEY (id),
   CONSTRAINT user_interactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.users (
+CREATE TABLE IF NOT EXISTS public.users (
   id uuid NOT NULL,
   username text UNIQUE,
   profile jsonb NOT NULL DEFAULT jsonb_build_object('display_name', '', 'avatar_url', '', 'bio', '', 'preferences', jsonb_build_object('interface_language', 'en', 'question_language', 'en', 'theme', 'light', 'notifications_enabled', true, 'sound_enabled', true), 'learning_config', jsonb_build_object('difficulty_levels', ARRAY['A1'::text], 'topics', ARRAY[]::text[], 'question_types', ARRAY['multiple-choice'::text], 'daily_goal', 10, 'session_length', 30), 'gamification', jsonb_build_object('total_points', 0, 'current_level', 1, 'current_streak', 0, 'longest_streak', 0, 'achievements', ARRAY[]::jsonb[], 'badges', ARRAY[]::jsonb[], 'experience_points', 0), 'statistics', jsonb_build_object('total_questions_answered', 0, 'total_correct_answers', 0, 'average_response_time', 0, 'favorite_topics', ARRAY[]::text[], 'weak_areas', ARRAY[]::jsonb[])),

@@ -3,10 +3,23 @@
  * Ensures professional, unbypassable design
  */
 
+:root {
+  --vb-overlay: rgba(15, 23, 42, 0.65);
+  --vb-surface: #ffffff;
+  --vb-muted-surface: #f6f7fb;
+  --vb-accent: #4f46e5;
+  --vb-accent-strong: #4338ca;
+  --vb-text: #0f172a;
+  --vb-muted: #6b7280;
+  --vb-border: #e5e7eb;
+  --vb-radius: 14px;
+  --vb-shadow: 0 16px 40px rgba(15, 23, 42, 0.2);
+}
+
 /* Reset and base styles for overlay */
 #vocabbreak-overlay * {
   box-sizing: border-box !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
 }
 
 /* Main overlay container */
@@ -16,7 +29,7 @@
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  background: rgba(0, 0, 0, 0.9) !important;
+  background: var(--vb-overlay) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   z-index: 2147483647 !important;
@@ -32,9 +45,9 @@
 
 /* Modal container */
 .vocabbreak-modal {
-  background: #ffffff !important;
-  border-radius: 16px !important;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4) !important;
+  background: var(--vb-surface) !important;
+  border-radius: var(--vb-radius) !important;
+  box-shadow: var(--vb-shadow) !important;
   max-width: 520px !important;
   width: 90% !important;
   max-height: 85vh !important;
@@ -57,8 +70,8 @@
 
 /* Header section */
 .vocabbreak-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  color: white !important;
+  background: var(--vb-muted-surface) !important;
+  color: var(--vb-text) !important;
   padding: 28px 32px 24px 32px !important;
   text-align: center !important;
   position: relative !important;
@@ -78,7 +91,7 @@
   margin: 0 !important;
   font-size: 28px !important;
   font-weight: 700 !important;
-  letter-spacing: -0.5px !important;
+  letter-spacing: -0.3px !important;
   position: relative !important;
   z-index: 1 !important;
 }
@@ -100,7 +113,7 @@
 .vocabbreak-question {
   font-size: 20px !important;
   font-weight: 600 !important;
-  color: #2d3748 !important;
+  color: var(--vb-text) !important;
   margin-bottom: 24px !important;
   line-height: 1.6 !important;
   text-align: center !important;
@@ -115,13 +128,13 @@
 
 .vocabbreak-option {
   padding: 16px 20px !important;
-  border: 2px solid #e2e8f0 !important;
+  border: 2px solid var(--vb-border) !important;
   border-radius: 12px !important;
-  background: #ffffff !important;
+  background: var(--vb-surface) !important;
   cursor: pointer !important;
   font-size: 16px !important;
   font-weight: 500 !important;
-  color: #4a5568 !important;
+  color: var(--vb-text) !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative !important;
   overflow: hidden !important;
@@ -139,10 +152,10 @@
 }
 
 .vocabbreak-option:hover {
-  border-color: #667eea !important;
-  background: #f7fafc !important;
+  border-color: var(--vb-accent) !important;
+  background: var(--vb-muted-surface) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15) !important;
+  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15) !important;
 }
 
 .vocabbreak-option:hover::before {
@@ -150,31 +163,31 @@
 }
 
 .vocabbreak-option.selected {
-  border-color: #667eea !important;
-  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  border-color: var(--vb-accent) !important;
+  background: var(--vb-accent) !important;
   color: white !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.28) !important;
 }
 
 /* Text input */
 .vocabbreak-text-input {
   padding: 16px 20px !important;
-  border: 2px solid #e2e8f0 !important;
+  border: 2px solid var(--vb-border) !important;
   border-radius: 12px !important;
   font-size: 16px !important;
   font-weight: 500 !important;
   width: 100% !important;
-  background: #ffffff !important;
-  color: #4a5568 !important;
+  background: var(--vb-surface) !important;
+  color: var(--vb-text) !important;
   transition: all 0.2s ease !important;
 }
 
 .vocabbreak-text-input:focus {
   outline: none !important;
-  border-color: #667eea !important;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
-  background: #f7fafc !important;
+  border-color: var(--vb-accent) !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12) !important;
+  background: var(--vb-muted-surface) !important;
 }
 
 .vocabbreak-text-input::placeholder {
@@ -187,8 +200,8 @@
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  background: #f8fafc !important;
-  border-top: 1px solid #e2e8f0 !important;
+  background: var(--vb-muted-surface) !important;
+  border-top: 1px solid var(--vb-border) !important;
 }
 
 .vocabbreak-points {
@@ -206,7 +219,7 @@
 
 /* Submit button */
 .vocabbreak-submit {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: var(--vb-accent) !important;
   color: white !important;
   border: none !important;
   padding: 14px 28px !important;
@@ -232,8 +245,8 @@
 }
 
 .vocabbreak-submit:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.25) !important;
 }
 
 .vocabbreak-submit:hover::before {

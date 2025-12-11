@@ -11,8 +11,27 @@ class BackgroundManager {
   constructor() {
     this.tabTimers = new Map(); // tabId -> timer info
     this.tabStates = new Map(); // tabId -> state info
-    this.periodicInterval = 30 * 60 * 1000; // 30 minutes in milliseconds
-    this.wrongAnswerPenalty = 30 * 1000; // 30 seconds in milliseconds
+    this.periodicInterval = 30 * 60 * 1000; // default 30 minutes in milliseconds
+    this.wrongAnswerPenalty = 30 * 1000; // default 30 seconds in milliseconds
+    this.tabPenaltyTimeouts = new Map(); // tabId -> timeoutId
+    this.blockingMode = 'blacklist';
+    this.siteList = [];
+    this.defaultExclusions = [
+      'chrome://*',
+      'chrome-extension://*',
+      'moz-extension://*',
+      'edge://*',
+      'about:*',
+      'file://*',
+      'localhost',
+      'localhost:*',
+      '127.0.0.1',
+      '127.0.0.1:*',
+      '*.local',
+      'chrome.google.com/webstore*',
+      'addons.mozilla.org*',
+      'microsoftedge.microsoft.com*'
+    ];
     this.isInitialized = false;
     
     console.log('🔧 BackgroundManager constructor called, interval =', this.periodicInterval / 60000, 'minutes');
@@ -24,6 +43,9 @@ class BackgroundManager {
     
     // Set up event listeners
     this.setupEventListeners();
+
+    // Load persisted timer settings (interval/penalty)
+    await this.loadTimerSettings();
     
     // Load persisted timer states
     await this.loadPersistedStates();
@@ -85,6 +107,37 @@ class BackgroundManager {
     }
   }
 
+  async loadTimerSettings() {
+    try {
+      const stored = await chrome.storage.sync.get(['periodicInterval', 'penaltyDuration', 'blockingMode', 'siteList']);
+      const periodicIntervalValue = Number(stored.periodicInterval);
+      const penaltyValue = Number(stored.penaltyDuration);
+
+      if (Number.isFinite(periodicIntervalValue) && periodicIntervalValue > 0) {
+        this.periodicInterval = periodicIntervalValue * 60 * 1000;
+      }
+      if (Number.isFinite(penaltyValue) && penaltyValue > 0) {
+        this.wrongAnswerPenalty = penaltyValue * 1000;
+      }
+
+      this.blockingMode = stored.blockingMode === 'whitelist' ? 'whitelist' : 'blacklist';
+      this.siteList = Array.isArray(stored.siteList) ? stored.siteList : [];
+
+      if (this.blockingMode === 'blacklist') {
+        this.siteList = [...new Set([...this.siteList, ...this.defaultExclusions])];
+      }
+
+      console.log('⏱️ Loaded timer settings', {
+        periodicMinutes: this.periodicInterval / 60000,
+        penaltySeconds: this.wrongAnswerPenalty / 1000,
+        blockingMode: this.blockingMode,
+        siteListCount: this.siteList.length
+      });
+    } catch (error) {
+      console.warn('Failed to load timer settings, using defaults', error);
+    }
+  }
+
   async initializeTab(tabId, url, urlChanged = true) {
     if (!url || !this.shouldBlockUrl(url)) {
       return;
@@ -133,20 +186,65 @@ class BackgroundManager {
   }
 
   shouldBlockUrl(url) {
-    // Basic URL filtering - in production this would use siteFilter
     if (!url) return false;
-    
-    const excludePatterns = [
-      'chrome://',
-      'chrome-extension://',
-      'moz-extension://',
-      'edge://',
-      'about:',
-      'file://',
-      'localhost'
-    ];
-    
-    return !excludePatterns.some(pattern => url.startsWith(pattern));
+
+    const normalizedUrl = url.toLowerCase();
+
+    if (this.matchesPatterns(normalizedUrl, this.defaultExclusions)) {
+      return false;
+    }
+
+    const matchesUserList = this.matchesPatterns(normalizedUrl, this.siteList);
+
+    if (this.blockingMode === 'whitelist') {
+      return matchesUserList;
+    }
+
+    // blacklist mode: block unless the URL is explicitly excluded
+    return !matchesUserList;
+  }
+
+  matchesPatterns(url, patterns = []) {
+    if (!patterns || patterns.length === 0) return false;
+
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.toLowerCase();
+      const fullUrl = url.toLowerCase();
+
+      return patterns.some((pattern) => {
+        const normalizedPattern = (pattern || '').toLowerCase().trim();
+        if (!normalizedPattern) return false;
+
+        // Exact match
+        if (normalizedPattern === fullUrl || normalizedPattern === hostname) {
+          return true;
+        }
+
+        // Wildcard matching
+        if (normalizedPattern.includes('*')) {
+          const regexPattern = normalizedPattern
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*');
+          const regex = new RegExp(`^${regexPattern}$`);
+          return regex.test(fullUrl) || regex.test(hostname);
+        }
+
+        // Domain or substring matching
+        if (hostname.includes(normalizedPattern) || normalizedPattern.includes(hostname)) {
+          return true;
+        }
+
+        if (fullUrl.includes(normalizedPattern)) {
+          return true;
+        }
+
+        return false;
+      });
+    } catch (error) {
+      console.warn('Error matching URL patterns:', error);
+      return false;
+    }
   }
 
   async handleTabActivated(tabId) {
@@ -191,6 +289,7 @@ class BackgroundManager {
 
   handleTabRemoved(tabId) {
     this.clearTabTimer(tabId);
+    this.clearTabPenaltyTimer(tabId);
     this.tabStates.delete(tabId);
     console.log(`Cleaned up tab ${tabId}`);
   }
@@ -203,14 +302,18 @@ class BackgroundManager {
           console.warn('Background script question request - this should not happen in new architecture');
           sendResponse({ success: false, error: 'Questions should come from Supabase or cache only' });
           break;
+        case 'AUTH_STATE_CHANGED':
+          // Acknowledge auth state broadcasts to avoid noise
+          sendResponse({ success: true });
+          break;
 
         case 'SUBMIT_ANSWER':
           await this.handleAnswerSubmission(message, sender, sendResponse);
           break;
 
         case 'REQUEST_BLOCK_CHECK':
-          const shouldBlock = await this.shouldBlockTab(sender.tab.id, sender.tab.url);
-          sendResponse({ shouldBlock: shouldBlock });
+          const blockState = await this.getBlockState(sender.tab.id, sender.tab.url);
+          sendResponse(blockState);
           break;
 
         case 'GET_TAB_STATE':
@@ -219,7 +322,7 @@ class BackgroundManager {
           break;
 
         case 'CLEAR_PENALTY':
-          await this.clearPenalty(sender.tab.id);
+          await this.clearTabPenalty(sender.tab.id);
           sendResponse({ success: true });
           break;
 
@@ -236,6 +339,11 @@ class BackgroundManager {
         case 'GET_ACHIEVEMENTS':
           const achievements = await this.getAchievements();
           sendResponse({ achievements: achievements });
+          break;
+
+        case 'TRIGGER_BLOCK_NOW':
+          await this.triggerManualBlock();
+          sendResponse({ success: true });
           break;
 
         default:
@@ -298,9 +406,7 @@ class BackgroundManager {
           tabState.isBlocked = true;
           tabState.blockReason = 'wrong_answer';
           tabState.penaltyEndTime = Date.now() + this.wrongAnswerPenalty;
-          
-          // Set up penalty timer
-          this.schedulePenaltyEnd(tabId);
+          await this.applyTabPenalty(tabId, this.wrongAnswerPenalty);
         }
       }
 
@@ -319,7 +425,7 @@ class BackgroundManager {
           feedback: feedback
         },
         points: { totalPoints: pointsEarned },
-        penaltyEndTime: tabState?.penaltyEndTime || 0
+        penaltyEndTime: this.globalPenalty.endTime || tabState?.penaltyEndTime || 0
       });
 
     } catch (error) {
@@ -328,29 +434,27 @@ class BackgroundManager {
     }
   }
 
-  async shouldBlockTab(tabId, url) {
-    if (!url || !this.shouldBlockUrl(url)) {
-      return false;
+  async getBlockState(tabId, url) {
+    const isExcluded = !url || this.matchesPatterns(url, this.defaultExclusions);
+
+    if (isExcluded || !this.shouldBlockUrl(url)) {
+      return { shouldBlock: false, reason: null, penaltyEndTime: 0 };
     }
 
     const tabState = this.tabStates.get(tabId);
     if (!tabState) {
       console.log(`❌ No tab state found for ${tabId}, not blocking`);
-      return false;
+      return { shouldBlock: false, reason: null, penaltyEndTime: 0 };
     }
 
-    // Check if currently in penalty period
-    if (tabState.penaltyEndTime > Date.now()) {
-      console.log(`⏳ Tab ${tabId} in penalty period, blocking`);
-      return true;
-    }
-
-    // FIXED: Only block if explicitly marked as blocked by the alarm system
-    // This prevents questions from appearing on every refresh
     const timeSinceLastQuestion = Date.now() - tabState.lastQuestionTime;
     console.log(`🔍 Tab ${tabId} block check: timeSince=${Math.round(timeSinceLastQuestion/1000)}s, interval=${this.periodicInterval/1000}s, blocked=${tabState.isBlocked}, reason=${tabState.blockReason}`);
 
-    return tabState.isBlocked;
+    return {
+      shouldBlock: !!tabState.isBlocked,
+      reason: tabState.blockReason || null,
+      penaltyEndTime: tabState.penaltyEndTime || 0
+    };
   }
 
   async triggerQuestion(tabId, reason) {
@@ -364,56 +468,194 @@ class BackgroundManager {
     try {
       await chrome.scripting.executeScript({
         target: { tabId: tabId },
-        func: () => {
+        func: (reasonParam) => {
           if (window.vocabBreakBlocker) {
-            window.vocabBreakBlocker.showQuestion();
+            window.vocabBreakBlocker.showQuestion(reasonParam);
           }
-        }
+        },
+        args: [reason]
       });
     } catch (error) {
-      console.error('Failed to trigger question display:', error);
+      console.error('Failed to trigger question display via executeScript:', error);
+      // Fallback: ask content script to show the question if it is listening
+      try {
+        await chrome.tabs.sendMessage(tabId, { type: 'SHOW_QUESTION', reason: reason });
+      } catch (err) {
+        console.warn('Fallback SHOW_QUESTION message failed:', err?.message || err);
+      }
     }
 
     console.log(`Triggered question for tab ${tabId}, reason: ${reason}`);
   }
 
+  async triggerManualBlock() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs[0];
+      if (!tab || !tab.id || !this.shouldBlockUrl(tab.url)) {
+        console.warn('Manual block skipped: no active blockable tab');
+        return;
+      }
+      const tabId = tab.id;
+      const tabState = this.tabStates.get(tabId) || {
+        url: tab.url,
+        lastQuestionTime: Date.now() - this.periodicInterval - 1000,
+        questionCount: 0,
+        isBlocked: false,
+        blockReason: null,
+        penaltyEndTime: 0
+      };
+      tabState.isBlocked = true;
+      tabState.blockReason = 'manual';
+      this.tabStates.set(tabId, tabState);
+      // Try message first (preferred)
+      try {
+        await chrome.tabs.sendMessage(tabId, { type: 'SHOW_QUESTION', reason: 'manual' });
+        console.log('📩 Sent SHOW_QUESTION to tab', tabId);
+      } catch (err) {
+        console.warn('SHOW_QUESTION message failed, trying executeScript:', err?.message || err);
+        await this.triggerQuestion(tabId, 'manual');
+      }
+    } catch (error) {
+      console.error('Failed to trigger manual block:', error);
+    }
+  }
+
   schedulePeriodicQuestion(tabId) {
     this.clearTabTimer(tabId);
 
-    const alarmName = `vocabbreak_tab_${tabId}`;
-    chrome.alarms.create(alarmName, {
-      delayInMinutes: Math.ceil(this.periodicInterval / 60000)
-    });
+    const scheduledTime = Date.now() + this.periodicInterval;
+    const timeoutId = setTimeout(() => this.handlePeriodicTimer(tabId), this.periodicInterval);
+
+    let alarmName = null;
+    const delayInMinutes = this.periodicInterval / 60000;
+    if (delayInMinutes >= 1) {
+      alarmName = `vocabbreak_tab_${tabId}`;
+      chrome.alarms.create(alarmName, { delayInMinutes });
+    }
 
     this.tabTimers.set(tabId, {
-      alarmName: alarmName,
+      alarmName,
       type: 'periodic',
-      scheduledTime: Date.now() + this.periodicInterval
+      scheduledTime,
+      timeoutId
     });
 
     console.log(`Scheduled periodic question for tab ${tabId} in ${this.periodicInterval / 60000} minutes`);
   }
 
-  schedulePenaltyEnd(tabId) {
-    const alarmName = `vocabbreak_penalty_${tabId}`;
-    chrome.alarms.create(alarmName, {
-      delayInMinutes: Math.ceil(this.wrongAnswerPenalty / 60000)
-    });
+  async handlePeriodicTimer(tabId) {
+    const timer = this.tabTimers.get(tabId);
+    if (timer?.alarmName) {
+      chrome.alarms.clear(timer.alarmName);
+    }
+    this.tabTimers.delete(tabId);
 
-    this.tabTimers.set(tabId, {
-      alarmName: alarmName,
-      type: 'penalty',
-      scheduledTime: Date.now() + this.wrongAnswerPenalty
-    });
+    const tabState = this.tabStates.get(tabId);
+    if (!tabState || !this.shouldBlockUrl(tabState.url)) return;
 
-    console.log(`Scheduled penalty end for tab ${tabId} in ${this.wrongAnswerPenalty / 1000} seconds`);
+    tabState.isBlocked = true;
+    tabState.blockReason = 'periodic';
+    this.tabStates.set(tabId, tabState);
+
+    await this.triggerQuestion(tabId, 'periodic');
+  }
+
+  async applyTabPenalty(tabId, durationMs) {
+    const tabState = this.tabStates.get(tabId);
+    if (!tabState) return;
+
+    tabState.isBlocked = true;
+    tabState.blockReason = 'penalty';
+    tabState.penaltyEndTime = Date.now() + durationMs;
+    this.tabStates.set(tabId, tabState);
+
+    this.scheduleTabPenaltyEnd(tabId, durationMs);
+
+    // Notify the specific tab so the overlay shows the countdown
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'GLOBAL_PENALTY',
+        penaltyEndTime: tabState.penaltyEndTime
+      });
+    } catch (error) {
+      // Content script might not be ready; ignore
+    }
+  }
+
+  scheduleTabPenaltyEnd(tabId, durationMs) {
+    // Clear existing timeout/alarm for this tab
+    this.clearTabPenaltyTimer(tabId);
+
+    const timeoutId = setTimeout(() => {
+      this.clearTabPenalty(tabId);
+    }, durationMs);
+
+    let alarmName = null;
+    const minutes = durationMs / 60000;
+    if (minutes >= 1) {
+      alarmName = `vocabbreak_penalty_${tabId}`;
+      chrome.alarms.create(alarmName, { delayInMinutes: minutes });
+    }
+
+    this.tabPenaltyTimeouts.set(tabId, { timeoutId, alarmName });
+  }
+
+  clearTabPenaltyTimer(tabId) {
+    const entry = this.tabPenaltyTimeouts.get(tabId);
+    if (!entry) return;
+    if (entry.timeoutId) clearTimeout(entry.timeoutId);
+    if (entry.alarmName) chrome.alarms.clear(entry.alarmName);
+    this.tabPenaltyTimeouts.delete(tabId);
+  }
+
+  async clearTabPenalty(tabId) {
+    this.clearTabPenaltyTimer(tabId);
+    const tabState = this.tabStates.get(tabId);
+    if (!tabState) return;
+
+    tabState.isBlocked = false;
+    tabState.blockReason = null;
+    tabState.penaltyEndTime = 0;
+    tabState.lastQuestionTime = Date.now();
+    this.tabStates.set(tabId, tabState);
+
+    this.schedulePeriodicQuestion(tabId);
+
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: 'PENALTY_CLEARED' });
+    } catch (error) {
+      // Ignore if content script not available
+    }
   }
 
   clearTabTimer(tabId) {
     const timer = this.tabTimers.get(tabId);
     if (timer) {
-      chrome.alarms.clear(timer.alarmName);
+      if (timer.timeoutId) {
+        clearTimeout(timer.timeoutId);
+      }
+      if (timer.alarmName) {
+        chrome.alarms.clear(timer.alarmName);
+      }
       this.tabTimers.delete(tabId);
+    }
+  }
+
+  async broadcastToAllTabs(message) {
+    try {
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        if (tab.url && !tab.url.startsWith('chrome://')) {
+          try {
+            await chrome.tabs.sendMessage(tab.id, message);
+          } catch (error) {
+            // Content script may not be injected; ignore
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to broadcast message to tabs', error);
     }
   }
 
@@ -422,58 +664,46 @@ class BackgroundManager {
     
     if (alarmName.startsWith('vocabbreak_tab_')) {
       const tabId = parseInt(alarmName.replace('vocabbreak_tab_', ''));
-      
-      // FIXED: Mark tab as blocked when the periodic timer fires
-      const tabState = this.tabStates.get(tabId);
-      if (tabState) {
-        tabState.isBlocked = true;
-        tabState.blockReason = 'periodic';
-        console.log(`⏰ Periodic timer fired for tab ${tabId}, marking as blocked`);
+
+      const timer = this.tabTimers.get(tabId);
+      // If the timeout already handled it, skip
+      if (!timer || timer.type !== 'periodic') {
+        return;
       }
-      
-      await this.triggerQuestion(tabId, 'periodic');
-      
+
+      const timeRemaining = (timer.scheduledTime || 0) - Date.now();
+      if (timeRemaining > 2000) {
+        // setTimeout will fire closer to the target time
+        return;
+      }
+
+      await this.handlePeriodicTimer(tabId);
     } else if (alarmName.startsWith('vocabbreak_penalty_')) {
       const tabId = parseInt(alarmName.replace('vocabbreak_penalty_', ''));
-      await this.clearPenalty(tabId);
+      await this.clearTabPenalty(tabId);
     }
-  }
-
-  async clearPenalty(tabId) {
-    const tabState = this.tabStates.get(tabId);
-    if (tabState) {
-      tabState.isBlocked = false;
-      tabState.blockReason = null;
-      tabState.penaltyEndTime = 0;
-    }
-
-    this.clearTabTimer(tabId);
-    this.schedulePeriodicQuestion(tabId);
-
-    // Notify content script
-    try {
-      await chrome.tabs.sendMessage(tabId, {
-        type: 'PENALTY_CLEARED'
-      });
-    } catch (error) {
-      // Tab might be closed or not ready
-      console.log('Could not notify tab about penalty clearance:', error.message);
-    }
-
-    console.log(`Cleared penalty for tab ${tabId}`);
   }
 
   async handleSettingsUpdate(settings) {
     console.log('🔧 Background script received settings update:', settings);
     
     // Update periodic interval if changed
-    if (settings.periodicInterval) {
-      this.periodicInterval = settings.periodicInterval * 60 * 1000; // Convert minutes to milliseconds
+    if (Number.isFinite(Number(settings.periodicInterval)) && Number(settings.periodicInterval) > 0) {
+      this.periodicInterval = Number(settings.periodicInterval) * 60 * 1000; // Convert minutes to milliseconds
     }
 
-    if (settings.penaltyDuration) {
-      this.wrongAnswerPenalty = settings.penaltyDuration * 1000; // Convert seconds to milliseconds
+    if (Number.isFinite(Number(settings.penaltyDuration)) && Number(settings.penaltyDuration) > 0) {
+      this.wrongAnswerPenalty = Number(settings.penaltyDuration) * 1000; // Convert seconds to milliseconds
     }
+
+    if (settings.blockingMode) {
+      this.blockingMode = settings.blockingMode === 'whitelist' ? 'whitelist' : 'blacklist';
+    }
+
+    const incomingSiteList = Array.isArray(settings.siteList) ? settings.siteList : this.siteList;
+    this.siteList = this.blockingMode === 'blacklist'
+      ? [...new Set([...incomingSiteList, ...this.defaultExclusions])]
+      : incomingSiteList;
 
     // Store settings in chrome storage for content scripts to access
     try {
@@ -482,7 +712,9 @@ class BackgroundManager {
         questionTypes: settings.questionTypes,
         topics: settings.topics,
         periodicInterval: settings.periodicInterval,
-        penaltyDuration: settings.penaltyDuration
+        penaltyDuration: settings.penaltyDuration,
+        blockingMode: this.blockingMode,
+        siteList: incomingSiteList
       });
       console.log('✅ Settings saved to chrome storage');
     } catch (error) {
@@ -535,6 +767,9 @@ class BackgroundManager {
       
       if (stored.tabStates) {
         for (const [tabId, state] of Object.entries(stored.tabStates)) {
+          if (state.url && !this.shouldBlockUrl(state.url)) {
+            continue;
+          }
           // Fix for existing broken states: if lastQuestionTime is 0, set it to now
           if (state.lastQuestionTime === 0) {
             state.lastQuestionTime = Date.now();
@@ -546,22 +781,33 @@ class BackgroundManager {
 
       if (stored.tabTimers) {
         for (const [tabId, timer] of Object.entries(stored.tabTimers)) {
-          // Recreate alarms for active timers
           const timerId = parseInt(tabId);
-          const timeLeft = timer.scheduledTime - Date.now();
+          const timeLeft = (timer.scheduledTime || 0) - Date.now();
           
           if (timeLeft > 0) {
-            if (timer.type === 'periodic') {
-              chrome.alarms.create(timer.alarmName, {
-                delayInMinutes: Math.ceil(timeLeft / 60000)
-              });
-            } else if (timer.type === 'penalty') {
-              chrome.alarms.create(timer.alarmName, {
-                delayInMinutes: Math.ceil(timeLeft / 60000)
-              });
+            let alarmName = null;
+            const minutesLeft = timeLeft / 60000;
+            if (minutesLeft >= 1) {
+              alarmName = `vocabbreak_tab_${timerId}`;
+              chrome.alarms.create(alarmName, { delayInMinutes: minutesLeft });
             }
-            this.tabTimers.set(timerId, timer);
+
+            const timeoutId = setTimeout(() => this.handlePeriodicTimer(timerId), timeLeft);
+
+            this.tabTimers.set(timerId, {
+              alarmName,
+              scheduledTime: Date.now() + timeLeft,
+              timeoutId,
+              type: timer.type || 'periodic'
+            });
           }
+        }
+      }
+
+      // Recreate penalty timers for tabs still under penalty
+      for (const [tabId, state] of this.tabStates.entries()) {
+        if (state.penaltyEndTime && state.penaltyEndTime > Date.now()) {
+          this.scheduleTabPenaltyEnd(tabId, state.penaltyEndTime - Date.now());
         }
       }
     } catch (error) {
@@ -579,7 +825,10 @@ class BackgroundManager {
       }
 
       for (const [tabId, timer] of this.tabTimers) {
-        tabTimersObj[tabId] = timer;
+        tabTimersObj[tabId] = {
+          type: timer.type,
+          scheduledTime: timer.scheduledTime
+        };
       }
 
       await chrome.storage.local.set({
