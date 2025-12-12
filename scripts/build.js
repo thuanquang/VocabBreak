@@ -28,8 +28,35 @@ function loadEnvFile() {
   return env;
 }
 
-// Copy directory recursively
-function copyDir(src, dest) {
+// Strip development logs from JavaScript files
+function stripDevLogs(content) {
+  // Remove console.log, console.debug, console.info statements
+  // Keeps console.warn and console.error for production debugging
+  const lines = content.split('\n');
+  const result = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    
+    // Skip lines that are console.log/debug/info statements
+    // This handles simple single-line cases
+    if (/^console\.(log|debug|info)\s*\(.*\)\s*;?\s*$/.test(trimmed)) {
+      continue; // Skip this line entirely
+    }
+    
+    result.push(line);
+  }
+  
+  // Join back and clean up multiple empty lines
+  let output = result.join('\n');
+  output = output.replace(/\n{3,}/g, '\n\n');
+  
+  return output;
+}
+
+// Copy directory recursively (with optional JS processing)
+function copyDir(src, dest, processJS = false) {
   if (!fs.existsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
@@ -41,7 +68,12 @@ function copyDir(src, dest) {
     const destPath = path.join(dest, entry.name);
     
     if (entry.isDirectory()) {
-      copyDir(srcPath, destPath);
+      copyDir(srcPath, destPath, processJS);
+    } else if (processJS && entry.name.endsWith('.js')) {
+      // Process JS files to strip dev logs
+      let content = fs.readFileSync(srcPath, 'utf8');
+      content = stripDevLogs(content);
+      fs.writeFileSync(destPath, content);
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
@@ -100,8 +132,14 @@ function injectCredentials(env, buildDir) {
 }
 
 // Main build function
-function build() {
-  console.log('🔨 Building VocabBreak extension...');
+function build(options = {}) {
+  const stripLogs = options.stripLogs ?? process.argv.includes('--strip-logs');
+  const mode = stripLogs ? 'production' : 'development';
+  
+  console.log(`🔨 Building VocabBreak extension (${mode} mode)...`);
+  if (stripLogs) {
+    console.log('📋 Console.log/debug/info statements will be stripped');
+  }
   
   try {
     const srcDir = path.join(__dirname, '..');
@@ -116,32 +154,36 @@ function build() {
     // Create build directory
     fs.mkdirSync(buildDir, { recursive: true });
     
-    // Files and directories to copy
+    // Files and directories to copy (with JS processing flag)
     const itemsToCopy = [
-      'manifest.json',
-      'background.js',
-      'content',
-      'popup',
-      'options',
-      'shared',
-      'assets',
-      '_locales',
-      'database'
+      { name: 'manifest.json', processJS: false },
+      { name: 'background.js', processJS: stripLogs },
+      { name: 'content', processJS: stripLogs },
+      { name: 'popup', processJS: stripLogs },
+      { name: 'options', processJS: stripLogs },
+      { name: 'shared', processJS: stripLogs },
+      { name: 'assets', processJS: false },
+      { name: '_locales', processJS: false },
+      { name: 'database', processJS: false }
     ];
     
     // Copy all extension files
     for (const item of itemsToCopy) {
-      const srcPath = path.join(srcDir, item);
-      const destPath = path.join(buildDir, item);
+      const srcPath = path.join(srcDir, item.name);
+      const destPath = path.join(buildDir, item.name);
       
       if (fs.existsSync(srcPath)) {
         const stat = fs.statSync(srcPath);
         if (stat.isDirectory()) {
-          copyDir(srcPath, destPath);
+          copyDir(srcPath, destPath, item.processJS);
+        } else if (item.processJS && item.name.endsWith('.js')) {
+          let content = fs.readFileSync(srcPath, 'utf8');
+          content = stripDevLogs(content);
+          fs.writeFileSync(destPath, content);
         } else {
           fs.copyFileSync(srcPath, destPath);
         }
-        console.log(`📁 Copied ${item}`);
+        console.log(`📁 Copied ${item.name}${item.processJS && stripLogs ? ' (logs stripped)' : ''}`);
       }
     }
     

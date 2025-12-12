@@ -4,6 +4,7 @@
   "main": "background.js",
   "scripts": {
     "build": "node scripts/build.js",
+    "build:prod": "node scripts/build.js --strip-logs",
     "dev": "npm run build && echo \"Extension built in ./dist! Load it in Chrome at chrome://extensions/\"",
     "copy:supabase": "node scripts/copy-supabase.js",
     "spec:validate": "openspec validate --strict",

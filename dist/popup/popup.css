@@ -306,6 +306,46 @@ body {
     transform: translateY(calc(-1 * var(--vb-space-2)));
 }
 
+/* Day streak card special styling */
+.stat-card.streak-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card.streak-card.active-today {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border-color: #fb923c;
+}
+
+.stat-card.streak-card.active-today .stat-icon {
+    animation: flame-pulse 1.5s ease-in-out infinite;
+}
+
+.stat-card.streak-card.active-today::after {
+    content: '✓';
+    position: absolute;
+    top: var(--vb-space-4);
+    right: var(--vb-space-4);
+    font-size: 10px;
+    color: #16a34a;
+    background: #dcfce7;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes flame-pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
 .stat-icon {
     font-size: 24px;
     width: var(--vb-space-8);
@@ -519,15 +559,51 @@ body {
     padding: var(--vb-space-6) var(--vb-space-7);
     border-top: 1px solid #e2e8f0;
     margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .sync-status {
     display: flex;
     align-items: center;
     gap: var(--vb-space-5);
-    justify-content: center;
     font-size: 12px;
     color: #718096;
+}
+
+.support-link {
+    display: flex;
+    align-items: center;
+    gap: var(--vb-space-3);
+    padding: var(--vb-space-3) var(--vb-space-5);
+    border-radius: var(--vb-radius-md);
+    text-decoration: none;
+    font-size: 12px;
+    color: #c2410c;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    transition: all 0.2s ease;
+}
+
+.support-link:hover {
+    background: #ffedd5;
+    border-color: #fdba74;
+    transform: translateY(-1px);
+}
+
+.support-heart {
+    font-size: 12px;
+    animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+.support-text {
+    font-weight: 500;
+}
+
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
 }
 
 .sync-indicator {

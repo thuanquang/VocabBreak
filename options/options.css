@@ -935,5 +935,128 @@ input[type="range"]::-moz-range-thumb {
     }
 }
 
+/* Support Section */
+.support-section {
+    margin-top: var(--vb-space-8);
+    padding-top: var(--vb-space-7);
+    border-top: 2px dashed var(--vb-border);
+}
+
+.support-card {
+    background: linear-gradient(135deg, #fff9f0 0%, #fff5eb 100%);
+    border: 2px solid #fcd9b6;
+    position: relative;
+    overflow: hidden;
+}
+
+.support-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(251, 146, 60, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.support-content {
+    display: flex;
+    gap: var(--vb-space-8);
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.support-text {
+    flex: 1;
+}
+
+.support-text h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #c2410c;
+    margin-bottom: var(--vb-space-6);
+}
+
+.support-message {
+    color: #78350f;
+    font-size: 15px;
+    line-height: 1.7;
+    margin-bottom: var(--vb-space-6);
+}
+
+.support-note {
+    color: #92400e;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: var(--vb-space-5) var(--vb-space-6);
+    background: rgba(251, 146, 60, 0.12);
+    border-radius: var(--vb-radius-md);
+    border-left: 3px solid #fb923c;
+}
+
+.support-qr {
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.qr-image {
+    width: 160px;
+    height: 160px;
+    border-radius: var(--vb-radius-md);
+    box-shadow: 0 4px 16px rgba(194, 65, 12, 0.15);
+    border: 3px solid white;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.qr-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 24px rgba(194, 65, 12, 0.25);
+}
+
+.qr-label {
+    display: block;
+    margin-top: var(--vb-space-5);
+    font-size: 12px;
+    font-weight: 600;
+    color: #c2410c;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+@media (max-width: 768px) {
+    .support-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .support-note {
+        border-left: none;
+        border-top: 3px solid #fb923c;
+    }
+    
+    .qr-image {
+        width: 140px;
+        height: 140px;
+    }
+}
+
+/* Support section highlight animation */
+.support-section.highlight .support-card {
+    animation: supportHighlight 2s ease-out;
+}
+
+@keyframes supportHighlight {
+    0% {
+        box-shadow: 0 0 0 4px rgba(251, 146, 60, 0.5);
+        transform: scale(1.01);
+    }
+    100% {
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transform: scale(1);
+    }
+}
+
 
 

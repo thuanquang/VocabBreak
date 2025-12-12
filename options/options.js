@@ -108,16 +108,6 @@ class OptionsManager {
     document.getElementById('sync-now').addEventListener('click', () => {
       this.syncData();
     });
-    document.getElementById('export-data').addEventListener('click', () => {
-      this.exportData();
-    });
-    document.getElementById('reset-data').addEventListener('click', () => {
-      const title = window.i18n ? window.i18n.getMessage('reset_all_data') : 'Reset All Data';
-      const msg = window.i18n ? window.i18n.getMessage('reset_data_warning') : 'This will permanently delete all your progress and settings. This action cannot be undone.';
-      this.showConfirmModal(title, msg, () => {
-        this.resetData();
-      });
-    });
 
     // Site management
     document.getElementById('add-site').addEventListener('click', () => {
@@ -136,24 +126,53 @@ class OptionsManager {
       });
     });
 
-    // Range inputs
-    document.getElementById('periodic-interval').addEventListener('input', (e) => {
-      document.getElementById('interval-value').textContent = `${e.target.value} min`;
-      const value = parseFloat(e.target.value);
-      if (Number.isFinite(value) && value > 0) {
-        this.settings.periodicInterval = value;
-        this.markDirty();
-      }
-    });
+    // Number inputs for timing settings (periodic-interval and penalty-duration)
+    const periodicIntervalInput = document.getElementById('periodic-interval');
+    if (periodicIntervalInput) {
+      // Handle both input (during typing) and change (after blur/enter)
+      periodicIntervalInput.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById('interval-value').textContent = `${e.target.value} min`;
+        if (Number.isFinite(value) && value > 0) {
+          this.settings.periodicInterval = value;
+          this.markDirty();
+        }
+      });
+      
+      // Validate on blur to ensure minimum value
+      periodicIntervalInput.addEventListener('blur', (e) => {
+        const value = parseFloat(e.target.value);
+        if (!Number.isFinite(value) || value <= 0) {
+          e.target.value = 0.5; // Minimum 30 seconds
+          this.settings.periodicInterval = 0.5;
+          document.getElementById('interval-value').textContent = '0.5 min';
+          this.showNotification('Question frequency must be at least 0.5 minutes (30 seconds)', 'error');
+        }
+      });
+    }
 
-    document.getElementById('penalty-duration').addEventListener('input', (e) => {
-      document.getElementById('penalty-value').textContent = `${e.target.value} sec`;
-      const value = parseFloat(e.target.value);
-      if (Number.isFinite(value) && value > 0) {
-        this.settings.penaltyDuration = value;
-        this.markDirty();
-      }
-    });
+    const penaltyDurationInput = document.getElementById('penalty-duration');
+    if (penaltyDurationInput) {
+      penaltyDurationInput.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        document.getElementById('penalty-value').textContent = `${e.target.value} sec`;
+        if (Number.isFinite(value) && value > 0) {
+          this.settings.penaltyDuration = value;
+          this.markDirty();
+        }
+      });
+      
+      // Validate on blur to ensure minimum value
+      penaltyDurationInput.addEventListener('blur', (e) => {
+        const value = parseFloat(e.target.value);
+        if (!Number.isFinite(value) || value <= 0) {
+          e.target.value = 5; // Minimum 5 seconds
+          this.settings.penaltyDuration = 5;
+          document.getElementById('penalty-value').textContent = '5 sec';
+          this.showNotification('Penalty duration must be at least 5 seconds', 'error');
+        }
+      });
+    }
 
     // Modal
     document.getElementById('confirm-cancel').addEventListener('click', () => {
@@ -165,6 +184,39 @@ class OptionsManager {
       }
       this.hideConfirmModal();
     });
+    
+    // Footer support link - scroll to support section
+    const supportLink = document.getElementById('support-link');
+    if (supportLink) {
+      supportLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.scrollToSupport();
+      });
+    }
+    
+    // Listen for messages from popup to scroll to support
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'SCROLL_TO_SUPPORT') {
+        this.scrollToSupport();
+        sendResponse({ success: true });
+      }
+      return true;
+    });
+    
+    // Check URL hash on load
+    if (window.location.hash === '#support') {
+      setTimeout(() => this.scrollToSupport(), 500);
+    }
+  }
+  
+  scrollToSupport() {
+    const supportSection = document.getElementById('support-section');
+    if (supportSection) {
+      supportSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add a brief highlight effect
+      supportSection.classList.add('highlight');
+      setTimeout(() => supportSection.classList.remove('highlight'), 2000);
+    }
   }
 
   async loadUserData() {
@@ -323,12 +375,18 @@ class OptionsManager {
       input.checked = input.value === this.settings.blockingMode;
     });
 
-    // Range inputs
-    document.getElementById('periodic-interval').value = this.settings.periodicInterval;
-    document.getElementById('interval-value').textContent = `${this.settings.periodicInterval} min`;
+    // Number inputs for timing
+    const periodicIntervalInput = document.getElementById('periodic-interval');
+    if (periodicIntervalInput) {
+      periodicIntervalInput.value = this.settings.periodicInterval;
+      document.getElementById('interval-value').textContent = `${this.settings.periodicInterval} min`;
+    }
     
-    document.getElementById('penalty-duration').value = this.settings.penaltyDuration;
-    document.getElementById('penalty-value').textContent = `${this.settings.penaltyDuration} sec`;
+    const penaltyDurationInput = document.getElementById('penalty-duration');
+    if (penaltyDurationInput) {
+      penaltyDurationInput.value = this.settings.penaltyDuration;
+      document.getElementById('penalty-value').textContent = `${this.settings.penaltyDuration} sec`;
+    }
 
     // Interface language
     document.querySelectorAll('input[name="interface-language"]').forEach(input => {
@@ -744,26 +802,54 @@ class OptionsManager {
       const interval = Number(this.settings.periodicInterval);
       const penalty = Number(this.settings.penaltyDuration);
 
-      if (!Number.isFinite(interval) || interval <= 0 || !Number.isFinite(penalty) || penalty <= 0) {
-        this.showNotification('Intervals and penalties must be positive numbers', 'error');
+      // Validation with user-friendly messages
+      if (!Number.isFinite(interval) || interval <= 0) {
+        this.showNotification('Question frequency must be a positive number', 'error');
+        return;
+      }
+      
+      if (interval < 0.5) {
+        this.showNotification('Question frequency must be at least 0.5 minutes (30 seconds)', 'error');
+        return;
+      }
+      
+      if (!Number.isFinite(penalty) || penalty <= 0) {
+        this.showNotification('Penalty duration must be a positive number', 'error');
+        return;
+      }
+      
+      if (penalty < 5) {
+        this.showNotification('Penalty duration must be at least 5 seconds', 'error');
         return;
       }
 
-      // Save to local storage
+      console.log('💾 Saving settings:', {
+        periodicInterval: this.settings.periodicInterval,
+        penaltyDuration: this.settings.penaltyDuration,
+        blockingMode: this.settings.blockingMode,
+        siteListCount: this.settings.siteList.length
+      });
+
+      // Save to local storage first (persist to chrome.storage.sync)
       await chrome.storage.sync.set(this.settings);
       
       // Save gamification settings to database
       await this.saveGamificationSettingsToDatabase();
       
-      // Notify background script about settings update
-      chrome.runtime.sendMessage({
-        type: 'UPDATE_SETTINGS',
-        settings: this.settings
+      // Notify background script about settings update with all settings
+      // This triggers immediate reschedule of all timers and re-evaluation of tabs
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+          type: 'UPDATE_SETTINGS',
+          settings: this.settings
+        }, resolve);
       });
+      
+      console.log('📩 Background script acknowledged settings update:', response);
       
       this.isDirty = false;
       this.updateSaveButton();
-      this.showNotification('Settings saved successfully');
+      this.showNotification('Settings saved and applied immediately');
       
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -831,61 +917,6 @@ class OptionsManager {
       statusIndicator.className = 'status-indicator error';
       statusText.textContent = window.i18n ? window.i18n.getMessage('sync_failed') : 'Sync failed';
       this.showNotification(window.i18n ? window.i18n.getMessage('sync_failed_full') : 'Failed to sync data', 'error');
-    }
-  }
-
-  exportData() {
-    const data = {
-      settings: this.settings,
-      exportDate: new Date().toISOString(),
-      version: '1.0.0'
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vocabbreak-data-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    this.showNotification(window.i18n ? window.i18n.getMessage('data_exported_success') : 'Data exported successfully');
-  }
-
-  async resetData() {
-    try {
-      await chrome.storage.sync.clear();
-      await chrome.storage.local.clear();
-      
-      // Reset to defaults
-      this.settings = {
-        difficultyLevels: ['A1', 'A2'],
-        questionTypes: ['multiple-choice', 'text-input'],
-        topics: ['general'],
-        blockingMode: 'blacklist',
-        siteList: [],
-        periodicInterval: 30,
-        penaltyDuration: 30,
-        interfaceLanguage: 'en',
-        gamificationEnabled: true,
-        streakNotifications: true,
-        reducedMotion: false,
-        soundEnabled: true
-      };
-      
-      this.updateFormValues();
-      this.updateSiteList();
-      this.updateProgressOverview();
-      this.updateAchievements();
-      
-      this.showNotification(window.i18n ? window.i18n.getMessage('all_data_reset') : 'All data has been reset');
-      
-    } catch (error) {
-      console.error('Failed to reset data:', error);
-      this.showNotification(window.i18n ? window.i18n.getMessage('failed_to_reset_data') : 'Failed to reset data', 'error');
     }
   }
 

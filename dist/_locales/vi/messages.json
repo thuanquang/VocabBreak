@@ -219,6 +219,24 @@
     "message": "Chuỗi Hiện Tại",
     "description": "Current streak label"
   },
+  "day_streak": {
+    "message": "Chuỗi Ngày",
+    "description": "Day streak label (Duolingo-style consecutive days)"
+  },
+  "day_streak_extended": {
+    "message": "Ngày $1! Tiếp tục nhé!",
+    "description": "Message shown when day streak is extended",
+    "placeholders": {
+      "1": {"content": "$1", "example": "5"}
+    }
+  },
+  "day_streak_lost": {
+    "message": "Chuỗi bị reset (đã $1 ngày)",
+    "description": "Message shown when day streak is lost",
+    "placeholders": {
+      "1": {"content": "$1", "example": "7"}
+    }
+  },
   "total_points": {
     "message": "Tổng Điểm",
     "description": "Total points label"

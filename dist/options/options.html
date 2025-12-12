@@ -63,18 +63,6 @@
                             <button id="sync-now" class="btn btn-outline btn-sm" data-i18n="sync_now">Sync Now</button>
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label data-i18n="data_export">Data Export</label>
-                        <p class="form-description" data-i18n="data_export_desc">Export your progress data and settings</p>
-                        <button id="export-data" class="btn btn-outline" data-i18n="export_data">Export Data</button>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label data-i18n="reset_data">Reset Data</label>
-                        <p class="form-description" data-i18n="reset_data_desc">Clear all local data and progress (cannot be undone)</p>
-                        <button id="reset-data" class="btn btn-danger" data-i18n="reset_all_data">Reset All Data</button>
-                    </div>
                 </div>
             </section>
 
@@ -357,17 +345,41 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Support Section (visible on all tabs) -->
+            <section id="support-section" class="support-section">
+                <div class="card support-card">
+                    <div class="support-content">
+                        <div class="support-text">
+                            <h2>❤️ Support VocabBreak</h2>
+                            <p class="support-message">
+                                Thank you for using VocabBreak! If this extension has helped you learn new vocabulary 
+                                and stay focused, consider buying me a coffee. Your support helps keep this project 
+                                free and motivates me to add new features!
+                            </p>
+                            <p class="support-note">
+                                Scan the QR code with your banking app to send a donation via VietQR. 
+                                Every contribution, big or small, is deeply appreciated! 🙏
+                            </p>
+                        </div>
+                        <div class="support-qr">
+                            <img src="../assets/qrcode.png" alt="VietQR Code for donation" class="qr-image">
+                            <span class="qr-label">Scan to donate</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <!-- Footer -->
         <footer class="footer">
             <div class="footer-content">
-                <p data-i18n="footer_text">&copy; 2025 VocabBreak. Made with ❤️ for language learners.</p>
-                <!-- <div class="footer-links">
+                <p data-i18n="footer_text">&copy; 2024 VocabBreak. Made with ❤️ for language learners.</p>
+                <div class="footer-links">
                     <a href="#" id="about-link" data-i18n="about">About</a>
                     <a href="#" id="privacy-link" data-i18n="privacy">Privacy</a>
                     <a href="#" id="support-link" data-i18n="support">Support</a>
-                </div> -->
+                </div>
             </div>
         </footer>
     </div>

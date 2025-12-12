@@ -60,18 +60,18 @@ class VocabBreakBlocker {
       // Check if we should block this page
       console.log('🔍 VocabBreak content script checking if should block...');
       const response = await this.sendMessage({ type: 'REQUEST_BLOCK_CHECK' });
-      console.log('🔍 Block check response:', response);
+      console.log('🔍 Block check response:', JSON.stringify(response));
       
       if (response && response.shouldBlock) {
         if (response.reason === 'penalty') {
-          console.log('⏳ Global penalty active: showing penalty overlay');
+          console.log('⏳ Penalty active: showing penalty overlay until', new Date(response.penaltyEndTime).toISOString());
           this.showPenaltyOverlay(response.penaltyEndTime);
         } else {
-          console.log('❌ BLOCKING: Showing question overlay');
+          console.log(`❌ BLOCKING: reason=${response.reason}, timeSinceLastQuestion=${Math.round((response.timeSinceLastQuestion || 0)/1000)}s`);
           this.showQuestion(response.reason || 'periodic');
         }
       } else {
-        console.log('✅ NOT BLOCKING: Continuing normal browsing');
+        console.log(`✅ NOT BLOCKING: timeSinceLastQuestion=${Math.round((response?.timeSinceLastQuestion || 0)/1000)}s`);
       }
 
       // Set up message listener
@@ -742,6 +742,18 @@ class VocabBreakBlocker {
       if (this.currentQuestion.id && !this.currentQuestion.id.startsWith('local_')) {
         console.log('🔍 Validating Supabase question locally');
         response = await this.validateSupabaseQuestion(userAnswer);
+        
+        // CRITICAL: Notify background script of the answer result
+        // This updates lastQuestionTime and reschedules the timer
+        if (response && response.success) {
+          await this.sendMessage({
+            type: 'QUESTION_ANSWERED',
+            questionId: this.currentQuestion.id,
+            isCorrect: response.validation.isCorrect,
+            timeTaken: timeTaken
+          });
+          console.log('📩 Notified background script of answer result');
+        }
       } else {
         // Send to background script for local question validation
         response = await this.sendMessage({
@@ -842,7 +854,14 @@ class VocabBreakBlocker {
         }
         
         if (gamification.streakBonus) {
-          feedbackParts.push(`🔥 Streak bonus!`);
+          feedbackParts.push(`🔥 Answer streak bonus!`);
+        }
+        
+        // Day streak feedback (Duolingo-style)
+        if (gamification.dayStreakExtended) {
+          feedbackParts.push(`🔥 Day ${gamification.dayStreak}! Keep it up!`);
+        } else if (gamification.dayStreakLost && gamification.previousDayStreak > 0) {
+          feedbackParts.push(`💔 Streak reset (was ${gamification.previousDayStreak} days)`);
         }
         
         if (gamification.newAchievements && gamification.newAchievements.length > 0) {
@@ -960,28 +979,39 @@ class VocabBreakBlocker {
   }
 
   handleMessage(message, sender, sendResponse) {
+    console.log('📩 Content script received message:', message.type);
+    
     switch (message.type) {
       case 'SHOW_QUESTION':
+        console.log(`📩 SHOW_QUESTION received, reason: ${message.reason || 'periodic'}`);
         this.showQuestion(message.reason || 'periodic');
+        sendResponse && sendResponse({ success: true });
         break;
         
       case 'GLOBAL_PENALTY':
+        console.log(`📩 GLOBAL_PENALTY received, endTime: ${new Date(message.penaltyEndTime).toISOString()}`);
         this.showPenaltyOverlay(message.penaltyEndTime);
+        sendResponse && sendResponse({ success: true });
         break;
 
       case 'PENALTY_CLEARED':
+        console.log('📩 PENALTY_CLEARED received');
         this.hideOverlay();
+        sendResponse && sendResponse({ success: true });
         break;
       
       case 'SETTINGS_CHANGED':
         console.log('🔄 Settings changed, refreshing question cache...');
         setTimeout(() => this.checkAndRefreshCacheIfNeeded(), 1000);
+        sendResponse && sendResponse({ success: true });
         break;
         
       default:
         // Unknown message type
         break;
     }
+    
+    return true; // Keep message channel open for async responses
   }
 
   async getTimerSettings() {

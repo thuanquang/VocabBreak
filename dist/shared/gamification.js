@@ -73,6 +73,10 @@ class GamificationManager {
         current_level: 1,
         current_streak: 0,
         longest_streak: 0,
+        // Duolingo-style day streak
+        day_streak: 0,
+        longest_day_streak: 0,
+        last_active_date: null,
         achievements: [],
         badges: [],
         experience_points: 0
@@ -87,8 +91,32 @@ class GamificationManager {
     };
   }
 
+  // Generate deterministic UUID from string ID for database compatibility
+  // Uses a namespace-based approach to create consistent UUIDs
+  generateAchievementUUID(stringId) {
+    // VocabBreak namespace UUID (generated once, fixed forever)
+    const namespace = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+    
+    // Simple hash function to create deterministic UUID from string
+    let hash = 0;
+    const str = namespace + stringId;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    // Create UUID-like string from hash (version 5 style)
+    const hex = Math.abs(hash).toString(16).padStart(8, '0');
+    const hex2 = Math.abs(hash * 31).toString(16).padStart(8, '0');
+    const hex3 = Math.abs(hash * 17).toString(16).padStart(8, '0');
+    const hex4 = Math.abs(hash * 13).toString(16).padStart(8, '0');
+    
+    return `${hex.slice(0, 8)}-${hex2.slice(0, 4)}-5${hex2.slice(5, 8)}-${hex3.slice(0, 4)}-${hex4.slice(0, 12)}`;
+  }
+
   initializeAchievements() {
-    return {
+    const achievements = {
       // Consistency achievements
       first_correct: {
         id: 'first_correct',
@@ -97,46 +125,15 @@ class GamificationManager {
         description: 'Answer your first question correctly',
         descriptionVi: 'Trả lời đúng câu hỏi đầu tiên',
         icon: '🎯',
+        category: 'consistency',
+        tier: 'bronze',
         points: 50,
         unlocked: false,
         condition: (stats) => stats.correctAnswers >= 1
       },
       
-      streak_3: {
-        id: 'streak_3',
-        name: '3-Day Streak',
-        nameVi: 'Chuỗi 3 Ngày',
-        description: 'Answer questions correctly for 3 consecutive days',
-        descriptionVi: 'Trả lời đúng câu hỏi trong 3 ngày liên tiếp',
-        icon: '🔥',
-        points: 100,
-        unlocked: false,
-        condition: (stats) => this.checkConsecutiveDays(3)
-      },
-      
-      streak_7: {
-        id: 'streak_7',
-        name: 'Week Warrior',
-        nameVi: 'Chiến Binh Tuần',
-        description: 'Answer questions correctly for 7 consecutive days',
-        descriptionVi: 'Trả lời đúng câu hỏi trong 7 ngày liên tiếp',
-        icon: '⚔️',
-        points: 250,
-        unlocked: false,
-        condition: (stats) => this.checkConsecutiveDays(7)
-      },
-      
-      streak_30: {
-        id: 'streak_30',
-        name: 'Monthly Master',
-        nameVi: 'Bậc Thầy Tháng',
-        description: 'Answer questions correctly for 30 consecutive days',
-        descriptionVi: 'Trả lời đúng câu hỏi trong 30 ngày liên tiếp',
-        icon: '👑',
-        points: 1000,
-        unlocked: false,
-        condition: (stats) => this.checkConsecutiveDays(30)
-      },
+      // NOTE: Day streak achievements removed - the streak itself is the reward (Duolingo-style)
+      // The day_streak counter in gamification stats tracks consecutive days of activity
       
       // Mastery achievements
       perfect_10: {
@@ -146,6 +143,8 @@ class GamificationManager {
         description: 'Answer 10 questions in a row correctly',
         descriptionVi: 'Trả lời đúng 10 câu hỏi liên tiếp',
         icon: '💯',
+        category: 'mastery',
+        tier: 'silver',
         points: 200,
         unlocked: false,
         condition: (stats) => stats.currentStreak >= 10
@@ -158,6 +157,8 @@ class GamificationManager {
         description: 'Maintain 90% accuracy over 50 questions',
         descriptionVi: 'Duy trì độ chính xác 90% trong 50 câu hỏi',
         icon: '🎯',
+        category: 'mastery',
+        tier: 'gold',
         points: 300,
         unlocked: false,
         condition: (stats) => stats.totalQuestions >= 50 && (stats.correctAnswers / stats.totalQuestions) >= 0.9
@@ -171,6 +172,8 @@ class GamificationManager {
         description: 'Answer 100 questions correctly',
         descriptionVi: 'Trả lời đúng 100 câu hỏi',
         icon: '💪',
+        category: 'volume',
+        tier: 'silver',
         points: 500,
         unlocked: false,
         condition: (stats) => stats.correctAnswers >= 100
@@ -183,6 +186,8 @@ class GamificationManager {
         description: 'Answer 1000 questions correctly',
         descriptionVi: 'Trả lời đúng 1000 câu hỏi',
         icon: '🏆',
+        category: 'volume',
+        tier: 'platinum',
         points: 2000,
         unlocked: false,
         condition: (stats) => stats.correctAnswers >= 1000
@@ -196,6 +201,8 @@ class GamificationManager {
         description: 'Answer 10 questions correctly in under 5 seconds each',
         descriptionVi: 'Trả lời đúng 10 câu hỏi, mỗi câu dưới 5 giây',
         icon: '⚡',
+        category: 'speed',
+        tier: 'gold',
         points: 400,
         unlocked: false,
         condition: (stats) => this.checkSpeedRecord(10, 5000)
@@ -209,6 +216,8 @@ class GamificationManager {
         description: 'Reach Level 2',
         descriptionVi: 'Đạt cấp độ 2',
         icon: '⭐',
+        category: 'level',
+        tier: 'bronze',
         points: 100,
         unlocked: false,
         condition: (stats) => stats.currentLevel >= 2
@@ -221,11 +230,20 @@ class GamificationManager {
         description: 'Reach Level 5',
         descriptionVi: 'Đạt cấp độ 5',
         icon: '🎓',
+        category: 'level',
+        tier: 'platinum',
         points: 1000,
         unlocked: false,
         condition: (stats) => stats.currentLevel >= 5
       }
     };
+
+    // Add deterministic UUIDs to each achievement for database compatibility
+    for (const [id, achievement] of Object.entries(achievements)) {
+      achievement.uuid = this.generateAchievementUUID(id);
+    }
+
+    return achievements;
   }
 
   // Points calculation
@@ -309,15 +327,6 @@ class GamificationManager {
         case 'first_correct':
           unlocked = stats.correctAnswers >= 1;
           break;
-        case 'streak_3':
-          unlocked = stats.currentStreak >= 3;
-          break;
-        case 'streak_7':
-          unlocked = stats.currentStreak >= 7;
-          break;
-        case 'streak_30':
-          unlocked = stats.currentStreak >= 30;
-          break;
         case 'perfect_10':
           unlocked = stats.currentStreak >= 10;
           break;
@@ -345,10 +354,13 @@ class GamificationManager {
       if (unlocked) {
         const unlockedAchievement = {
           id: id,
+          uuid: achievement.uuid, // Include UUID for dual-write
           name: achievement.name,
           description: achievement.description,
           icon: achievement.icon,
           points: achievement.points,
+          category: achievement.category,
+          tier: achievement.tier,
           unlocked_at: new Date().toISOString()
         };
         
@@ -362,14 +374,94 @@ class GamificationManager {
         newAchievements.push(unlockedAchievement);
         
         console.log('🏆 Achievement unlocked:', unlockedAchievement.name);
+        
+        // Trigger dual-write (async, non-blocking)
+        this.saveAchievementUnlock(id).catch(err => {
+          console.error('❌ Dual-write failed for achievement:', id, err);
+        });
       }
     }
     
     return newAchievements;
   }
 
-  async checkConsecutiveDays(days) {
-    return false; // Streak by day not tracked without offline history
+  /**
+   * Update day streak (Duolingo-style)
+   * Called when user answers a question correctly
+   * - Same day: no change (already counted today)
+   * - Next day: increment streak
+   * - Gap > 1 day: reset streak to 1
+   */
+  updateDayStreak() {
+    if (!this.cachedStats) return { streakChanged: false };
+    
+    const today = new Date().toDateString();
+    const lastActive = this.cachedStats.gamification.last_active_date;
+    const oldStreak = this.cachedStats.gamification.day_streak || 0;
+    
+    let newStreak = oldStreak;
+    let streakLost = false;
+    let streakExtended = false;
+    
+    if (!lastActive) {
+      // First time ever - start streak at 1
+      newStreak = 1;
+      streakExtended = true;
+      console.log('🔥 Day streak started: Day 1!');
+    } else if (lastActive === today) {
+      // Already practiced today, do nothing
+      console.log('🔥 Already practiced today, streak unchanged:', oldStreak);
+      return { streakChanged: false, dayStreak: oldStreak };
+    } else {
+      // Check if it was yesterday
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      if (lastActive === yesterday) {
+        // Streak continues!
+        newStreak = oldStreak + 1;
+        streakExtended = true;
+        console.log(`🔥 Day streak extended: Day ${newStreak}!`);
+      } else {
+        // Streak broken (gap > 1 day), reset
+        newStreak = 1;
+        streakLost = oldStreak > 0;
+        console.log(`💔 Day streak reset (was ${oldStreak}), starting fresh: Day 1`);
+      }
+    }
+    
+    // Update stats
+    this.cachedStats.gamification.day_streak = newStreak;
+    this.cachedStats.gamification.last_active_date = today;
+    this.cachedStats.gamification.longest_day_streak = Math.max(
+      this.cachedStats.gamification.longest_day_streak || 0,
+      newStreak
+    );
+    
+    return {
+      streakChanged: streakExtended || streakLost,
+      streakExtended,
+      streakLost,
+      dayStreak: newStreak,
+      previousStreak: oldStreak
+    };
+  }
+
+  /**
+   * Get current day streak info
+   */
+  getDayStreakInfo() {
+    if (!this.cachedStats) {
+      return { dayStreak: 0, longestDayStreak: 0, lastActiveDate: null, isActiveToday: false };
+    }
+    
+    const today = new Date().toDateString();
+    const lastActive = this.cachedStats.gamification.last_active_date;
+    
+    return {
+      dayStreak: this.cachedStats.gamification.day_streak || 0,
+      longestDayStreak: this.cachedStats.gamification.longest_day_streak || 0,
+      lastActiveDate: lastActive,
+      isActiveToday: lastActive === today
+    };
   }
 
   async checkSpeedRecord(questionCount, maxTimePerQuestion) {
@@ -406,6 +498,7 @@ class GamificationManager {
         ((currentAvg * (totalQuestions - 1)) + timeTaken) / totalQuestions;
       
       // Update gamification stats
+      let dayStreakResult = { streakChanged: false, dayStreak: 0 };
       if (correct) {
         this.cachedStats.gamification.total_points += pointsEarned;
         this.cachedStats.gamification.experience_points += pointsEarned;
@@ -414,6 +507,9 @@ class GamificationManager {
           this.cachedStats.gamification.longest_streak,
           this.cachedStats.gamification.current_streak
         );
+        
+        // Update Duolingo-style day streak
+        dayStreakResult = this.updateDayStreak();
       } else {
         this.cachedStats.gamification.current_streak = 0;
       }
@@ -443,7 +539,13 @@ class GamificationManager {
         newLevel: levelUp ? newLevel : null,
         newAchievements,
         streakBonus: correct && this.cachedStats.gamification.current_streak > 1,
-        totalPoints: this.cachedStats.gamification.total_points
+        totalPoints: this.cachedStats.gamification.total_points,
+        // Duolingo-style day streak info
+        dayStreak: dayStreakResult.dayStreak,
+        dayStreakChanged: dayStreakResult.streakChanged,
+        dayStreakExtended: dayStreakResult.streakExtended,
+        dayStreakLost: dayStreakResult.streakLost,
+        previousDayStreak: dayStreakResult.previousStreak
       };
       
     } catch (error) {
@@ -471,6 +573,9 @@ class GamificationManager {
               current_level: 1,
               current_streak: 0,
               longest_streak: 0,
+              day_streak: 0,
+              longest_day_streak: 0,
+              last_active_date: null,
               achievements: [],
               badges: [],
               experience_points: 0
@@ -483,6 +588,17 @@ class GamificationManager {
               weak_areas: []
             }
           };
+          
+          // Ensure day streak fields exist (for users upgrading from old version)
+          if (this.cachedStats.gamification.day_streak === undefined) {
+            this.cachedStats.gamification.day_streak = 0;
+          }
+          if (this.cachedStats.gamification.longest_day_streak === undefined) {
+            this.cachedStats.gamification.longest_day_streak = 0;
+          }
+          if (this.cachedStats.gamification.last_active_date === undefined) {
+            this.cachedStats.gamification.last_active_date = null;
+          }
           
           // Mark achievements as unlocked
           const achievements = this.cachedStats.gamification.achievements || [];
@@ -519,6 +635,9 @@ class GamificationManager {
                 current_level: 1,
                 current_streak: 0,
                 longest_streak: 0,
+                day_streak: 0,
+                longest_day_streak: 0,
+                last_active_date: null,
                 achievements: [],
                 badges: [],
                 experience_points: 0
@@ -585,6 +704,11 @@ class GamificationManager {
     }
   }
 
+  /**
+   * Dual-write achievement unlock:
+   * 1. Primary: Save to users.profile.gamification.achievements (JSONB)
+   * 2. Secondary: Save to user_achievements table (for analytics/querying)
+   */
   async saveAchievementUnlock(achievementId) {
     try {
       if (!this.cachedStats) {
@@ -592,19 +716,232 @@ class GamificationManager {
         return;
       }
       
-      // Get list of unlocked achievement IDs
-      const unlockedIds = this.cachedStats.gamification.achievements.map(a => a.id);
-      
-      // Save the entire stats to database (includes the new achievement)
+      // Save the entire stats to database (includes the new achievement in JSONB)
       if (navigator.onLine && window.supabaseClient?.isAuthenticated()) {
         try {
+          // PRIMARY WRITE: Save to users.profile.gamification.achievements
           await this.saveUserStatsToDatabase();
+          console.log('✅ [Dual-Write] Primary write completed (JSONB)');
+          
+          // SECONDARY WRITE: Save to user_achievements table
+          await this.saveToUserAchievementsTable(achievementId);
+          
         } catch (error) {
           console.error('Failed to sync achievement to Supabase:', error);
         }
       }
     } catch (error) {
       console.error('Failed to save achievement unlock:', error);
+    }
+  }
+
+  /**
+   * Secondary write to user_achievements table for future analytics
+   * Gracefully handles missing achievements in the achievements table
+   */
+  async saveToUserAchievementsTable(achievementId) {
+    try {
+      if (!window.supabaseClient?.client || !window.supabaseClient.isAuthenticated()) {
+        console.log('⚠️ [Dual-Write] Skipping secondary write - not authenticated');
+        return false;
+      }
+
+      const achievement = this.achievements[achievementId];
+      if (!achievement) {
+        console.warn(`⚠️ [Dual-Write] Achievement ${achievementId} not found`);
+        return false;
+      }
+
+      const userId = window.supabaseClient.user?.id;
+      if (!userId) {
+        console.warn('⚠️ [Dual-Write] No user ID available');
+        return false;
+      }
+
+      // First, ensure the achievement exists in the achievements table
+      await this.ensureAchievementInDatabase(achievement);
+
+      // Now insert into user_achievements
+      const { data, error } = await window.supabaseClient.client
+        .from('user_achievements')
+        .upsert([{
+          user_id: userId,
+          achievement_id: achievement.uuid,
+          unlocked_at: new Date().toISOString(),
+          progress: { completed: true },
+          notified: true
+        }], {
+          onConflict: 'user_id,achievement_id',
+          ignoreDuplicates: true
+        })
+        .select();
+
+      if (error) {
+        // Ignore duplicate key errors (achievement already unlocked)
+        if (error.code === '23505') {
+          console.log(`ℹ️ [Dual-Write] Achievement ${achievementId} already in user_achievements table`);
+          return true;
+        }
+        // Log foreign key errors but don't throw (achievements table may not be seeded)
+        if (error.code === '23503') {
+          console.warn(`⚠️ [Dual-Write] Foreign key error - achievements table may need seeding. Run seedAchievementsTable()`);
+          return false;
+        }
+        console.error('❌ [Dual-Write] Secondary write failed:', error);
+        return false;
+      }
+
+      console.log(`✅ [Dual-Write] Secondary write completed for ${achievementId}`);
+      return true;
+
+    } catch (error) {
+      console.error('❌ [Dual-Write] Error in secondary write:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure achievement exists in the achievements table (upsert)
+   * This populates the achievements table for foreign key compliance
+   */
+  async ensureAchievementInDatabase(achievement) {
+    try {
+      if (!window.supabaseClient?.client) return false;
+
+      const achievementData = {
+        name: { en: achievement.name, vi: achievement.nameVi || achievement.name },
+        description: { en: achievement.description, vi: achievement.descriptionVi || achievement.description },
+        icon: achievement.icon,
+        category: achievement.category || 'general',
+        tier: achievement.tier || 'bronze',
+        points_value: achievement.points,
+        requirements: {},
+        rewards: { points: achievement.points }
+      };
+
+      const { error } = await window.supabaseClient.client
+        .from('achievements')
+        .upsert([{
+          id: achievement.uuid,
+          achievement_data: achievementData,
+          metadata: { string_id: achievement.id },
+          is_active: true,
+          is_hidden: false
+        }], {
+          onConflict: 'id',
+          ignoreDuplicates: true
+        });
+
+      if (error && error.code !== '23505') {
+        console.warn(`⚠️ [Dual-Write] Could not ensure achievement ${achievement.id} in DB:`, error.message);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.warn('⚠️ [Dual-Write] Error ensuring achievement in database:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Seed all achievements to the achievements table
+   * Call this once to populate the achievements table for full dual-write support
+   * Can be called from console: window.gamificationManager.seedAchievementsTable()
+   */
+  async seedAchievementsTable() {
+    try {
+      if (!window.supabaseClient?.client || !window.supabaseClient.isAuthenticated()) {
+        console.error('❌ Cannot seed achievements - Supabase client not available or not authenticated');
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      console.log('🌱 Seeding achievements table...');
+      const results = { success: 0, failed: 0, errors: [] };
+
+      for (const [id, achievement] of Object.entries(this.achievements)) {
+        const achievementData = {
+          name: { en: achievement.name, vi: achievement.nameVi || achievement.name },
+          description: { en: achievement.description, vi: achievement.descriptionVi || achievement.description },
+          icon: achievement.icon,
+          category: achievement.category || 'general',
+          tier: achievement.tier || 'bronze',
+          points_value: achievement.points,
+          requirements: {},
+          rewards: { points: achievement.points }
+        };
+
+        const { error } = await window.supabaseClient.client
+          .from('achievements')
+          .upsert([{
+            id: achievement.uuid,
+            achievement_data: achievementData,
+            metadata: { string_id: id },
+            is_active: true,
+            is_hidden: false
+          }], {
+            onConflict: 'id'
+          });
+
+        if (error) {
+          results.failed++;
+          results.errors.push({ id, error: error.message });
+          console.error(`❌ Failed to seed ${id}:`, error.message);
+        } else {
+          results.success++;
+          console.log(`✅ Seeded achievement: ${id} (${achievement.uuid})`);
+        }
+      }
+
+      console.log(`🌱 Seeding complete: ${results.success} success, ${results.failed} failed`);
+      return results;
+    } catch (error) {
+      console.error('❌ Error seeding achievements table:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Sync all unlocked achievements from JSONB to user_achievements table
+   * Call this to backfill user_achievements for existing users
+   * Can be called from console: window.gamificationManager.syncAchievementsToTable()
+   */
+  async syncAchievementsToTable() {
+    try {
+      if (!this.cachedStats || !window.supabaseClient?.isAuthenticated()) {
+        console.error('❌ Cannot sync - no cached stats or not authenticated');
+        return { success: false, error: 'Not ready' };
+      }
+
+      // First, seed the achievements table
+      await this.seedAchievementsTable();
+
+      console.log('🔄 Syncing unlocked achievements to user_achievements table...');
+      const unlockedAchievements = this.cachedStats.gamification.achievements || [];
+      const results = { success: 0, failed: 0, errors: [] };
+
+      for (const unlocked of unlockedAchievements) {
+        const achievement = this.achievements[unlocked.id];
+        if (!achievement) {
+          results.failed++;
+          results.errors.push({ id: unlocked.id, error: 'Achievement not found in definitions' });
+          continue;
+        }
+
+        const success = await this.saveToUserAchievementsTable(unlocked.id);
+        if (success) {
+          results.success++;
+        } else {
+          results.failed++;
+          results.errors.push({ id: unlocked.id, error: 'Insert failed' });
+        }
+      }
+
+      console.log(`🔄 Sync complete: ${results.success} success, ${results.failed} failed`);
+      return results;
+    } catch (error) {
+      console.error('❌ Error syncing achievements to table:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -615,6 +952,9 @@ class GamificationManager {
         totalPoints: 0,
         currentStreak: 0,
         longestStreak: 0,
+        dayStreak: 0,
+        longestDayStreak: 0,
+        lastActiveDate: null,
         totalQuestions: 0,
         correctAnswers: 0,
         currentLevel: 1
@@ -623,11 +963,17 @@ class GamificationManager {
     
     const gamification = this.cachedStats.gamification;
     const statistics = this.cachedStats.statistics;
+    const today = new Date().toDateString();
     
     return {
       totalPoints: gamification.total_points || 0,
       currentStreak: gamification.current_streak || 0,
       longestStreak: gamification.longest_streak || 0,
+      // Duolingo-style day streak
+      dayStreak: gamification.day_streak || 0,
+      longestDayStreak: gamification.longest_day_streak || 0,
+      lastActiveDate: gamification.last_active_date || null,
+      isActiveToday: gamification.last_active_date === today,
       totalQuestions: statistics.total_questions_answered || 0,
       correctAnswers: statistics.total_correct_answers || 0,
       currentLevel: gamification.current_level || 1,

@@ -136,10 +136,16 @@ class PopupManager {
       this.addEventListenerSafely('logout-btn', 'click', () => this.handleLogout());
       this.addEventListenerSafely('settings-btn', 'click', () => this.openSettings());
       this.addEventListenerSafely('sync-btn', 'click', () => this.handleSync());
-      this.addEventListenerSafely('test-trigger-block', 'click', () => this.handleTestTrigger());
+      this.addEventListenerSafely('test-now-btn', 'click', () => this.handleTestNow());
       
       // Error screen
       this.addEventListenerSafely('retry-btn', 'click', () => this.handleRetry());
+      
+      // Support link - opens options page scrolled to support section
+      this.addEventListenerSafely('support-link', 'click', (e) => {
+        e.preventDefault();
+        this.openSupport();
+      });
 
       // Online/offline listeners are now handled by CoreManager automatically
     } catch (error) {
@@ -269,15 +275,6 @@ class PopupManager {
     }
   }
 
-  async handleTestTrigger() {
-    try {
-      this.maybePlayClick(260);
-      await chrome.runtime.sendMessage({ type: 'TRIGGER_BLOCK_NOW' });
-    } catch (error) {
-      window.errorHandler?.handleUIError(error, { context: 'test-trigger-block' });
-    }
-  }
-
   async handleLogin() {
     return this.handleGoogleLogin();
   }
@@ -350,6 +347,71 @@ class PopupManager {
       chrome.runtime.openOptionsPage();
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'open-settings' });
+    }
+  }
+
+  openSupport() {
+    try {
+      this.maybePlayClick(280);
+      // Open options page with hash to scroll to support section
+      chrome.runtime.openOptionsPage(() => {
+        // After opening, send a message to scroll to support section
+        setTimeout(() => {
+          chrome.runtime.sendMessage({ type: 'SCROLL_TO_SUPPORT' });
+        }, 500);
+      });
+    } catch (error) {
+      window.errorHandler?.handleUIError(error, { context: 'open-support' });
+    }
+  }
+
+  async handleTestNow() {
+    try {
+      this.maybePlayClick(320);
+      
+      const button = document.getElementById('test-now-btn');
+      if (button) {
+        button.disabled = true;
+        const originalText = button.querySelector('span')?.textContent;
+        const textSpan = button.querySelector('span');
+        if (textSpan) {
+          textSpan.textContent = 'Triggering...';
+        }
+      }
+
+      console.log('🎯 Test Now clicked - triggering manual block');
+      
+      const response = await this.sendMessage({ type: 'TRIGGER_BLOCK_NOW' });
+      
+      if (response && response.success) {
+        console.log('✅ Manual block triggered successfully');
+        // Close the popup so user can see the question
+        window.close();
+      } else {
+        console.warn('⚠️ Manual block failed:', response?.error);
+        this.showAuthError(response?.error || 'Could not trigger question on this page. Try a different website.');
+        
+        if (button) {
+          button.disabled = false;
+          const textSpan = button.querySelector('span');
+          if (textSpan) {
+            textSpan.textContent = 'Test Now';
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to trigger test:', error);
+      window.errorHandler?.handleUIError(error, { context: 'test-now' });
+      this.showAuthError('Failed to trigger question. Please try again.');
+      
+      const button = document.getElementById('test-now-btn');
+      if (button) {
+        button.disabled = false;
+        const textSpan = button.querySelector('span');
+        if (textSpan) {
+          textSpan.textContent = 'Test Now';
+        }
+      }
     }
   }
 
@@ -472,7 +534,8 @@ class PopupManager {
       console.log('📈 Current level:', currentLevel);
       
       const stats = {
-        currentStreak: gamificationStats.currentStreak || 0,
+        dayStreak: gamificationStats.dayStreak || 0,
+        isActiveToday: gamificationStats.isActiveToday || false,
         totalPoints: gamificationStats.totalPoints || 0,
         questionsAnswered: gamificationStats.totalQuestions || 0,
         accuracyRate: gamificationStats.totalQuestions > 0 ? 
@@ -497,8 +560,16 @@ class PopupManager {
         return;
       }
       
-      // Update stat cards
-      this.setElementText('current-streak', stats.currentStreak || 0);
+      // Update stat cards - use day streak (Duolingo-style)
+      const dayStreakElement = document.getElementById('day-streak');
+      if (dayStreakElement) {
+        dayStreakElement.textContent = stats.dayStreak || 0;
+        // Add visual indicator if active today
+        const streakCard = dayStreakElement.closest('.stat-card');
+        if (streakCard) {
+          streakCard.classList.toggle('active-today', stats.isActiveToday);
+        }
+      }
       this.setElementText('total-points', this.formatNumber(stats.totalPoints || 0));
       this.setElementText('questions-answered', stats.questionsAnswered || 0);
       this.setElementText('accuracy-rate', `${stats.accuracyRate || 0}%`);

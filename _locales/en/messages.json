@@ -99,6 +99,24 @@
     "message": "Current Streak",
     "description": "Current streak label"
   },
+  "day_streak": {
+    "message": "Day Streak",
+    "description": "Day streak label (Duolingo-style consecutive days)"
+  },
+  "day_streak_extended": {
+    "message": "Day $1! Keep it up!",
+    "description": "Message shown when day streak is extended",
+    "placeholders": {
+      "1": {"content": "$1", "example": "5"}
+    }
+  },
+  "day_streak_lost": {
+    "message": "Streak reset (was $1 days)",
+    "description": "Message shown when day streak is lost",
+    "placeholders": {
+      "1": {"content": "$1", "example": "7"}
+    }
+  },
   "total_points": {
     "message": "Total Points",
     "description": "Total points label"
