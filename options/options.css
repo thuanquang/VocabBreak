@@ -704,10 +704,46 @@ input[type="range"]::-moz-range-thumb {
 .achievement-card.unlocked {
     background: linear-gradient(135deg, #2fb7d9, #1f9ac1);
     color: white;
+    border: 2px solid transparent;
 }
 
 .achievement-card.unlocked .achievement-description {
     color: rgba(255, 255, 255, 0.9);
+}
+
+.achievement-card.unlocked .achievement-points {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+/* Locked/greyed out achievements */
+.achievement-card.locked {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border: 2px dashed #cbd5e1;
+    opacity: 0.75;
+}
+
+.achievement-card.locked:hover {
+    opacity: 0.9;
+    border-color: #94a3b8;
+}
+
+.achievement-card.locked .achievement-icon {
+    filter: grayscale(100%);
+    opacity: 0.5;
+}
+
+.achievement-card.locked .achievement-name {
+    color: #64748b;
+}
+
+.achievement-card.locked .achievement-description {
+    color: #94a3b8;
+}
+
+.achievement-card.locked .achievement-points {
+    color: #94a3b8;
+    font-style: italic;
 }
 
 .achievement-icon {
@@ -733,6 +769,13 @@ input[type="range"]::-moz-range-thumb {
     color: #48bb78;
     font-weight: 600;
     margin-top: var(--vb-space-5);
+}
+
+.achievement-date {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: var(--vb-space-4);
+    font-style: italic;
 }
 
 /* Footer */

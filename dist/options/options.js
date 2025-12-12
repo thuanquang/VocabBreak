@@ -43,6 +43,9 @@ class OptionsManager {
       window.i18n.localizePage(document);
     }
 
+    // Wait for Supabase and gamificationManager to be ready before showing stats
+    await this.waitForGamificationReady();
+
     // Initialize UI
     this.initializeUI();
     
@@ -50,6 +53,42 @@ class OptionsManager {
     this.setupAutoSave();
     
     console.log('Options page initialized');
+  }
+
+  async waitForGamificationReady() {
+    try {
+      console.log('⏳ Waiting for gamification dependencies...');
+      
+      // Wait for Supabase to be ready
+      if (window.supabaseReadyPromise) {
+        await Promise.race([
+          window.supabaseReadyPromise,
+          new Promise(resolve => setTimeout(resolve, 5000))
+        ]);
+      }
+      
+      // Wait for gamificationManager to initialize and load from database
+      if (window.gamificationManager) {
+        let attempts = 0;
+        while (!window.gamificationManager.isInitialized && attempts < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        
+        // Force reload from database if authenticated but stats look empty
+        if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+          const stats = window.gamificationManager.getUserStats();
+          if (stats.totalPoints === 0 && stats.totalQuestions === 0) {
+            console.log('📊 Forcing initial stats load from database...');
+            await window.gamificationManager.loadUserStatsFromDatabase();
+          }
+        }
+      }
+      
+      console.log('✅ Gamification dependencies ready');
+    } catch (error) {
+      console.warn('⚠️ Error waiting for gamification dependencies:', error);
+    }
   }
 
   setupEventListeners() {
@@ -141,6 +180,7 @@ class OptionsManager {
 
   async loadSettings() {
     try {
+      // Load local settings from chrome.storage.sync
       const result = await chrome.storage.sync.get([
         'difficultyLevels',
         'questionTypes',
@@ -159,9 +199,60 @@ class OptionsManager {
       // Merge with defaults
       this.settings = { ...this.settings, ...result };
       
-      console.log('Loaded settings:', this.settings);
+      console.log('Loaded local settings:', this.settings);
+
+      // Load gamification settings from database if authenticated
+      await this.loadGamificationSettingsFromDatabase();
+      
     } catch (error) {
       console.error('Failed to load settings:', error);
+    }
+  }
+
+  async loadGamificationSettingsFromDatabase() {
+    try {
+      if (!window.supabaseClient) {
+        console.log('Supabase client not available, skipping database settings load');
+        return;
+      }
+
+      // Wait for supabase to be ready
+      if (window.supabaseReadyPromise) {
+        await window.supabaseReadyPromise;
+      }
+
+      if (!window.supabaseClient.isAuthenticated()) {
+        console.log('User not authenticated, skipping database settings load');
+        return;
+      }
+
+      const userProfile = await window.supabaseClient.getUserProfile();
+      if (userProfile && userProfile.profile) {
+        const prefs = userProfile.profile.preferences || {};
+        
+        // Load gamification-specific preferences from database
+        if (prefs.gamification_enabled !== undefined) {
+          this.settings.gamificationEnabled = prefs.gamification_enabled;
+        }
+        if (prefs.streak_notifications !== undefined) {
+          this.settings.streakNotifications = prefs.streak_notifications;
+        }
+        if (prefs.notifications_enabled !== undefined) {
+          this.settings.streakNotifications = prefs.notifications_enabled;
+        }
+        if (prefs.sound_enabled !== undefined) {
+          this.settings.soundEnabled = prefs.sound_enabled;
+        }
+        
+        console.log('✅ Loaded gamification settings from database:', {
+          gamificationEnabled: this.settings.gamificationEnabled,
+          streakNotifications: this.settings.streakNotifications,
+          soundEnabled: this.settings.soundEnabled
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to load gamification settings from database:', error);
+      // Continue with local settings
     }
   }
 
@@ -306,15 +397,62 @@ class OptionsManager {
     const progressOverview = document.getElementById('progress-overview');
     
     try {
-      // Get real stats from background script
-      const response = await this.sendMessage({ type: 'GET_STATS' });
-      const stats = response?.stats || {
+      // Wait for gamificationManager to be ready and get stats directly from it
+      let stats = {
         totalPoints: 0,
         currentStreak: 0,
-        questionsAnswered: 0,
-        accuracyRate: 0,
+        longestStreak: 0,
+        totalQuestions: 0,
+        correctAnswers: 0,
         currentLevel: 1
       };
+
+      // First, wait for Supabase client to be ready
+      if (window.supabaseReadyPromise) {
+        console.log('⏳ Waiting for Supabase to be ready...');
+        await Promise.race([
+          window.supabaseReadyPromise,
+          new Promise(resolve => setTimeout(resolve, 5000))
+        ]);
+        console.log('✅ Supabase ready');
+      }
+
+      if (window.gamificationManager) {
+        // Wait for gamification manager to initialize if needed
+        if (!window.gamificationManager.isInitialized) {
+          console.log('⏳ Waiting for gamificationManager to initialize...');
+          await new Promise(resolve => {
+            const checkInit = setInterval(() => {
+              if (window.gamificationManager.isInitialized) {
+                clearInterval(checkInit);
+                resolve();
+              }
+            }, 100);
+            // Timeout after 5 seconds
+            setTimeout(() => {
+              clearInterval(checkInit);
+              resolve();
+            }, 5000);
+          });
+        }
+        
+        // If stats are still empty but we're authenticated, force reload from database
+        let currentStats = window.gamificationManager.getUserStats();
+        if (currentStats.totalPoints === 0 && currentStats.totalQuestions === 0) {
+          console.log('📊 Stats appear empty, forcing reload from database...');
+          if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+            await window.gamificationManager.loadUserStatsFromDatabase();
+            currentStats = window.gamificationManager.getUserStats();
+          }
+        }
+        
+        stats = currentStats;
+        console.log('📊 Loaded stats from gamificationManager:', stats);
+      }
+
+      const accuracyRate = stats.totalQuestions > 0 
+        ? Math.round((stats.correctAnswers / stats.totalQuestions) * 100) 
+        : 0;
 
       progressOverview.innerHTML = `
         <div class="progress-card">
@@ -326,11 +464,11 @@ class OptionsManager {
           <span class="progress-label">${window.i18n ? window.i18n.getMessage('current_streak') : 'Current Streak'}</span>
         </div>
         <div class="progress-card">
-          <span class="progress-value">${stats.questionsAnswered}</span>
+          <span class="progress-value">${stats.totalQuestions}</span>
           <span class="progress-label">${window.i18n ? window.i18n.getMessage('questions_answered') : 'Questions Answered'}</span>
         </div>
         <div class="progress-card">
-          <span class="progress-value">${stats.accuracyRate}%</span>
+          <span class="progress-value">${accuracyRate}%</span>
           <span class="progress-label">${window.i18n ? window.i18n.getMessage('accuracy_rate') : 'Accuracy Rate'}</span>
         </div>
         <div class="progress-card">
@@ -370,11 +508,48 @@ class OptionsManager {
     const achievementsGrid = document.getElementById('achievements-grid');
     
     try {
-      // Get real achievements from gamification manager via background script
-      const response = await this.sendMessage({ type: 'GET_ACHIEVEMENTS' });
-      const achievements = response?.achievements || {};
+      // Get achievements directly from gamificationManager
+      let achievements = {};
       
-      // Convert achievements object to array and sort by unlock status
+      // First, wait for Supabase client to be ready
+      if (window.supabaseReadyPromise) {
+        await Promise.race([
+          window.supabaseReadyPromise,
+          new Promise(resolve => setTimeout(resolve, 5000))
+        ]);
+      }
+      
+      if (window.gamificationManager) {
+        // Wait for gamification manager to initialize if needed
+        if (!window.gamificationManager.isInitialized) {
+          await new Promise(resolve => {
+            const checkInit = setInterval(() => {
+              if (window.gamificationManager.isInitialized) {
+                clearInterval(checkInit);
+                resolve();
+              }
+            }, 100);
+            // Timeout after 5 seconds
+            setTimeout(() => {
+              clearInterval(checkInit);
+              resolve();
+            }, 5000);
+          });
+        }
+        
+        // If stats weren't loaded (cachedStats is empty/null), force reload from database
+        if (!window.gamificationManager.cachedStats || 
+            (window.gamificationManager.cachedStats.gamification.achievements.length === 0 && 
+             window.supabaseClient && window.supabaseClient.isAuthenticated())) {
+          console.log('🏆 Forcing reload of achievements from database...');
+          await window.gamificationManager.loadUserStatsFromDatabase();
+        }
+        
+        achievements = window.gamificationManager.getAchievements();
+        console.log('🏆 Loaded achievements from gamificationManager:', achievements);
+      }
+      
+      // Convert achievements object to array and sort: unlocked first, then locked
       const achievementArray = Object.values(achievements).sort((a, b) => {
         if (a.unlocked && !b.unlocked) return -1;
         if (!a.unlocked && b.unlocked) return 1;
@@ -386,14 +561,24 @@ class OptionsManager {
         return;
       }
 
-      achievementsGrid.innerHTML = achievementArray.map(achievement => `
-        <div class="achievement-card ${achievement.unlocked ? 'unlocked' : ''}">
-          <span class="achievement-icon">${achievement.icon}</span>
-          <div class="achievement-name">${achievement.name}</div>
-          <div class="achievement-description">${achievement.description}</div>
-          ${achievement.unlocked ? '<div class="achievement-points">+' + achievement.points + ' points</div>' : ''}
-        </div>
-      `).join('');
+      // Get current locale for localized names/descriptions
+      const locale = window.i18n?.getCurrentLocale() || 'en';
+      const isVi = locale === 'vi';
+
+      achievementsGrid.innerHTML = achievementArray.map(achievement => {
+        const name = isVi && achievement.nameVi ? achievement.nameVi : achievement.name;
+        const description = isVi && achievement.descriptionVi ? achievement.descriptionVi : achievement.description;
+        
+        return `
+          <div class="achievement-card ${achievement.unlocked ? 'unlocked' : 'locked'}">
+            <span class="achievement-icon">${achievement.icon}</span>
+            <div class="achievement-name">${name}</div>
+            <div class="achievement-description">${description}</div>
+            <div class="achievement-points">${achievement.unlocked ? '+' : ''}${achievement.points} ${window.i18n ? window.i18n.getMessage('points') || 'points' : 'points'}</div>
+            ${achievement.unlocked && achievement.unlocked_at ? `<div class="achievement-date">${new Date(achievement.unlocked_at).toLocaleDateString()}</div>` : ''}
+          </div>
+        `;
+      }).join('');
     } catch (error) {
       console.error('Failed to load achievements:', error);
       // Fallback to empty state
@@ -564,7 +749,11 @@ class OptionsManager {
         return;
       }
 
+      // Save to local storage
       await chrome.storage.sync.set(this.settings);
+      
+      // Save gamification settings to database
+      await this.saveGamificationSettingsToDatabase();
       
       // Notify background script about settings update
       chrome.runtime.sendMessage({
@@ -579,6 +768,46 @@ class OptionsManager {
     } catch (error) {
       console.error('Failed to save settings:', error);
       this.showNotification('Failed to save settings', 'error');
+    }
+  }
+
+  async saveGamificationSettingsToDatabase() {
+    try {
+      if (!window.supabaseClient) {
+        console.log('Supabase client not available, skipping database settings save');
+        return;
+      }
+
+      // Wait for supabase to be ready
+      if (window.supabaseReadyPromise) {
+        await window.supabaseReadyPromise;
+      }
+
+      if (!window.supabaseClient.isAuthenticated()) {
+        console.log('User not authenticated, skipping database settings save');
+        return;
+      }
+
+      // Update user profile with gamification preferences
+      await window.supabaseClient.updateUserProfile({
+        profile: {
+          preferences: {
+            gamification_enabled: this.settings.gamificationEnabled,
+            streak_notifications: this.settings.streakNotifications,
+            notifications_enabled: this.settings.streakNotifications,
+            sound_enabled: this.settings.soundEnabled
+          }
+        }
+      });
+
+      console.log('✅ Saved gamification settings to database:', {
+        gamificationEnabled: this.settings.gamificationEnabled,
+        streakNotifications: this.settings.streakNotifications,
+        soundEnabled: this.settings.soundEnabled
+      });
+    } catch (error) {
+      console.warn('Failed to save gamification settings to database:', error);
+      // Don't fail the whole save - local settings were saved
     }
   }
 
