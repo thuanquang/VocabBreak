@@ -657,6 +657,9 @@ class BackgroundManager {
   }
 
   async triggerQuestion(tabId, reason) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'background.js:triggerQuestion:entry',message:'Trigger question called',data:{tabId,reason},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1A'})}).catch(()=>{});
+    // #endregion
     const tabState = this.tabStates.get(tabId);
     if (!tabState) {
       console.warn(`⚠️ Cannot trigger question for tab ${tabId}: no tab state`);
@@ -673,11 +676,17 @@ class BackgroundManager {
     let messageSuccess = false;
     try {
       const response = await chrome.tabs.sendMessage(tabId, { type: 'SHOW_QUESTION', reason: reason });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'background.js:triggerQuestion:msgSent',message:'SHOW_QUESTION message result',data:{tabId,response:response,messageSuccess:!!(response&&response.success)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1B'})}).catch(()=>{});
+      // #endregion
       if (response && response.success) {
         messageSuccess = true;
         console.log(`📩 SHOW_QUESTION message sent successfully to tab ${tabId}`);
       }
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'background.js:triggerQuestion:msgFailed',message:'SHOW_QUESTION message failed',data:{tabId,error:err?.message||String(err)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1C'})}).catch(()=>{});
+      // #endregion
       console.warn(`⚠️ SHOW_QUESTION message failed for tab ${tabId}:`, err?.message || err);
     }
 
@@ -786,6 +795,9 @@ class BackgroundManager {
 
   async handlePeriodicTimer(tabId) {
     console.log(`⏰ handlePeriodicTimer called for tab ${tabId}`);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'background.js:handlePeriodicTimer',message:'Timer fired for tab',data:{tabId,hasTimer:this.tabTimers.has(tabId)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1A'})}).catch(()=>{});
+    // #endregion
     
     const timer = this.tabTimers.get(tabId);
     if (timer?.alarmName) {

@@ -573,7 +573,9 @@ class SupabaseClient {
     await this.waitForInitialization();
     this.assertClient('getQuestions');
     
-    // console.log('🔍 getQuestions called with filters:', JSON.stringify(filters, null, 2));
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:getQuestions:entry',message:'getQuestions called',data:{filters},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3B'})}).catch(()=>{});
+    // #endregion
     
     let query = this.client
       .from('questions')
@@ -584,7 +586,9 @@ class SupabaseClient {
     // Filter by level using JSONB operators
     if (filters.level) {
       const levels = Array.isArray(filters.level) ? filters.level : [filters.level];
-      // console.log('🔍 Filtering by levels:', levels);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:getQuestions:levelFilter',message:'Applying level filter',data:{levels},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3C'})}).catch(()=>{});
+      // #endregion
       query = query.in('metadata->>level', levels);
     }
     
