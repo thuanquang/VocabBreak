@@ -121,6 +121,7 @@ class QuestionManager {
       }
       
       // Fallback to sample questions
+      console.log('Using sample questions (no cache available)');
       const filteredSamples = this.filterQuestionsBySettings(this.defaultQuestions);
       
       if (filteredSamples.length > 0) {

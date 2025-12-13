@@ -348,7 +348,7 @@ class VocabBreakBlocker {
       left: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
-      background: rgba(15, 23, 42, 0.6) !important;
+      background: rgba(15, 23, 42, 0.65) !important;
       backdrop-filter: blur(8px) !important;
       z-index: 2147483647 !important;
       display: flex !important;
@@ -441,13 +441,13 @@ class VocabBreakBlocker {
       }
       
       .vocabbreak-option:hover {
-        border-color: #4f46e5 !important;
-        background: #eef2ff !important;
+        border-color: #05668d !important;
+        background: #f7fafc !important;
       }
       
       .vocabbreak-option.selected {
-        border-color: #4f46e5 !important;
-        background: #e0e7ff !important;
+        border-color: #05668d !important;
+        background: #f0f3bd !important;
       }
       
       .vocabbreak-text-input {
@@ -461,7 +461,7 @@ class VocabBreakBlocker {
       
       .vocabbreak-text-input:focus {
         outline: none !important;
-        border-color: #4f46e5 !important;
+        border-color: #05668d !important;
       }
       
       .vocabbreak-footer {
@@ -472,7 +472,7 @@ class VocabBreakBlocker {
       }
       
       .vocabbreak-submit {
-        background: #4f46e5 !important;
+        background: #05668d !important;
         color: white !important;
         border: none !important;
         padding: 12px 24px !important;
@@ -484,7 +484,7 @@ class VocabBreakBlocker {
       }
       
       .vocabbreak-submit:hover {
-        background: #4338ca !important;
+        background: #044a6b !important;
       }
       
       .vocabbreak-submit:disabled {

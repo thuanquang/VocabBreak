@@ -200,6 +200,7 @@ class SupabaseClient {
           ? chrome.runtime.getURL('shared/supabase.js')
           : 'shared/supabase.js';
         importScripts(url);
+        console.log('📦 Supabase library loaded via importScripts');
         return true;
       }
 
@@ -214,6 +215,7 @@ class SupabaseClient {
           script.onerror = () => reject(new Error('Failed to load supabase.js'));
           document.head.appendChild(script);
         });
+        console.log('📦 Supabase library injected dynamically');
         return true;
       }
     } catch (e) {
@@ -345,6 +347,7 @@ class SupabaseClient {
         try {
           // Attempt to create user profile with retry logic
           await this.createUserProfileWithRetry(additionalData);
+          console.log('✅ User profile created successfully');
         } catch (profileError) {
           console.error('❌ Failed to create user profile:', profileError);
           
@@ -378,11 +381,14 @@ class SupabaseClient {
       
       try {
         await this.getUserProfile();
+        console.log('✅ User profile exists');
       } catch (profileError) {
+        console.log('📝 User profile missing, creating...');
         try {
           await this.createUserProfileWithRetry({
             displayName: data.user.email.split('@')[0]
           });
+          console.log('✅ User profile created during sign-in');
         } catch (createError) {
           console.warn('⚠️ Could not create profile during sign-in:', createError);
         }
@@ -447,7 +453,9 @@ class SupabaseClient {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+        console.log(`🔄 Creating user profile (attempt ${attempt}/${maxRetries})`);
         const result = await this.createUserProfile(userData);
+        console.log('✅ User profile created successfully');
         return result;
       } catch (error) {
         lastError = error;
@@ -456,6 +464,7 @@ class SupabaseClient {
         if (attempt < maxRetries) {
           // Wait before retry (exponential backoff)
           const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          console.log(`⏳ Waiting ${delay}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
@@ -652,6 +661,7 @@ class SupabaseClient {
     // console.log(`🎲 Found ${questions.length} matching questions`);
     
     if (questions.length === 0) {
+      console.log('❌ No questions found matching the filters');
       return null;
     }
     
@@ -1154,6 +1164,7 @@ class SupabaseClient {
       
       // Check if we're offline
       if (!navigator.onLine) {
+        console.log('Working offline, using fallback data');
         return fallbackData;
       }
       
