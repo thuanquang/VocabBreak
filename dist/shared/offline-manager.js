@@ -18,11 +18,9 @@ class OfflineManager {
   async init() {
     try {
       this.db = await this.openDatabase();
-      console.log('✅ IndexedDB initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize IndexedDB:', error);
       console.warn('⚠️ IndexedDB unavailable (incognito mode, quota exceeded, or permissions denied)');
-      console.log('📝 Extension will continue with limited offline support');
       this.db = null; // Disable IndexedDB features
     }
   }
@@ -116,7 +114,6 @@ class OfflineManager {
         questionCount: questions.length
       });
       
-      console.log(`✅ Cached ${questions.length} questions offline`);
       return true;
     } catch (error) {
       console.error('❌ Failed to cache questions:', error);
@@ -353,7 +350,6 @@ class OfflineManager {
         try {
           await this.syncItem(item);
           await store.delete(item.id);
-          console.log(`Synced ${item.type} successfully`);
         } catch (error) {
           console.error(`Failed to sync ${item.type}:`, error);
           
@@ -428,7 +424,6 @@ class OfflineManager {
     try {
       await transaction.objectStore('questions').clear();
       await transaction.objectStore('cacheMetadata').clear();
-      console.log('Cache cleared successfully');
       return true;
     } catch (error) {
       console.error('Failed to clear cache:', error);
@@ -521,5 +516,4 @@ if (typeof module !== 'undefined' && module.exports) {
 } else if (typeof window !== 'undefined') {
   window.offlineManager = offlineManager;
 }
-
 

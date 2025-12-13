@@ -45,7 +45,6 @@ class GamificationManager {
       await this.loadUserStatsFromDatabase();
       
       this.isInitialized = true;
-      console.log('✅ Gamification manager initialized with database connection');
     } catch (error) {
       console.error('❌ Failed to initialize gamification manager:', error);
       this.setEmptyStats();
@@ -57,7 +56,6 @@ class GamificationManager {
     let attempts = 0;
     while (attempts < 50) {
       if (window.supabaseClient && window.supabaseClient.client) {
-        console.log('✅ Supabase client ready for gamification');
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -373,7 +371,6 @@ class GamificationManager {
         
         newAchievements.push(unlockedAchievement);
         
-        console.log('🏆 Achievement unlocked:', unlockedAchievement.name);
         
         // Trigger dual-write (async, non-blocking)
         this.saveAchievementUnlock(id).catch(err => {
@@ -407,10 +404,8 @@ class GamificationManager {
       // First time ever - start streak at 1
       newStreak = 1;
       streakExtended = true;
-      console.log('🔥 Day streak started: Day 1!');
     } else if (lastActive === today) {
       // Already practiced today, do nothing
-      console.log('🔥 Already practiced today, streak unchanged:', oldStreak);
       return { streakChanged: false, dayStreak: oldStreak };
     } else {
       // Check if it was yesterday
@@ -419,12 +414,10 @@ class GamificationManager {
         // Streak continues!
         newStreak = oldStreak + 1;
         streakExtended = true;
-        console.log(`🔥 Day streak extended: Day ${newStreak}!`);
       } else {
         // Streak broken (gap > 1 day), reset
         newStreak = 1;
         streakLost = oldStreak > 0;
-        console.log(`💔 Day streak reset (was ${oldStreak}), starting fresh: Day 1`);
       }
     }
     
@@ -478,7 +471,6 @@ class GamificationManager {
 
       const { correct, pointsEarned, timeTaken, question } = questionResult;
       
-      console.log('📊 Updating stats:', { correct, pointsEarned, timeTaken });
       
       // Ensure we have cached stats
       if (!this.cachedStats) {
@@ -519,7 +511,6 @@ class GamificationManager {
       const levelUp = newLevel.level > this.cachedStats.gamification.current_level;
       if (levelUp) {
         this.cachedStats.gamification.current_level = newLevel.level;
-        console.log('🎉 Level up!', newLevel);
       }
       
       // Check for new achievements
@@ -531,7 +522,6 @@ class GamificationManager {
         console.warn('⚠️ Failed to save stats to database');
       }
       
-      console.log('✅ Stats updated successfully');
       
       return {
         pointsEarned,
@@ -561,7 +551,6 @@ class GamificationManager {
         return;
       }
 
-      console.log('📊 Loading user stats from database...');
       
       try {
         const userProfile = await window.supabaseClient.getUserProfile();
@@ -610,12 +599,10 @@ class GamificationManager {
           });
           
           this.lastSyncTime = Date.now();
-          console.log('✅ Loaded stats from database:', this.cachedStats);
         } else {
           this.setEmptyStats();
         }
       } catch (profileError) {
-        console.log('📝 User profile not found, attempting to create...');
         
         // Try to create profile if it doesn't exist
         try {
@@ -623,7 +610,6 @@ class GamificationManager {
             displayName: window.supabaseClient.user?.email?.split('@')[0] || 'User'
           });
           
-          console.log('✅ User profile created, retrying stats load...');
           
           // Retry loading profile
           const userProfile = await window.supabaseClient.getUserProfile();
@@ -652,9 +638,7 @@ class GamificationManager {
             };
             
             this.lastSyncTime = Date.now();
-            console.log('✅ Loaded stats from newly created profile:', this.cachedStats);
           } else {
-            console.log('⚠️ Profile creation succeeded but could not load stats');
             this.setEmptyStats();
           }
         } catch (createError) {
@@ -681,7 +665,6 @@ class GamificationManager {
         return false;
       }
 
-      console.log('💾 Saving stats to database...');
       
       // Update the user profile with new stats
       const updateData = {
@@ -695,7 +678,6 @@ class GamificationManager {
       await window.supabaseClient.updateUserProfile(updateData);
       this.lastSyncTime = Date.now();
       
-      console.log('✅ Stats saved to database successfully');
       return true;
       
     } catch (error) {
@@ -721,7 +703,6 @@ class GamificationManager {
         try {
           // PRIMARY WRITE: Save to users.profile.gamification.achievements
           await this.saveUserStatsToDatabase();
-          console.log('✅ [Dual-Write] Primary write completed (JSONB)');
           
           // SECONDARY WRITE: Save to user_achievements table
           await this.saveToUserAchievementsTable(achievementId);
@@ -742,7 +723,6 @@ class GamificationManager {
   async saveToUserAchievementsTable(achievementId) {
     try {
       if (!window.supabaseClient?.client || !window.supabaseClient.isAuthenticated()) {
-        console.log('⚠️ [Dual-Write] Skipping secondary write - not authenticated');
         return false;
       }
 
@@ -779,7 +759,6 @@ class GamificationManager {
       if (error) {
         // Ignore duplicate key errors (achievement already unlocked)
         if (error.code === '23505') {
-          console.log(`ℹ️ [Dual-Write] Achievement ${achievementId} already in user_achievements table`);
           return true;
         }
         // Log foreign key errors but don't throw (achievements table may not be seeded)
@@ -791,7 +770,6 @@ class GamificationManager {
         return false;
       }
 
-      console.log(`✅ [Dual-Write] Secondary write completed for ${achievementId}`);
       return true;
 
     } catch (error) {
@@ -856,7 +834,6 @@ class GamificationManager {
         return { success: false, error: 'Not authenticated' };
       }
 
-      console.log('🌱 Seeding achievements table...');
       const results = { success: 0, failed: 0, errors: [] };
 
       for (const [id, achievement] of Object.entries(this.achievements)) {
@@ -889,11 +866,9 @@ class GamificationManager {
           console.error(`❌ Failed to seed ${id}:`, error.message);
         } else {
           results.success++;
-          console.log(`✅ Seeded achievement: ${id} (${achievement.uuid})`);
         }
       }
 
-      console.log(`🌱 Seeding complete: ${results.success} success, ${results.failed} failed`);
       return results;
     } catch (error) {
       console.error('❌ Error seeding achievements table:', error);
@@ -916,7 +891,6 @@ class GamificationManager {
       // First, seed the achievements table
       await this.seedAchievementsTable();
 
-      console.log('🔄 Syncing unlocked achievements to user_achievements table...');
       const unlockedAchievements = this.cachedStats.gamification.achievements || [];
       const results = { success: 0, failed: 0, errors: [] };
 
@@ -937,7 +911,6 @@ class GamificationManager {
         }
       }
 
-      console.log(`🔄 Sync complete: ${results.success} success, ${results.failed} failed`);
       return results;
     } catch (error) {
       console.error('❌ Error syncing achievements to table:', error);
@@ -1058,6 +1031,4 @@ if (typeof module !== 'undefined' && module.exports) {
 } else if (typeof window !== 'undefined') {
   window.gamificationManager = gamificationManager;
 }
-
-
 

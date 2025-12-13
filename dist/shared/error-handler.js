@@ -31,7 +31,6 @@ class ErrorHandler {
       });
     }
 
-    console.log('✅ Error handler initialized');
   }
 
   // Main error handling method
@@ -170,7 +169,6 @@ class ErrorHandler {
         console.warn(logMessage, errorInfo);
         break;
       default:
-        console.log(logMessage, errorInfo);
     }
 
     // Add to internal log

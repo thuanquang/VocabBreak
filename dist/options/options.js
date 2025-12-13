@@ -27,7 +27,6 @@ class OptionsManager {
   }
 
   async init() {
-    console.log('Options page initializing...');
     
     // Set up event listeners
     this.setupEventListeners();
@@ -52,12 +51,10 @@ class OptionsManager {
     // Set up auto-save on changes
     this.setupAutoSave();
     
-    console.log('Options page initialized');
   }
 
   async waitForGamificationReady() {
     try {
-      console.log('⏳ Waiting for gamification dependencies...');
       
       // Wait for Supabase to be ready
       if (window.supabaseReadyPromise) {
@@ -79,13 +76,11 @@ class OptionsManager {
         if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
           const stats = window.gamificationManager.getUserStats();
           if (stats.totalPoints === 0 && stats.totalQuestions === 0) {
-            console.log('📊 Forcing initial stats load from database...');
             await window.gamificationManager.loadUserStatsFromDatabase();
           }
         }
       }
       
-      console.log('✅ Gamification dependencies ready');
     } catch (error) {
       console.warn('⚠️ Error waiting for gamification dependencies:', error);
     }
@@ -251,7 +246,6 @@ class OptionsManager {
       // Merge with defaults
       this.settings = { ...this.settings, ...result };
       
-      console.log('Loaded local settings:', this.settings);
 
       // Load gamification settings from database if authenticated
       await this.loadGamificationSettingsFromDatabase();
@@ -264,7 +258,6 @@ class OptionsManager {
   async loadGamificationSettingsFromDatabase() {
     try {
       if (!window.supabaseClient) {
-        console.log('Supabase client not available, skipping database settings load');
         return;
       }
 
@@ -274,7 +267,6 @@ class OptionsManager {
       }
 
       if (!window.supabaseClient.isAuthenticated()) {
-        console.log('User not authenticated, skipping database settings load');
         return;
       }
 
@@ -476,18 +468,15 @@ class OptionsManager {
 
       // First, wait for Supabase client to be ready
       if (window.supabaseReadyPromise) {
-        console.log('⏳ Waiting for Supabase to be ready...');
         await Promise.race([
           window.supabaseReadyPromise,
           new Promise(resolve => setTimeout(resolve, 5000))
         ]);
-        console.log('✅ Supabase ready');
       }
 
       if (window.gamificationManager) {
         // Wait for gamification manager to initialize if needed
         if (!window.gamificationManager.isInitialized) {
-          console.log('⏳ Waiting for gamificationManager to initialize...');
           await new Promise(resolve => {
             const checkInit = setInterval(() => {
               if (window.gamificationManager.isInitialized) {
@@ -506,7 +495,6 @@ class OptionsManager {
         // If stats are still empty but we're authenticated, force reload from database
         let currentStats = window.gamificationManager.getUserStats();
         if (currentStats.totalPoints === 0 && currentStats.totalQuestions === 0) {
-          console.log('📊 Stats appear empty, forcing reload from database...');
           if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
             await window.gamificationManager.loadUserStatsFromDatabase();
             currentStats = window.gamificationManager.getUserStats();
@@ -514,7 +502,6 @@ class OptionsManager {
         }
         
         stats = currentStats;
-        console.log('📊 Loaded stats from gamificationManager:', stats);
       }
 
       const accuracyRate = stats.totalQuestions > 0 
@@ -608,12 +595,10 @@ class OptionsManager {
         if (!window.gamificationManager.cachedStats || 
             (window.gamificationManager.cachedStats.gamification.achievements.length === 0 && 
              window.supabaseClient && window.supabaseClient.isAuthenticated())) {
-          console.log('🏆 Forcing reload of achievements from database...');
           await window.gamificationManager.loadUserStatsFromDatabase();
         }
         
         achievements = window.gamificationManager.getAchievements();
-        console.log('🏆 Loaded achievements from gamificationManager:', achievements);
       }
       
       // Convert achievements object to array and sort: unlocked first, then locked
@@ -854,7 +839,6 @@ class OptionsManager {
         }, resolve);
       });
       
-      console.log('📩 Background script acknowledged settings update:', response);
       
       this.isDirty = false;
       this.updateSaveButton();
@@ -869,7 +853,6 @@ class OptionsManager {
   async saveGamificationSettingsToDatabase() {
     try {
       if (!window.supabaseClient) {
-        console.log('Supabase client not available, skipping database settings save');
         return;
       }
 
@@ -879,7 +862,6 @@ class OptionsManager {
       }
 
       if (!window.supabaseClient.isAuthenticated()) {
-        console.log('User not authenticated, skipping database settings save');
         return;
       }
 
@@ -993,6 +975,4 @@ const optionsManager = new OptionsManager();
 
 // Make it globally accessible for onclick handlers
 window.optionsManager = optionsManager;
-
-
 

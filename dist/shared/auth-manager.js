@@ -28,7 +28,6 @@ class AuthManager {
       // Check for existing session
       await this.checkExistingSession();
       
-      console.log('✅ Auth manager initialized');
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'init' });
     }
@@ -285,7 +284,6 @@ class AuthManager {
       // Start session refresh timer
       this.startSessionRefresh();
 
-      console.log('✅ Authentication successful:', user.email);
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'handleAuthSuccess' });
     }
@@ -314,7 +312,6 @@ class AuthManager {
       // Clear session data
       await this.clearSessionData();
 
-      console.log('✅ Logout successful');
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'handleAuthLogout' });
     }
@@ -448,7 +445,6 @@ class AuthManager {
   startSessionMonitoring() {
     if (this.supabaseClient && this.supabaseClient.client) {
       this.supabaseClient.client.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state changed:', event);
         
         switch (event) {
           case 'SIGNED_IN':
