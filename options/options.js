@@ -443,12 +443,21 @@ class OptionsManager {
       return;
     }
 
+    // Use data-site attribute instead of inline onclick (CSP blocks inline handlers)
     siteList.innerHTML = this.settings.siteList.map(site => `
       <div class="site-item">
         <span class="site-url">${site}</span>
-        <button class="remove-site" onclick="optionsManager.removeSite('${site}')">${window.i18n ? window.i18n.getMessage('remove') : 'Remove'}</button>
+        <button class="remove-site" data-site="${site}">${window.i18n ? window.i18n.getMessage('remove') : 'Remove'}</button>
       </div>
     `).join('');
+    
+    // Attach event listeners after rendering (CSP-compliant)
+    siteList.querySelectorAll('.remove-site').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const siteToRemove = e.target.dataset.site;
+        this.removeSite(siteToRemove);
+      });
+    });
   }
 
   async updateProgressOverview() {

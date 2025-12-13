@@ -192,15 +192,7 @@ class VocabBreakBlocker {
   }
 
   async showQuestion(reason = 'periodic') {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'blocker.js:showQuestion:entry',message:'showQuestion called',data:{reason,isBlocked:this.isBlocked,hasOverlay:!!this.overlay},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1D'})}).catch(()=>{});
-    // #endregion
-    if (this.isBlocked) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'blocker.js:showQuestion:earlyReturn',message:'Early return - already blocked',data:{isBlocked:this.isBlocked},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1D'})}).catch(()=>{});
-      // #endregion
-      return; // Already showing
-    }
+    if (this.isBlocked) return; // Already showing
 
     const triggerReason = reason || 'periodic';
     this.lastTriggerReason = triggerReason;
@@ -235,20 +227,12 @@ class VocabBreakBlocker {
             console.warn('⚠️ Failed to load user settings from chrome.storage.sync, using defaults:', error);
           }
           
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'blocker.js:showQuestion:userSettings',message:'User settings loaded for question fetch',data:{userSettings,source:'chrome.storage.sync'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3A'})}).catch(()=>{});
-          // #endregion
-          
           // Define filters for question selection
           const questionFilters = {
             level: userSettings.difficultyLevels,
             type: userSettings.questionTypes,
             topics: userSettings.topics.length > 0 && userSettings.topics[0] !== 'general' ? userSettings.topics : undefined
           };
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'blocker.js:showQuestion:filters',message:'Question filters being sent to Supabase',data:{questionFilters},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3B'})}).catch(()=>{});
-          // #endregion
           
           const dbQuestion = await window.supabaseClient.getRandomQuestion(questionFilters);
           
@@ -303,10 +287,6 @@ class VocabBreakBlocker {
       this.currentQuestion = question;
       this.isBlocked = true;
       this.startTime = Date.now();
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'blocker.js:showQuestion:questionReady',message:'Question ready to display',data:{questionId:question.id,questionLevel:question.level,questionType:question.type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1E'})}).catch(()=>{});
-      // #endregion
 
       const timerSettings = await this.getTimerSettings();
       await this.recordBlockingEvent({
@@ -993,9 +973,6 @@ class VocabBreakBlocker {
 
   handleMessage(message, sender, sendResponse) {
     console.log('📩 Content script received message:', message.type);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'blocker.js:handleMessage',message:'Content script received message',data:{type:message.type,reason:message.reason},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1C'})}).catch(()=>{});
-    // #endregion
     
     switch (message.type) {
       case 'SHOW_QUESTION':

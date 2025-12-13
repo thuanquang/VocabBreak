@@ -14,9 +14,6 @@ class PopupManager {
   }
 
   async init() {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'popup.js:init:start',message:'Popup init starting',data:{hasCoreManager:typeof window.coreManager!=='undefined',hasErrorHandler:typeof window.errorHandler!=='undefined',hasAuthManager:typeof window.authManager!=='undefined'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2A'})}).catch(()=>{});
-    // #endregion
     try {
       console.log('🔧 Popup initializing...');
 
@@ -60,9 +57,6 @@ class PopupManager {
       this.isInitialized = true;
       console.log('✅ Popup initialized');
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'popup.js:init:error',message:'Popup init failed',data:{error:error?.message||String(error),stack:error?.stack?.substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2D'})}).catch(()=>{});
-      // #endregion
       window.errorHandler?.handleUIError(error, { context: 'popup-init' });
       this.showError('Failed to initialize popup. Please reload the extension.');
     }
@@ -70,14 +64,8 @@ class PopupManager {
 
   async waitForDependencies() {
     let attempts = 0;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'popup.js:waitForDependencies:start',message:'Starting dependency wait',data:{hasCoreManager:!!window.coreManager,hasErrorHandler:!!window.errorHandler,hasAuthManager:!!window.authManager},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2A'})}).catch(()=>{});
-    // #endregion
     while (attempts < 50) {
       if (window.coreManager && window.errorHandler && window.authManager) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'popup.js:waitForDependencies:found',message:'Dependencies found',data:{coreManagerInitialized:window.coreManager?.isInitialized,attempt:attempts},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2A'})}).catch(()=>{});
-        // #endregion
         // Wait for core manager to be initialized
         if (window.coreManager.isInitialized) {
           return;
@@ -89,9 +77,6 @@ class PopupManager {
       await new Promise(resolve => setTimeout(resolve, 100));
       attempts++;
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'popup.js:waitForDependencies:timeout',message:'Dependency timeout after 50 attempts',data:{hasCoreManager:!!window.coreManager,hasErrorHandler:!!window.errorHandler,hasAuthManager:!!window.authManager},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2B'})}).catch(()=>{});
-    // #endregion
     throw new Error('Required dependencies not available');
   }
 
