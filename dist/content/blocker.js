@@ -228,10 +228,18 @@ class VocabBreakBlocker {
           }
           
           // Define filters for question selection
+          // Filter topics: if 'general' is selected, don't apply topic filter (show all topics)
+          // Otherwise, apply the selected topics
+          const topicsToFilter = userSettings.topics && 
+                                 userSettings.topics.length > 0 && 
+                                 !userSettings.topics.includes('general') 
+                                 ? userSettings.topics 
+                                 : [];
+          
           const questionFilters = {
             level: userSettings.difficultyLevels,
             type: userSettings.questionTypes,
-            topics: userSettings.topics.length > 0 && userSettings.topics[0] !== 'general' ? userSettings.topics : undefined
+            topics: topicsToFilter
           };
           
           const dbQuestion = await window.supabaseClient.getRandomQuestion(questionFilters);
@@ -1402,10 +1410,18 @@ class VocabBreakBlocker {
       }
 
       // Try to get multiple questions for caching
+      // Filter topics: if 'general' is selected, don't apply topic filter (show all topics)
+      // Otherwise, apply the selected topics
+      const topicsToFilter = userSettings.topics && 
+                             userSettings.topics.length > 0 && 
+                             !userSettings.topics.includes('general') 
+                             ? userSettings.topics 
+                             : [];
+      
       const questionFilters = {
         level: userSettings.difficultyLevels,
         type: userSettings.questionTypes,
-        topics: userSettings.topics.length > 0 && userSettings.topics[0] !== 'general' ? userSettings.topics : undefined
+        topics: topicsToFilter
       };
 
       // Clear existing cached questions for these settings first

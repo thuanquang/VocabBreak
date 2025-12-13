@@ -573,8 +573,6 @@ class SupabaseClient {
     await this.waitForInitialization();
     this.assertClient('getQuestions');
     
-    // console.log('🔍 getQuestions called with filters:', JSON.stringify(filters, null, 2));
-    
     let query = this.client
       .from('questions')
       .select('*')
@@ -588,17 +586,16 @@ class SupabaseClient {
       query = query.in('metadata->>level', levels);
     }
     
-    // Filter by topics using JSONB overlap (any topic in the array matches)
+    // Filter by topics using JSONB contains with OR logic (any topic in the array matches)
     if (filters.topics && filters.topics.length > 0) {
-      // console.log('🔍 Filtering by topics:', filters.topics);
-      // Use overlaps to check if any topic in the filter matches any topic in the question
-      query = query.overlaps('metadata->topics', filters.topics);
+      // Build OR conditions: check if metadata->topics contains any of the filter topics
+      const topicConditions = filters.topics.map(topic => `metadata->topics.cs.["${topic}"]`).join(',');
+      query = query.or(topicConditions);
     }
     
     // Filter by type
     if (filters.type) {
       const types = Array.isArray(filters.type) ? filters.type : [filters.type];
-      // console.log('🔍 Filtering by types:', types);
       query = query.in('metadata->>type', types);
     }
     
@@ -644,17 +641,11 @@ class SupabaseClient {
       query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
     
-    // console.log('🔍 Executing query with filters applied');
     const { data, error } = await this.withTimeout(query, 10000, 'getQuestions');
     
     if (error) {
       console.error('❌ Error in getQuestions:', error);
       throw error;
-    }
-    
-    // console.log(`✅ getQuestions returned ${data?.length || 0} questions`);
-    if (data && data.length > 0) {
-      // console.log('🔍 Sample question metadata:', data[0].metadata);
     }
     
     return data;
