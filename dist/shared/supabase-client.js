@@ -19,9 +19,6 @@ class ChromeStorageAdapter {
   async getItem(key) {
     try {
       const result = await chrome.storage.local.get([key]);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:getItem',message:'ChromeStorageAdapter.getItem',data:{key:key,hasValue:!!(result[key]),valuePreview:result[key]?JSON.stringify(result[key]).substring(0,200):'null'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       return result[key] || null;
     } catch (error) {
       console.warn('ChromeStorageAdapter.getItem failed', error);
@@ -32,9 +29,6 @@ class ChromeStorageAdapter {
   async setItem(key, value) {
     try {
       await chrome.storage.local.set({ [key]: value });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:setItem',message:'ChromeStorageAdapter.setItem',data:{key:key,valueLength:value?String(value).length:0,valuePreview:value?JSON.stringify(value).substring(0,200):'null'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       return value;
     } catch (error) {
       console.warn('ChromeStorageAdapter.setItem failed', error);
@@ -45,9 +39,6 @@ class ChromeStorageAdapter {
   async removeItem(key) {
     try {
       await chrome.storage.local.remove([key]);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:removeItem',message:'ChromeStorageAdapter.removeItem',data:{key:key},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
     } catch (error) {
       console.warn('ChromeStorageAdapter.removeItem failed', error);
     }
@@ -127,17 +118,10 @@ class SupabaseClient {
       // Initialize credentials first with timeout guard
       await this.waitForCredentials(5000);
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:initClient',message:'Initializing Supabase client',data:{urlSet:SUPABASE_URL&&SUPABASE_URL!=='YOUR_SUPABASE_URL',keySet:SUPABASE_ANON_KEY&&SUPABASE_ANON_KEY!=='YOUR_SUPABASE_PUBLISHABLE_KEY',urlPreview:SUPABASE_URL?.substring(0,50),keyPrefix:SUPABASE_ANON_KEY?.substring(0,20),keyIsJWT:SUPABASE_ANON_KEY?.startsWith('eyJ')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'CREDS'})}).catch(()=>{});
-      // #endregion
-      
       // Validate credentials format
       if (!SUPABASE_ANON_KEY || !SUPABASE_ANON_KEY.startsWith('eyJ')) {
         console.error('❌ Invalid Supabase anon key format. Expected JWT token starting with "eyJ"');
         console.error('Current key prefix:', SUPABASE_ANON_KEY?.substring(0, 30));
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:initClient:invalidKey',message:'INVALID Supabase key format',data:{keyPrefix:SUPABASE_ANON_KEY?.substring(0,30),expectedFormat:'eyJ...'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'CREDS'})}).catch(()=>{});
-        // #endregion
       }
       
       // Check if Supabase is available globally (loaded via CDN)
@@ -182,9 +166,6 @@ class SupabaseClient {
         throw libError;
       }
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:initClient:error',message:'Supabase init FAILED',data:{errorMsg:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'CREDS'})}).catch(()=>{});
-      // #endregion
       if (typeof window !== 'undefined' && window.errorHandler) {
         window.errorHandler.handleDatabaseError(error, { stage: 'init' });
       } else {
@@ -323,9 +304,6 @@ class SupabaseClient {
   }
 
   handleAuthChange(event, session) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase-client.js:handleAuthChange',message:'Auth state change event',data:{event:event,hasSession:!!session,userId:session?.user?.id,hasAccessToken:!!session?.access_token},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
     // Notify other parts of the extension about auth changes
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage({

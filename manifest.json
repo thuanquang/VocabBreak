@@ -3,7 +3,7 @@
   "name": "VocabBreak - Language Learning Extension",
   "version": "1.0.1",
   "description": "Learn English vocabulary through strategic web interruptions. Gamified language learning that blocks websites.",
-  
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnrvgdzynAaoJgDIXOmPwOWnN+EHCyX/8WqK9qxHgs6++3vLwtxkGlusceCL34xYXrQYAOSPum00hENniMUox0qegFl1Rm0HiK0HIV6MMsgs/AkSomyz5LITrp8aZucFFSdsM4E1ua3rixQI14LhwVJSDFDGt7XAJyH1q+t+i71pK+XWXnmjF4NdWvUjNcgE7vJjYT2cZnGpvsObaBUY9lHflurd3xB8mCFx+EwvjOOcE+10vhclIKkPReMggdgyhBGG++SgTzQZi7mQrzK2tUuhB4WW5XQ+5W1jri4veILUgvBzBoyIH2JyFSUsm+XuviXqcOwIMeGYrddH+IaIMnQIDAQAB",
   "permissions": [
     "storage",
     "tabs",

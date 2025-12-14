@@ -191,9 +191,6 @@ class PopupManager {
   }
 
   handleAuthStateChange(authState) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'popup.js:handleAuthStateChange',message:'Auth state changed in popup',data:{isLoading:authState.isLoading,isAuthenticated:authState.isAuthenticated,hasUser:!!authState.user,userId:authState.user?.id,lastError:authState.lastError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H5'})}).catch(()=>{});
-    // #endregion
     try {
       if (authState.isLoading) {
         this.showLoadingState();

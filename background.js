@@ -1291,19 +1291,11 @@ class BackgroundManager {
       // Check if user is authenticated by looking at stored session
       const result = await chrome.storage.local.get(['userSession', 'vb-auth']);
       
-      // #region agent log
-      console.log('[DEBUG] getAuthStatus called. vb-auth exists:', !!result['vb-auth'], ', userSession exists:', !!result.userSession);
-      // #endregion
-      
       // Check for Supabase auth session
       const supabaseAuth = result['vb-auth'];
       if (supabaseAuth) {
         try {
           const parsed = typeof supabaseAuth === 'string' ? JSON.parse(supabaseAuth) : supabaseAuth;
-          
-          // #region agent log
-          console.log('[DEBUG] vb-auth parsed. user.id:', parsed?.user?.id, ', has access_token:', !!parsed?.access_token, ', expires_at:', parsed?.expires_at);
-          // #endregion
           
           // Validate session structure: must have user.id AND access_token
           if (parsed?.user?.id && parsed?.access_token) {
@@ -1313,9 +1305,6 @@ class BackgroundManager {
             
             if (!expiresAt || expiresAt > now) {
               // Session is valid and not expired
-              // #region agent log
-              console.log('[DEBUG] Session VALID. Returning isAuthenticated: true');
-              // #endregion
               return { isAuthenticated: true, userId: parsed.user.id };
             }
             
@@ -1328,9 +1317,6 @@ class BackgroundManager {
           // Session structure is invalid (missing access_token)
           if (parsed?.user?.id && !parsed?.access_token) {
             console.warn('⚠️ Invalid session structure: missing access_token, clearing');
-            // #region agent log
-            console.log('[DEBUG] Session INVALID - has user but no access_token. parsed keys:', Object.keys(parsed || {}));
-            // #endregion
             await chrome.storage.local.remove(['vb-auth']);
             return { isAuthenticated: false, sessionInvalid: true };
           }
@@ -1348,9 +1334,6 @@ class BackgroundManager {
         const now = Math.floor(Date.now() / 1000);
         
         if (!expiresAt || expiresAt > now) {
-          // #region agent log
-          console.log('[DEBUG] userSession fallback VALID. Returning isAuthenticated: true');
-          // #endregion
           return { isAuthenticated: true, userId: result.userSession.user.id };
         }
         
@@ -1360,9 +1343,6 @@ class BackgroundManager {
         return { isAuthenticated: false, sessionExpired: true };
       }
       
-      // #region agent log
-      console.log('[DEBUG] No valid session found. Returning isAuthenticated: false');
-      // #endregion
       return { isAuthenticated: false };
     } catch (error) {
       console.error('Failed to get auth status:', error);

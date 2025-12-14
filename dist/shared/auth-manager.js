@@ -67,27 +67,17 @@ class AuthManager {
   }
 
   async checkExistingSession() {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:checkExistingSession:entry',message:'checkExistingSession ENTRY',data:{supabaseClientExists:!!this.supabaseClient,supabaseInitialized:this.supabaseClient?.initialized},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H4'})}).catch(()=>{});
-    // #endregion
     try {
       window.stateManager.updateAuthState({ isLoading: true });
 
       // Check if Supabase client is properly initialized with valid credentials
       if (!this.supabaseClient?.client || !this.supabaseClient.initialized) {
         console.log('📋 Supabase client not ready, showing login screen');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:checkExistingSession:notReady',message:'Supabase client NOT READY - going to logout',data:{hasClient:!!this.supabaseClient?.client,initialized:this.supabaseClient?.initialized},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
         await this.handleAuthLogout();
         return;
       }
 
       const { data: { user }, error } = await this.supabaseClient.client.auth.getUser();
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:checkExistingSession:getUserResult',message:'getUser() result',data:{hasUser:!!user,userId:user?.id,userEmail:user?.email,hasError:!!error,errorName:error?.name,errorMsg:error?.message,errorStatus:error?.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
       
       if (error) {
         // AuthSessionMissingError is normal for new users - don't treat as error
@@ -101,9 +91,6 @@ class AuthManager {
         
         if (isSessionError) {
           console.log('📋 No existing session found, showing login screen');
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:checkExistingSession:sessionError',message:'Session error detected - going to logout',data:{errorName:error.name,errorMsg:error.message},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-          // #endregion
           await this.handleAuthLogout();
           return;
         }
@@ -113,23 +100,14 @@ class AuthManager {
       }
 
       if (user) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:checkExistingSession:success',message:'User found - calling handleAuthSuccess',data:{userId:user.id,email:user.email},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-        // #endregion
         await this.handleAuthSuccess(user, null);
       } else {
         console.log('📋 No user found, showing login screen');
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:checkExistingSession:noUser',message:'No user returned - going to logout',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-        // #endregion
         await this.handleAuthLogout();
       }
     } catch (error) {
       // Only log actual errors, not missing session scenarios
       console.warn('Auth session check failed:', error.message);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:checkExistingSession:catch',message:'EXCEPTION in checkExistingSession',data:{errorMsg:error.message,errorStack:error.stack?.substring(0,300)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
       // Don't call errorHandler for auth check - it's not a critical error
       // Just show login screen
       await this.handleAuthLogout();
@@ -229,27 +207,15 @@ class AuthManager {
         ? chrome.identity.getRedirectURL('supabase-auth')
         : null;
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:signInWithGoogle:start',message:'Starting Google OAuth',data:{redirectUri:redirectUri,supabaseClientReady:!!this.supabaseClient?.initialized},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'OAUTH'})}).catch(()=>{});
-      // #endregion
-
       const url = await this.withRetry(async () => {
         return await this.supabaseClient.signInWithGoogle(redirectUri);
       });
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:signInWithGoogle:gotUrl',message:'Got OAuth URL from Supabase',data:{hasUrl:!!url,urlPreview:url?url.substring(0,100):'null'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'OAUTH'})}).catch(()=>{});
-      // #endregion
 
       if (!url) {
         throw new Error('Failed to start Google OAuth flow - Supabase may not have Google provider enabled');
       }
 
       const redirectUrl = await this.launchWebAuthFlow(url);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:signInWithGoogle:redirect',message:'Got redirect URL from OAuth',data:{redirectUrlPreview:redirectUrl?redirectUrl.substring(0,150):'null'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'OAUTH'})}).catch(()=>{});
-      // #endregion
 
       const parsed = new URL(redirectUrl.replace('#', '?'));
       const code = parsed.searchParams.get('code');
@@ -260,9 +226,6 @@ class AuthManager {
 
       // Check for OAuth errors in the redirect
       if (errorParam) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:signInWithGoogle:oauthError',message:'OAuth returned error',data:{error:errorParam,errorDescription:errorDescription},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'OAUTH'})}).catch(()=>{});
-        // #endregion
         throw new Error(errorDescription || `OAuth error: ${errorParam}`);
       }
 
@@ -286,10 +249,6 @@ class AuthManager {
 
       throw new Error('Google sign-in did not return a session');
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:signInWithGoogle:error',message:'Google sign-in FAILED',data:{errorMsg:error.message,errorStack:error.stack?.substring(0,300)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'OAUTH'})}).catch(()=>{});
-      // #endregion
-      
       // Provide more helpful error messages
       let userMessage = error.message;
       if (error.message?.includes('Authorization') || error.message?.includes('credentials')) {
@@ -397,9 +356,6 @@ class AuthManager {
   }
 
   async handleAuthSuccess(user, session) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth-manager.js:handleAuthSuccess',message:'handleAuthSuccess called',data:{userId:user?.id,email:user?.email,hasSession:!!session,sessionKeys:session?Object.keys(session):[]},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
-    // #endregion
     try {
       // Update auth state
       window.stateManager.updateAuthState({
