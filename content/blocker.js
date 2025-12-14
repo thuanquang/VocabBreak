@@ -63,7 +63,11 @@ class VocabBreakBlocker {
       console.log('🔍 Block check response:', JSON.stringify(response));
       
       if (response && response.shouldBlock) {
-        if (response.reason === 'penalty') {
+        // Check authentication first - only block for logged-in users
+        const isAuthenticated = await this.checkAuthStatus();
+        if (!isAuthenticated) {
+          console.log('🔒 User not authenticated, skipping block');
+        } else if (response.reason === 'penalty') {
           console.log('⏳ Penalty active: showing penalty overlay until', new Date(response.penaltyEndTime).toISOString());
           this.showPenaltyOverlay(response.penaltyEndTime);
         } else {
@@ -198,6 +202,14 @@ class VocabBreakBlocker {
     this.lastTriggerReason = triggerReason;
 
     try {
+      // CHECK AUTHENTICATION BEFORE SHOWING QUESTION
+      // Questions should only appear for logged-in users
+      const isAuthenticated = await this.checkAuthStatus();
+      if (!isAuthenticated) {
+        console.log('🔒 User not authenticated, skipping question');
+        return;
+      }
+
       // CORRECT FLOW: Try Supabase first → IndexedDB cache → QuestionBank fallback
       let question = null;
       
@@ -1281,6 +1293,20 @@ class VocabBreakBlocker {
         resolve(response);
       });
     });
+  }
+
+  /**
+   * Check if user is authenticated by asking background script
+   * Questions should only show for logged-in users
+   */
+  async checkAuthStatus() {
+    try {
+      const response = await this.sendMessage({ type: 'CHECK_AUTH_STATUS' });
+      return response?.isAuthenticated === true;
+    } catch (error) {
+      console.warn('⚠️ Failed to check auth status:', error);
+      return false;
+    }
   }
 
   /**

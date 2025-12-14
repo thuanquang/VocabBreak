@@ -447,6 +447,11 @@ class BackgroundManager {
           sendResponse({ achievements: achievements });
           break;
 
+        case 'CHECK_AUTH_STATUS':
+          const authStatus = await this.getAuthStatus();
+          sendResponse(authStatus);
+          break;
+
         case 'TRIGGER_BLOCK_NOW':
           const triggerResult = await this.triggerManualBlock();
           sendResponse(triggerResult);
@@ -1278,6 +1283,90 @@ class BackgroundManager {
         levelProgress: 0,
         pointsToNextLevel: 500
       };
+    }
+  }
+
+  async getAuthStatus() {
+    try {
+      // Check if user is authenticated by looking at stored session
+      const result = await chrome.storage.local.get(['userSession', 'vb-auth']);
+      
+      // #region agent log
+      console.log('[DEBUG] getAuthStatus called. vb-auth exists:', !!result['vb-auth'], ', userSession exists:', !!result.userSession);
+      // #endregion
+      
+      // Check for Supabase auth session
+      const supabaseAuth = result['vb-auth'];
+      if (supabaseAuth) {
+        try {
+          const parsed = typeof supabaseAuth === 'string' ? JSON.parse(supabaseAuth) : supabaseAuth;
+          
+          // #region agent log
+          console.log('[DEBUG] vb-auth parsed. user.id:', parsed?.user?.id, ', has access_token:', !!parsed?.access_token, ', expires_at:', parsed?.expires_at);
+          // #endregion
+          
+          // Validate session structure: must have user.id AND access_token
+          if (parsed?.user?.id && parsed?.access_token) {
+            // Check if session has expired
+            const expiresAt = parsed.expires_at;
+            const now = Math.floor(Date.now() / 1000);
+            
+            if (!expiresAt || expiresAt > now) {
+              // Session is valid and not expired
+              // #region agent log
+              console.log('[DEBUG] Session VALID. Returning isAuthenticated: true');
+              // #endregion
+              return { isAuthenticated: true, userId: parsed.user.id };
+            }
+            
+            // Session expired - clear it and return expired status
+            console.log('🔒 Session expired, clearing vb-auth');
+            await chrome.storage.local.remove(['vb-auth']);
+            return { isAuthenticated: false, sessionExpired: true };
+          }
+          
+          // Session structure is invalid (missing access_token)
+          if (parsed?.user?.id && !parsed?.access_token) {
+            console.warn('⚠️ Invalid session structure: missing access_token, clearing');
+            // #region agent log
+            console.log('[DEBUG] Session INVALID - has user but no access_token. parsed keys:', Object.keys(parsed || {}));
+            // #endregion
+            await chrome.storage.local.remove(['vb-auth']);
+            return { isAuthenticated: false, sessionInvalid: true };
+          }
+        } catch (e) {
+          console.warn('Failed to parse vb-auth:', e);
+          // Clear corrupted session data
+          await chrome.storage.local.remove(['vb-auth']);
+          return { isAuthenticated: false, sessionCorrupted: true };
+        }
+      }
+      
+      // Fallback: check userSession storage with validation
+      if (result.userSession?.user?.id && result.userSession?.access_token) {
+        const expiresAt = result.userSession.expires_at;
+        const now = Math.floor(Date.now() / 1000);
+        
+        if (!expiresAt || expiresAt > now) {
+          // #region agent log
+          console.log('[DEBUG] userSession fallback VALID. Returning isAuthenticated: true');
+          // #endregion
+          return { isAuthenticated: true, userId: result.userSession.user.id };
+        }
+        
+        // Session expired - clear it
+        console.log('🔒 userSession expired, clearing');
+        await chrome.storage.local.remove(['userSession']);
+        return { isAuthenticated: false, sessionExpired: true };
+      }
+      
+      // #region agent log
+      console.log('[DEBUG] No valid session found. Returning isAuthenticated: false');
+      // #endregion
+      return { isAuthenticated: false };
+    } catch (error) {
+      console.error('Failed to get auth status:', error);
+      return { isAuthenticated: false, error: error.message };
     }
   }
 

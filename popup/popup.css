@@ -167,6 +167,9 @@ body {
 }
 
 .auth-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin-bottom: var(--vb-space-7);
 }
 
@@ -563,6 +566,8 @@ body {
     color: var(--vb-text-on-light);
     border: 1px solid var(--vb-secondary);
     box-shadow: var(--vb-shadow);
+    width: 100%;
+    max-width: 280px;
 }
 
 .btn-google:hover {
@@ -698,6 +703,25 @@ body {
     margin-bottom: var(--vb-space-7);
     font-size: var(--vb-text-p);
     line-height: var(--vb-line-p);
+}
+
+.error-content .error-details {
+    font-size: var(--vb-text-caption);
+    color: var(--vb-muted);
+    margin-bottom: var(--vb-space-6);
+    padding: var(--vb-space-4) var(--vb-space-5);
+    background: var(--vb-bg-warm);
+    border-radius: var(--vb-radius-sm);
+    word-break: break-word;
+}
+
+.error-content .error-details:empty {
+    display: none;
+}
+
+.error-content .btn {
+    min-width: 160px;
+    margin: 0 auto;
 }
 
 /* Error Messages */

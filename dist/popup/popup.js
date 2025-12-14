@@ -191,6 +191,9 @@ class PopupManager {
   }
 
   handleAuthStateChange(authState) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/26371981-9a85-43c2-a381-8eed2455eb27',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'popup.js:handleAuthStateChange',message:'Auth state changed in popup',data:{isLoading:authState.isLoading,isAuthenticated:authState.isAuthenticated,hasUser:!!authState.user,userId:authState.user?.id,lastError:authState.lastError},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H5'})}).catch(()=>{});
+    // #endregion
     try {
       if (authState.isLoading) {
         this.showLoadingState();
@@ -227,7 +230,14 @@ class PopupManager {
       this.updateSyncStatus(appState.isOnline ? 'synced' : 'offline');
       
       if (appState.lastError) {
-        this.showError(appState.lastError.message);
+        const errorType = appState.lastError.type || 
+          (appState.lastError.message?.includes('session') ? 'session' :
+           appState.lastError.message?.includes('network') ? 'network' : 'unknown');
+        
+        this.showError(appState.lastError.message, {
+          errorType,
+          details: appState.lastError.details || ''
+        });
       }
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'app-state-change' });
@@ -327,17 +337,48 @@ class PopupManager {
     }
   }
 
-  handleRetry() {
+  async handleRetry() {
     try {
       this.maybePlayClick(250);
-      // Clear auth/app errors and return to loading
-      window.stateManager.updateAuthState({ lastError: null, isLoading: false });
+      
+      // Show loading state
+      this.showScreen('loading');
+      
+      // Clear potentially corrupted session data from storage
+      try {
+        await chrome.storage.local.remove(['vb-auth', 'userSession', 'userProfile']);
+        console.log('🧹 Cleared session data for fresh start');
+      } catch (e) {
+        console.warn('Could not clear session data:', e);
+      }
+      
+      // Reset auth state
+      window.stateManager.updateAuthState({ 
+        user: null,
+        session: null,
+        isAuthenticated: false,
+        lastError: null, 
+        isLoading: false 
+      });
       window.stateManager.updateAppState({ currentScreen: 'loading', lastError: null });
+      
+      // Re-initialize auth manager to get fresh state
+      if (window.authManager && typeof window.authManager.checkExistingSession === 'function') {
+        try {
+          await window.authManager.checkExistingSession();
+        } catch (e) {
+          console.warn('Auth re-check failed:', e);
+        }
+      }
+      
+      // Show login screen after brief delay
       setTimeout(() => {
-        this.updateUI();
+        this.showLoginScreen();
       }, 500);
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'retry' });
+      // Fallback: just show login screen
+      this.showLoginScreen();
     }
   }
 
@@ -462,12 +503,44 @@ class PopupManager {
     }
   }
 
-  showError(message) {
+  showError(message, options = {}) {
     try {
+      const { title, details, errorType } = options;
+      
+      // Set error title if provided
+      const errorTitleElement = document.getElementById('error-title');
+      if (errorTitleElement) {
+        if (title) {
+          errorTitleElement.textContent = title;
+        } else if (errorType === 'session') {
+          errorTitleElement.textContent = 'Session Expired';
+        } else if (errorType === 'network') {
+          errorTitleElement.textContent = 'Connection Error';
+        } else {
+          errorTitleElement.textContent = 'Something went wrong';
+        }
+      }
+      
+      // Set main error message
       const errorMessageElement = document.getElementById('error-message');
       if (errorMessageElement) {
-        errorMessageElement.textContent = message;
+        if (message) {
+          errorMessageElement.textContent = message;
+        } else if (errorType === 'session') {
+          errorMessageElement.textContent = 'Your session has expired. Please sign in again.';
+        } else if (errorType === 'network') {
+          errorMessageElement.textContent = 'Could not connect to the server. Check your internet connection.';
+        } else {
+          errorMessageElement.textContent = 'An unexpected error occurred.';
+        }
       }
+      
+      // Set error details if provided
+      const errorDetailsElement = document.getElementById('error-details');
+      if (errorDetailsElement) {
+        errorDetailsElement.textContent = details || '';
+      }
+      
       this.showScreen('error');
     } catch (error) {
       console.error('Failed to show error:', error);
