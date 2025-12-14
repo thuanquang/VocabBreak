@@ -163,8 +163,7 @@ function build(options = {}) {
       { name: 'options', processJS: stripLogs },
       { name: 'shared', processJS: stripLogs },
       { name: 'assets', processJS: false },
-      { name: '_locales', processJS: false },
-      { name: 'database', processJS: false }
+      { name: '_locales', processJS: false }
     ];
     
     // Copy all extension files
