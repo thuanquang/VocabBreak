@@ -62,7 +62,6 @@ class StateManager {
       window.addEventListener('online', () => this.updateAppState({ isOnline: true }));
       window.addEventListener('offline', () => this.updateAppState({ isOnline: false }));
       
-      console.log('✅ State manager initialized');
     } catch (error) {
       console.error('❌ Failed to initialize state manager:', error);
     }
@@ -237,7 +236,6 @@ class StateManager {
           questions: { ...this.state.questions, ...persistedState.questions }
         };
         
-        console.log('✅ State loaded from persistence');
       }
     } catch (error) {
       console.error('Failed to load persisted state:', error);
@@ -299,7 +297,6 @@ class StateManager {
 
   // Debug methods
   debug() {
-    console.log('🔍 Current state:', this.getFullState());
     console.log('🔍 Active listeners:', {
       auth: this.listeners.get('auth')?.size || 0,
       user: this.listeners.get('user')?.size || 0,

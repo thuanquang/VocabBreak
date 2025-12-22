@@ -23,6 +23,9 @@ class PopupManager {
       // Load comfort preferences (sound/motion)
       await this.loadUserPreferences();
 
+      // Clear any stale error state from previous sessions
+      window.stateManager.updateAppState({ lastError: null });
+
       chrome.storage.onChanged.addListener((changes, areaName) => {
         if (areaName === 'sync' && (changes.soundEnabled || changes.reducedMotion)) {
           this.userPrefs = {
@@ -337,10 +340,42 @@ class PopupManager {
   async handleRetry() {
     try {
       this.maybePlayClick(250);
-      
+
       // Show loading state
       this.showScreen('loading');
-      
+
+      // Check if user is actually authenticated before clearing session
+      const isAuthenticated = window.authManager?.isAuthenticated?.() ||
+                             window.coreManager?.getState?.('auth')?.isAuthenticated;
+
+      if (isAuthenticated) {
+        console.log('🔄 User is authenticated, just refreshing UI instead of clearing session');
+
+        // Clear any error state
+        window.stateManager.updateAppState({ lastError: null });
+
+        // Re-initialize components without clearing session
+        if (window.authManager && typeof window.authManager.checkExistingSession === 'function') {
+          try {
+            await window.authManager.checkExistingSession();
+          } catch (e) {
+            console.warn('Auth re-check failed:', e);
+          }
+        }
+
+        // Refresh gamification stats
+        setTimeout(async () => {
+          await this.initializeGamificationStats();
+          this.refreshStats();
+          this.updateUI();
+        }, 500);
+
+        return;
+      }
+
+      // Only clear session data if user is not authenticated (true error state)
+      console.log('🔄 User not authenticated, clearing session data for fresh start');
+
       // Clear potentially corrupted session data from storage
       try {
         await chrome.storage.local.remove(['vb-auth', 'userSession', 'userProfile']);

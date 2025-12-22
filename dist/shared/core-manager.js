@@ -82,7 +82,6 @@ class CoreManager {
 
   async _performInit() {
     try {
-      console.log('🚀 CoreManager initializing...');
 
       // 1. Initialize storage systems
       await this.initializeStorage();
@@ -99,7 +98,6 @@ class CoreManager {
       this.isInitialized = true;
       this.updateAppState({ initialized: true });
       
-      console.log('✅ CoreManager initialized successfully');
       return true;
     } catch (error) {
       console.error('❌ CoreManager initialization failed:', error);
@@ -116,7 +114,6 @@ class CoreManager {
       // Chrome storage (preferred for extensions)
       if (typeof chrome !== 'undefined' && chrome.storage) {
         this.storage.chrome = chrome.storage;
-        console.log('✅ Chrome storage available');
       }
     } catch (error) {
       console.error('Storage initialization error:', error);
@@ -196,7 +193,6 @@ class CoreManager {
       try {
         if (window[dep] && typeof window[dep].init === 'function') {
           await window[dep].init();
-          console.log(`✅ ${dep} initialized`);
         }
       } catch (error) {
         console.warn(`⚠️ Failed to initialize ${dep}:`, error);
@@ -427,7 +423,6 @@ class CoreManager {
           user: { ...this.state.user, ...persistedState.user },
           app: { ...this.state.app, ...persistedState.app }
         };
-        console.log('✅ State loaded from persistence');
       }
     } catch (error) {
       console.error('State loading error:', error);
@@ -469,9 +464,6 @@ class CoreManager {
 
   debug() {
     console.group('🔍 CoreManager Debug Info');
-    console.log('State:', this.getState());
-    console.log('Cache size:', this.state.questions.cache.size);
-    console.log('Sync queue length:', this.syncQueue.length);
     console.log('Listeners:', Object.fromEntries(
       Array.from(this.listeners.entries()).map(([key, map]) => [key, map.size])
     ));

@@ -13,7 +13,6 @@ async function setupCredentials() {
     if (existingCredentials.supabaseUrl && existingCredentials.supabaseKey && 
         existingCredentials.supabaseUrl !== 'YOUR_SUPABASE_URL' && 
         existingCredentials.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
-      console.log('✅ Using stored credentials');
       return; // Already set up with real values
     }
     
@@ -21,7 +20,6 @@ async function setupCredentials() {
     let supabaseUrl = 'https://nyxtigtweenrnsmaaoic.supabase.co'; // Will be injected by build script
     let supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55eHRpZ3R3ZWVucm5zbWFhb2ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4MzE5NzIsImV4cCI6MjA3MTQwNzk3Mn0.w8nGFtcUpJnJ_UuH1zRqjvz22HuVrQIZjjR9JsGlByI'; // Will be injected by build script
     
-    console.log('✅ Using injected Supabase credentials');
 
     const credentials = {
       supabaseUrl: supabaseUrl,
@@ -30,7 +28,6 @@ async function setupCredentials() {
 
     // Store credentials in chrome storage
     await chrome.storage.local.set(credentials);
-    console.log('✅ Credentials stored successfully');
     
     // Verify storage
     const stored = await chrome.storage.local.get(['supabaseUrl', 'supabaseKey']);
@@ -42,11 +39,6 @@ async function setupCredentials() {
     // Check if using placeholder values
     if (stored.supabaseUrl === 'YOUR_SUPABASE_URL' || stored.supabaseKey === 'YOUR_SUPABASE_ANON_KEY' || stored.supabaseKey === 'YOUR_SUPABASE_PUBLISHABLE_KEY') {
       console.error('❌ Please update the credentials in shared/setup-credentials.js with your actual Supabase values');
-      console.log('📝 Instructions:');
-      console.log('   1. Get your Supabase URL from your project dashboard');
-      console.log('   2. Get your Supabase anon key from Settings > API');
-      console.log('   3. Replace the placeholder values in this file');
-      console.log('   4. Reload the extension');
     }
     
   } catch (error) {
@@ -70,8 +62,6 @@ if (typeof window !== 'undefined') {
         supabaseUrl: url,
         supabaseKey: key
       });
-      console.log('✅ Credentials set successfully');
-      console.log('🔄 Please reload the extension for changes to take effect');
     } catch (error) {
       console.error('❌ Failed to set credentials:', error);
     }
@@ -86,8 +76,6 @@ if (typeof window !== 'undefined') {
         key: stored.supabaseKey ? '✅ Set' : '❌ Missing'
       });
       if (stored.supabaseUrl && stored.supabaseKey) {
-        console.log('URL:', stored.supabaseUrl);
-        console.log('Key:', stored.supabaseKey.substring(0, 20) + '...');
       }
     } catch (error) {
       console.error('❌ Failed to check credentials:', error);

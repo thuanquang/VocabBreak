@@ -7,7 +7,7 @@ class AuthManager {
   constructor() {
     this.supabaseClient = null;
     this.refreshTimer = null;
-    this.sessionCheckInterval = 30000; // 30 seconds
+    this.sessionCheckInterval = 300000; // 5 minutes
     this.maxRetries = 3;
     this.retryDelay = 1000; // 1 second
     
@@ -18,17 +18,19 @@ class AuthManager {
     try {
       // Wait for dependencies
       await this.waitForDependencies();
-      
+
+      // Try to recover persisted session first
+      await this.recoverPersistedSession();
+
       // Initialize Supabase client
       await this.initializeSupabaseClient();
-      
+
       // Set up session monitoring
       this.startSessionMonitoring();
-      
-      // Check for existing session
+
+      // Check for existing session (with recovery)
       await this.checkExistingSession();
-      
-      console.log('✅ Auth manager initialized');
+
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'init' });
     }
@@ -72,46 +74,44 @@ class AuthManager {
 
       // Check if Supabase client is properly initialized with valid credentials
       if (!this.supabaseClient?.client || !this.supabaseClient.initialized) {
-        console.log('📋 Supabase client not ready, showing login screen');
-        await this.handleAuthLogout();
+        // Don't logout immediately, just mark as not ready
+        window.stateManager.updateAuthState({
+          isAuthenticated: false,
+          isLoading: false,
+          lastError: 'Authentication system initializing...'
+        });
         return;
       }
 
       const { data: { user }, error } = await this.supabaseClient.client.auth.getUser();
-      
+
       if (error) {
-        // AuthSessionMissingError is normal for new users - don't treat as error
-        // Also handle other session-related errors gracefully
-        const isSessionError = 
-          error.name === 'AuthSessionMissingError' || 
-          error.message?.includes('session') ||
-          error.message?.includes('refresh_token') ||
-          error.message?.includes('Auth session missing') ||
+        // Be more selective about what constitutes a logout-worthy error
+        const isAuthError =
+          error.name === 'AuthSessionMissingError' ||
+          error.message?.includes('Invalid refresh token') ||
+          error.message?.includes('JWT expired') ||
           error.status === 401;
-        
-        if (isSessionError) {
-          console.log('📋 No existing session found, showing login screen');
+
+        if (isAuthError) {
           await this.handleAuthLogout();
           return;
+        } else {
+          // Network error, server error, etc. - don't logout
+          // Keep existing auth state, just update loading
+          window.stateManager.updateAuthState({ isLoading: false });
+          return;
         }
-        
-        // Only throw for actual errors (network issues, server errors, etc.)
-        throw error;
       }
 
       if (user) {
         await this.handleAuthSuccess(user, null);
       } else {
-        console.log('📋 No user found, showing login screen');
         await this.handleAuthLogout();
       }
     } catch (error) {
-      // Only log actual errors, not missing session scenarios
-      console.warn('Auth session check failed:', error.message);
-      // Don't call errorHandler for auth check - it's not a critical error
-      // Just show login screen
-      await this.handleAuthLogout();
-    } finally {
+      console.warn('Session check failed, but preserving existing session:', error.message);
+      // Don't logout on unexpected errors - preserve existing session
       window.stateManager.updateAuthState({ isLoading: false });
     }
   }
@@ -329,27 +329,22 @@ class AuthManager {
       ];
       
       await chrome.storage.local.remove(keysToRemove);
-      console.log('🧹 Cleared all cached data from chrome.storage.local');
       
       // Clear coreManager cache if available
       if (window.coreManager && window.coreManager.clearCache) {
         await window.coreManager.clearCache();
-        console.log('🧹 Cleared coreManager cache');
       }
       
       // Reset coreManager state
       if (window.coreManager && window.coreManager.reset) {
         window.coreManager.reset();
-        console.log('🧹 Reset coreManager state');
       }
       
       // Clear gamification manager if available
       if (window.gamificationManager && window.gamificationManager.reset) {
         window.gamificationManager.reset();
-        console.log('🧹 Reset gamification manager');
       }
       
-      console.log('✅ All cached data cleared successfully');
     } catch (error) {
       console.error('Failed to clear all cached data:', error);
     }
@@ -369,13 +364,59 @@ class AuthManager {
       // Load user profile and settings
       await this.loadUserProfile(user.id);
 
+      // Persist session immediately
+      await this.persistSessionState();
+
       // Start session refresh timer
       this.startSessionRefresh();
 
-      console.log('✅ Authentication successful:', user.email);
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'handleAuthSuccess' });
     }
+  }
+
+  // Add method to save session state more aggressively
+  async persistSessionState() {
+    try {
+      const authState = window.stateManager.getAuthState();
+      if (authState.isAuthenticated && authState.session) {
+        const sessionData = {
+          user: authState.user,
+          session: authState.session,
+          persistedAt: Date.now()
+        };
+
+        await chrome.storage.local.set({
+          'vb-auth-session-backup': sessionData
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to persist session state:', error);
+    }
+  }
+
+  async recoverPersistedSession() {
+    try {
+      const result = await chrome.storage.local.get('vb-auth-session-backup');
+      const backupSession = result['vb-auth-session-backup'];
+
+      if (backupSession && backupSession.session) {
+        const age = Date.now() - (backupSession.persistedAt || 0);
+        // Only recover if less than 1 hour old
+        if (age < 3600000) {
+          window.stateManager.updateAuthState({
+            user: backupSession.user,
+            session: backupSession.session,
+            isAuthenticated: true,
+            isLoading: false
+          });
+          return true;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to recover persisted session:', error);
+    }
+    return false;
   }
 
   async handleAuthLogout() {
@@ -401,7 +442,6 @@ class AuthManager {
       // Clear session data
       await this.clearSessionData();
 
-      console.log('✅ Logout successful');
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'handleAuthLogout' });
     }
@@ -534,39 +574,63 @@ class AuthManager {
 
   startSessionMonitoring() {
     if (this.supabaseClient && this.supabaseClient.client) {
-      this.supabaseClient.client.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state changed:', event);
-        
+      this.supabaseClient.client.auth.onAuthStateChange(async (event, session) => {
+
         switch (event) {
           case 'SIGNED_IN':
             if (session?.user) {
-              this.handleAuthSuccess(session.user, session);
+              await this.handleAuthSuccess(session.user, session);
             }
             break;
           case 'SIGNED_OUT':
-            this.handleAuthLogout();
+            // Only logout if we don't have a persisted session to recover
+            const hasPersistedSession = await this.hasPersistedSession();
+            if (!hasPersistedSession) {
+              await this.handleAuthLogout();
+            } else {
+            }
             break;
           case 'TOKEN_REFRESHED':
+            // Update session and persist it
             window.stateManager.updateAuthState({ session });
+            await this.persistSessionState();
             break;
         }
       });
     }
   }
 
+  async hasPersistedSession() {
+    try {
+      const result = await chrome.storage.local.get('vb-auth-session-backup');
+      return !!result['vb-auth-session-backup'];
+    } catch {
+      return false;
+    }
+  }
+
   startSessionRefresh() {
     this.stopSessionRefresh();
-    
+
     this.refreshTimer = setInterval(async () => {
       try {
-        if (this.supabaseClient && window.stateManager.getAuthState().isAuthenticated) {
+        // Only check if we're authenticated and have a valid client
+        if (this.supabaseClient?.client && window.stateManager.getAuthState().isAuthenticated) {
           const { data: { user } } = await this.supabaseClient.client.auth.getUser();
+
+          // Only logout if we get a definitive "not authenticated" response
+          // Don't logout on network errors or temporary issues
           if (!user) {
             await this.handleAuthLogout();
           }
         }
       } catch (error) {
-        window.errorHandler?.handleAuthError(error, { context: 'sessionRefresh' });
+        // Don't treat network errors or temporary issues as authentication failures
+        console.warn('Session check failed (non-fatal):', error.message);
+        // Only logout on specific auth errors, not network issues
+        if (error.message?.includes('refresh_token') && error.message?.includes('invalid')) {
+          await this.handleAuthLogout();
+        }
       }
     }, this.sessionCheckInterval);
   }

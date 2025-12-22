@@ -221,5 +221,3 @@ if (typeof module !== 'undefined' && module.exports) {
   window.i18n = i18n;
 }
 
-
-

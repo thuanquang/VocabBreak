@@ -240,15 +240,19 @@ class SupabaseClient {
     if (!this._initializing) {
       this._initializing = this.initClient();
     }
-    await this.withTimeout(this._initializing, timeoutMs, 'initialization');
-    if (!this.client) {
-      const initError = new Error('Supabase client not available after initialization');
-      if (typeof window !== 'undefined' && window.errorHandler) {
-        window.errorHandler.handleDatabaseError(initError, { stage: 'post-init' });
+
+    try {
+      await this.withTimeout(this._initializing, timeoutMs, 'initialization');
+      if (!this.client) {
+        throw new Error('Supabase client not available after initialization');
       }
-      throw initError;
+      return true;
+    } catch (error) {
+      console.warn(`Client initialization failed, but not logging out: ${error.message}`);
+      // Don't throw error - allow system to continue with degraded state
+      // Auth manager will handle this gracefully
+      return false;
     }
-    return true;
   }
 
   assertClient(context = 'unknown') {

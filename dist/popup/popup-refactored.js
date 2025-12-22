@@ -13,7 +13,6 @@ class PopupManager {
 
   async init() {
     try {
-      console.log('🔧 Popup initializing...');
 
       // Wait for dependencies
       await this.waitForDependencies();
@@ -40,7 +39,6 @@ class PopupManager {
       }, 1000);
 
       this.isInitialized = true;
-      console.log('✅ Popup initialized');
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'popup-init' });
       this.showError('Failed to initialize popup. Please reload the extension.');
@@ -353,7 +351,6 @@ class PopupManager {
 
   async initializeGamificationStats() {
     try {
-      console.log('🔄 Initializing gamification stats...');
       
       if (!window.gamificationManager) {
         console.warn('Gamification manager not available');
@@ -376,11 +373,9 @@ class PopupManager {
       if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
         const currentStats = window.gamificationManager.getUserStats();
         if (currentStats.totalPoints === 0 && currentStats.totalQuestions === 0) {
-          console.log('🧪 No existing stats found, initializing test stats...');
           await window.gamificationManager.initializeTestStats();
         }
       } else {
-        console.log('📊 User not authenticated, using offline mode');
       }
       
     } catch (error) {
@@ -390,7 +385,6 @@ class PopupManager {
 
   refreshStats() {
     try {
-      console.log('🔄 Refreshing stats from gamification manager...');
       
       if (!window.gamificationManager || !window.gamificationManager.isInitialized) {
         console.warn('Gamification manager not ready');
@@ -401,8 +395,6 @@ class PopupManager {
       const currentLevel = window.gamificationManager.getCurrentLevel();
       const nextLevelProgress = window.gamificationManager.getNextLevelProgress();
       
-      console.log('📊 Gamification stats:', gamificationStats);
-      console.log('📈 Current level:', currentLevel);
       
       const stats = {
         currentStreak: gamificationStats.currentStreak || 0,
@@ -647,7 +639,6 @@ class PopupManager {
       });
       this.unsubscribers = [];
       
-      console.log('✅ Popup manager destroyed');
     } catch (error) {
       console.error('Failed to destroy popup manager:', error);
     }
