@@ -7,7 +7,6 @@
     "message": "Learn English vocabulary through strategic web interruptions",
     "description": "Extension description"
   },
-  
   "question_header": {
     "message": "VocabBreak",
     "description": "Header shown on question overlay"
@@ -20,7 +19,6 @@
     "message": "Type the correct answer to continue browsing",
     "description": "Instruction for text input questions"
   },
-  
   "submit_answer": {
     "message": "Submit Answer",
     "description": "Submit button text"
@@ -39,7 +37,6 @@
       }
     }
   },
-  
   "streak_bonus": {
     "message": "Streak Bonus! +$POINTS$ points",
     "description": "Streak bonus notification",
@@ -60,7 +57,6 @@
       }
     }
   },
-  
   "login": {
     "message": "Login",
     "description": "Login button"
@@ -81,7 +77,6 @@
     "message": "Sign Up",
     "description": "Sign up button"
   },
-  
   "settings": {
     "message": "Settings",
     "description": "Settings button"
@@ -94,7 +89,6 @@
     "message": "Sync Now",
     "description": "Sync button"
   },
-  
   "current_streak": {
     "message": "Current Streak",
     "description": "Current streak label"
@@ -107,14 +101,20 @@
     "message": "Day $1! Keep it up!",
     "description": "Message shown when day streak is extended",
     "placeholders": {
-      "1": {"content": "$1", "example": "5"}
+      "1": {
+        "content": "$1",
+        "example": "5"
+      }
     }
   },
   "day_streak_lost": {
     "message": "Streak reset (was $1 days)",
     "description": "Message shown when day streak is lost",
     "placeholders": {
-      "1": {"content": "$1", "example": "7"}
+      "1": {
+        "content": "$1",
+        "example": "7"
+      }
     }
   },
   "total_points": {
@@ -129,7 +129,6 @@
     "message": "Accuracy Rate",
     "description": "Accuracy rate label"
   },
-  
   "difficulty_level": {
     "message": "Difficulty Level",
     "description": "Difficulty level setting"
@@ -150,7 +149,6 @@
     "message": "Blacklist",
     "description": "Blacklist mode"
   },
-  
   "error_network": {
     "message": "Network error. Working offline with cached questions.",
     "description": "Network error message"
@@ -163,7 +161,6 @@
     "message": "Something went wrong. Please try again.",
     "description": "Generic error message"
   },
-  
   "loading": {
     "message": "Loading..."
   },
@@ -196,6 +193,12 @@
   },
   "save_changes_star": {
     "message": "Save Changes *"
+  },
+  "saving_dot_dot_dot": {
+    "message": "Saving..."
+  },
+  "saved_exclamation": {
+    "message": "Saved!"
   },
   "tab_account": {
     "message": "Account"
@@ -537,8 +540,12 @@
     "message": "$1 / $2 points",
     "description": "Points progress display",
     "placeholders": {
-      "1": {"content": "$1"},
-      "2": {"content": "$2"}
+      "1": {
+        "content": "$1"
+      },
+      "2": {
+        "content": "$2"
+      }
     }
   },
   "please_select_answer": {
@@ -590,6 +597,3 @@
     "description": "Description for sound feedback toggle"
   }
 }
-
-
-

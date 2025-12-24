@@ -15,6 +15,7 @@ class PopupManager {
 
   async init() {
     try {
+      console.log('🔧 Popup initializing...');
 
       // Wait for dependencies
       await this.waitForDependencies();
@@ -57,6 +58,7 @@ class PopupManager {
       }, 1000);
 
       this.isInitialized = true;
+      console.log('✅ Popup initialized');
     } catch (error) {
       window.errorHandler?.handleUIError(error, { context: 'popup-init' });
       this.showError('Failed to initialize popup. Please reload the extension.');
@@ -347,6 +349,7 @@ class PopupManager {
                              window.coreManager?.getState?.('auth')?.isAuthenticated;
 
       if (isAuthenticated) {
+        console.log('🔄 User is authenticated, just refreshing UI instead of clearing session');
 
         // Clear any error state
         window.stateManager.updateAppState({ lastError: null });
@@ -371,10 +374,12 @@ class PopupManager {
       }
 
       // Only clear session data if user is not authenticated (true error state)
+      console.log('🔄 User not authenticated, clearing session data for fresh start');
 
       // Clear potentially corrupted session data from storage
       try {
         await chrome.storage.local.remove(['vb-auth', 'userSession', 'userProfile']);
+        console.log('🧹 Cleared session data for fresh start');
       } catch (e) {
         console.warn('Could not clear session data:', e);
       }
@@ -447,10 +452,12 @@ class PopupManager {
         }
       }
 
+      console.log('🎯 Test Now clicked - triggering manual block');
       
       const response = await this.sendMessage({ type: 'TRIGGER_BLOCK_NOW' });
       
       if (response && response.success) {
+        console.log('✅ Manual block triggered successfully');
         // Close the popup so user can see the question
         window.close();
       } else {
@@ -591,6 +598,7 @@ class PopupManager {
 
   async initializeGamificationStats() {
     try {
+      console.log('🔄 Initializing gamification stats...');
       
       if (!window.gamificationManager) {
         console.warn('Gamification manager not available');
@@ -616,6 +624,7 @@ class PopupManager {
 
   refreshStats() {
     try {
+      console.log('🔄 Refreshing stats from gamification manager...');
       
       if (!window.gamificationManager || !window.gamificationManager.isInitialized) {
         console.warn('Gamification manager not ready');
@@ -626,6 +635,8 @@ class PopupManager {
       const currentLevel = window.gamificationManager.getCurrentLevel();
       const nextLevelProgress = window.gamificationManager.getNextLevelProgress();
       
+      console.log('📊 Gamification stats:', gamificationStats);
+      console.log('📈 Current level:', currentLevel);
       
       const stats = {
         dayStreak: gamificationStats.dayStreak || 0,
@@ -879,6 +890,7 @@ class PopupManager {
       });
       this.unsubscribers = [];
       
+      console.log('✅ Popup manager destroyed');
     } catch (error) {
       console.error('Failed to destroy popup manager:', error);
     }

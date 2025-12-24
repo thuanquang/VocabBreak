@@ -35,6 +35,7 @@ class BackgroundManager {
     this.isInitialized = false;
     this.initPromise = null; // Promise that resolves when init is complete
     
+    console.log('🔧 BackgroundManager constructor called, interval =', this.periodicInterval / 60000, 'minutes');
     this.initPromise = this.init();
   }
   
@@ -43,12 +44,15 @@ class BackgroundManager {
     if (this.isInitialized) {
       return;
     }
+    console.log('⏳ Waiting for initialization to complete...');
     if (this.initPromise) {
       await this.initPromise;
     }
+    console.log('✅ Initialization complete, proceeding');
   }
 
   async init() {
+    console.log('🚀 VocabBreak background script initializing...');
     
     try {
       // CRITICAL: Load persisted states FIRST before setting up event listeners
@@ -67,6 +71,7 @@ class BackgroundManager {
       await this.initializeExistingTabs();
       
       this.isInitialized = true;
+      console.log('✅ VocabBreak background script initialized');
     } catch (error) {
       console.error('❌ Failed to initialize BackgroundManager:', error);
       // Still mark as initialized to prevent infinite waiting
@@ -114,6 +119,7 @@ class BackgroundManager {
   async initializeExistingTabs() {
     try {
       const tabs = await chrome.tabs.query({});
+      console.log(`📋 Initializing ${tabs.length} existing tabs...`);
       
       for (const tab of tabs) {
         if (tab.url && !tab.url.startsWith('chrome://')) {
@@ -125,6 +131,7 @@ class BackgroundManager {
         }
       }
       
+      console.log(`📋 Finished initializing tabs. States: ${this.tabStates.size}, Timers: ${this.tabTimers.size}`);
     } catch (error) {
       console.error('Failed to initialize existing tabs:', error);
     }
@@ -160,6 +167,7 @@ class BackgroundManager {
       console.warn('Failed to load timer settings, using defaults', error);
     }
   }
+
 
   shouldBlockUrl(url) {
     if (!url) return false;
@@ -253,6 +261,7 @@ class BackgroundManager {
         penaltyEndTime: 0
       };
       this.tabStates.set(tabId, tabState);
+      console.log(`🆕 New tab ${tabId} - forcing immediate question`);
     }
 
     // Check if enough time has passed for a question
@@ -261,6 +270,7 @@ class BackgroundManager {
 
     if (timeSinceLastQuestion >= this.periodicInterval && !tabState.isBlocked) {
       // Enough time has passed - trigger question immediately
+      console.log(`⏰ Tab ${tabId}: ${Math.round(timeSinceLastQuestion/1000)}s since last question - triggering immediately`);
       tabState.isBlocked = true;
       tabState.blockReason = 'periodic';
       this.tabStates.set(tabId, tabState);
@@ -269,6 +279,7 @@ class BackgroundManager {
     } else if (!this.tabTimers.has(tabId)) {
       // Schedule timer for remaining time
       const timeRemaining = this.periodicInterval - timeSinceLastQuestion;
+      console.log(`⏰ Tab ${tabId}: Scheduling question in ${Math.round(timeRemaining/1000)}s`);
       this.schedulePeriodicQuestion(tabId);
     }
   }
@@ -297,8 +308,14 @@ class BackgroundManager {
       const normalizedNew = normalizeUrl(url);
       const urlChanged = !existingTabState || normalizedExisting !== normalizedNew;
       
+      console.log(`📍 Tab ${tabId} updated:`);
+      console.log(`   - Has existing state: ${!!existingTabState}`);
       if (existingTabState) {
+        console.log(`   - Existing URL: ${existingTabState.url}`);
+        console.log(`   - Existing lastQuestionTime: ${new Date(existingTabState.lastQuestionTime).toISOString()}`);
       }
+      console.log(`   - New URL: ${url}`);
+      console.log(`   - URL changed: ${urlChanged}`);
       
       if (!this.shouldBlockUrl(url)) {
         this.tabStates.delete(tabId);
@@ -308,6 +325,7 @@ class BackgroundManager {
 
       // Handle URL changes
       if (urlChanged) {
+        console.log(`🔄 Tab ${tabId}: URL changed, resetting timing`);
         this.clearTabTimer(tabId);
 
         // Update tab state URL but preserve lastQuestionTime for new URL
@@ -334,6 +352,7 @@ class BackgroundManager {
     // Clean up persisted timer state for closed tabs
     this.persistStates();
     
+    console.log(`🗑️ Cleaned up tab ${tabId}`);
   }
 
   async handleMessage(message, sender, sendResponse) {
@@ -357,7 +376,9 @@ class BackgroundManager {
           break;
 
         case 'REQUEST_BLOCK_CHECK':
+          console.log(`📨 REQUEST_BLOCK_CHECK from tab ${sender.tab?.id}, URL: ${sender.tab?.url?.substring(0, 50)}`);
           const blockState = await this.getBlockState(sender.tab.id, sender.tab.url);
+          console.log(`📨 Block check result:`, JSON.stringify(blockState));
           sendResponse(blockState);
           break;
 
@@ -422,6 +443,7 @@ class BackgroundManager {
       return;
     }
     
+    console.log(`📩 QUESTION_ANSWERED: tab=${tabId}, correct=${isCorrect}, questionId=${questionId}`);
     
     const tabState = this.tabStates.get(tabId);
     if (!tabState) {
@@ -448,6 +470,7 @@ class BackgroundManager {
         
         // Reschedule the periodic question timer
         this.schedulePeriodicQuestion(tabId);
+        console.log(`⏰ Tab ${tabId}: Rescheduled periodic timer for ${this.periodicInterval/60000} minutes`);
       } else {
         tabState.isBlocked = true;
         tabState.blockReason = 'wrong_answer';
@@ -458,6 +481,7 @@ class BackgroundManager {
     
     // Persist state immediately
     await this.persistStates();
+    console.log(`💾 Persisted state after QUESTION_ANSWERED for tab ${tabId}`);
   }
 
   async handleAnswerSubmission(message, sender, sendResponse) {
@@ -515,6 +539,7 @@ class BackgroundManager {
         
         // CRITICAL: Persist state immediately so lastQuestionTime survives service worker suspension
         await this.persistStates();
+        console.log(`💾 Persisted tab ${tabId} state: lastQuestionTime=${new Date(tabState.lastQuestionTime).toISOString()}`);
       }
 
       // Reschedule periodic question
@@ -545,11 +570,13 @@ class BackgroundManager {
     const isExcluded = !url || this.matchesPatterns(url, this.defaultExclusions);
 
     if (isExcluded || !this.shouldBlockUrl(url)) {
+      console.log(`✅ Tab ${tabId} excluded or not blockable: ${url?.substring(0, 50)}`);
       return { shouldBlock: false, reason: null, penaltyEndTime: 0, timeSinceLastQuestion: 0 };
     }
 
     const tabState = this.tabStates.get(tabId);
     if (!tabState) {
+      console.log(`❌ No tab state found for ${tabId}, not blocking`);
       return { shouldBlock: false, reason: null, penaltyEndTime: 0, timeSinceLastQuestion: 0 };
     }
 
@@ -584,6 +611,8 @@ class BackgroundManager {
       reason = tabState.blockReason || 'manual';
     }
 
+    console.log(`🔍 Tab ${tabId} block check: timeSince=${Math.round(timeSinceLastQuestion/1000)}s, interval=${this.periodicInterval/1000}s, timeElapsed=${timeElapsed}, penaltyActive=${penaltyActive}, shouldBlock=${shouldBlock}, reason=${reason}`);
+
     return {
       shouldBlock: shouldBlock,
       reason: reason,
@@ -603,12 +632,15 @@ class BackgroundManager {
     tabState.blockReason = reason;
     this.tabStates.set(tabId, tabState);
 
+    console.log(`🚫 Triggering question for tab ${tabId}, reason: ${reason}`);
+
     // Try message first (preferred, more reliable)
     let messageSuccess = false;
     try {
       const response = await chrome.tabs.sendMessage(tabId, { type: 'SHOW_QUESTION', reason: reason });
       if (response && response.success) {
         messageSuccess = true;
+        console.log(`📩 SHOW_QUESTION message sent successfully to tab ${tabId}`);
       }
     } catch (err) {
       console.warn(`⚠️ SHOW_QUESTION message failed for tab ${tabId}:`, err?.message || err);
@@ -617,6 +649,7 @@ class BackgroundManager {
     // Fallback: use executeScript if message failed
     if (!messageSuccess) {
       try {
+        console.log(`🔧 Trying executeScript fallback for tab ${tabId}`);
         await chrome.scripting.executeScript({
           target: { tabId: tabId },
           func: (reasonParam) => {
@@ -628,6 +661,7 @@ class BackgroundManager {
           },
           args: [reason]
         });
+        console.log(`✅ executeScript fallback successful for tab ${tabId}`);
       } catch (error) {
         console.error(`❌ Failed to trigger question display for tab ${tabId}:`, error);
       }
@@ -635,6 +669,7 @@ class BackgroundManager {
   }
 
   async triggerManualBlock() {
+    console.log('🎯 Manual block triggered');
     
     try {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -675,6 +710,7 @@ class BackgroundManager {
       // Trigger the question
       await this.triggerQuestion(tabId, 'manual');
       
+      console.log(`✅ Manual block triggered successfully for tab ${tabId}`);
       return { success: true };
       
     } catch (error) {
@@ -710,9 +746,11 @@ class BackgroundManager {
     // Persist timer state immediately for service worker suspension recovery
     this.persistStates();
 
+    console.log(`⏰ Scheduled periodic question for tab ${tabId}: setTimeout=${this.periodicInterval}ms, alarm=${delayInMinutes}min, scheduledTime=${new Date(scheduledTime).toISOString()}`);
   }
 
   async handlePeriodicTimer(tabId) {
+    console.log(`⏰ handlePeriodicTimer called for tab ${tabId}`);
     
     const timer = this.tabTimers.get(tabId);
     if (timer?.alarmName) {
@@ -725,10 +763,12 @@ class BackgroundManager {
 
     const tabState = this.tabStates.get(tabId);
     if (!tabState) {
+      console.log(`⚠️ No tab state for ${tabId}, skipping timer`);
       return;
     }
     
     if (!this.shouldBlockUrl(tabState.url)) {
+      console.log(`⚠️ Tab ${tabId} URL no longer blockable: ${tabState.url}`);
       return;
     }
 
@@ -738,6 +778,7 @@ class BackgroundManager {
     if (timeSinceLastQuestion < this.periodicInterval - 2000) {
       // Timer fired too early, reschedule
       const remaining = this.periodicInterval - timeSinceLastQuestion;
+      console.log(`⏰ Timer fired early for tab ${tabId}, rescheduling in ${remaining}ms`);
       this.schedulePeriodicQuestion(tabId);
       return;
     }
@@ -750,6 +791,7 @@ class BackgroundManager {
     // Persist state change
     this.persistStates();
 
+    console.log(`🚫 Blocking tab ${tabId} - periodic timer fired after ${Math.round(timeSinceLastQuestion/1000)}s`);
     
     // Trigger question display
     await this.triggerQuestion(tabId, 'periodic');
@@ -857,6 +899,7 @@ class BackgroundManager {
     await this.waitForInit();
     
     const alarmName = alarm.name;
+    console.log(`🔔 Alarm fired: ${alarmName}`);
     
     if (alarmName.startsWith('vocabbreak_tab_')) {
       const tabId = parseInt(alarmName.replace('vocabbreak_tab_', ''));
@@ -864,10 +907,12 @@ class BackgroundManager {
       const timer = this.tabTimers.get(tabId);
       // If no timer exists, it may have been handled by setTimeout already
       if (!timer) {
+        console.log(`⚠️ No timer found for alarm ${alarmName}, may have been handled by setTimeout`);
         return;
       }
       
       if (timer.type !== 'periodic') {
+        console.log(`⚠️ Timer type is ${timer.type}, not periodic`);
         return;
       }
 
@@ -877,19 +922,23 @@ class BackgroundManager {
       
       if (timeRemaining > 2000) {
         // setTimeout will fire closer to the target time
+        console.log(`⏰ Alarm fired early, ${timeRemaining}ms remaining, setTimeout will handle`);
         return;
       }
 
       // Time has elapsed, trigger the question
+      console.log(`⏰ Alarm triggering periodic question for tab ${tabId}`);
       await this.handlePeriodicTimer(tabId);
       
     } else if (alarmName.startsWith('vocabbreak_penalty_')) {
       const tabId = parseInt(alarmName.replace('vocabbreak_penalty_', ''));
+      console.log(`⏰ Penalty alarm fired for tab ${tabId}`);
       await this.clearTabPenalty(tabId);
     }
   }
 
   async handleSettingsUpdate(settings) {
+    console.log('🔧 Background script received settings update:', settings);
     
     const oldPeriodicInterval = this.periodicInterval;
     const oldBlockingMode = this.blockingMode;
@@ -923,6 +972,7 @@ class BackgroundManager {
         blockingMode: this.blockingMode,
         siteList: incomingSiteList
       });
+      console.log('✅ Settings saved to chrome storage');
     } catch (error) {
       console.error('❌ Failed to save settings to storage:', error);
     }
@@ -932,10 +982,12 @@ class BackgroundManager {
     const modeChanged = oldBlockingMode !== this.blockingMode;
     
     if (intervalChanged) {
+      console.log(`⏰ Interval changed from ${oldPeriodicInterval/60000}min to ${this.periodicInterval/60000}min - rescheduling all timers`);
       await this.rescheduleAllTimers();
     }
     
     if (modeChanged) {
+      console.log(`🔄 Blocking mode changed from ${oldBlockingMode} to ${this.blockingMode} - re-evaluating all tabs`);
       await this.reevaluateAllTabs();
     }
 
@@ -945,9 +997,11 @@ class BackgroundManager {
       settings: settings
     });
     
+    console.log('✅ Settings update complete');
   }
   
   async rescheduleAllTimers() {
+    console.log(`⏰ Rescheduling timers for ${this.tabTimers.size} tabs with new interval ${this.periodicInterval/60000}min`);
     
     for (const [tabId, timer] of this.tabTimers.entries()) {
       const tabState = this.tabStates.get(tabId);
@@ -964,9 +1018,11 @@ class BackgroundManager {
       
       if (timeRemaining <= 0) {
         // Time already elapsed, trigger immediately
+        console.log(`⚡ Tab ${tabId}: time already elapsed, triggering immediately`);
         await this.handlePeriodicTimer(tabId);
       } else {
         // Schedule new timer with remaining time
+        console.log(`⏰ Tab ${tabId}: rescheduling in ${Math.round(timeRemaining/1000)}s`);
         
         const scheduledTime = now + timeRemaining;
         const timeoutId = setTimeout(() => this.handlePeriodicTimer(tabId), timeRemaining);
@@ -990,6 +1046,7 @@ class BackgroundManager {
   }
   
   async reevaluateAllTabs() {
+    console.log('🔄 Re-evaluating blocking status for all tabs');
     
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
@@ -1001,9 +1058,11 @@ class BackgroundManager {
       
       if (shouldBlock && !tabState) {
         // Tab should now be blocked but wasn't tracked - handle activity
+        console.log(`📍 Tab ${tabId} now blockable, handling activity`);
         await this.handleTabActivity(tabId, tab.url);
       } else if (!shouldBlock && tabState) {
         // Tab was tracked but should no longer be blocked - clean up
+        console.log(`✅ Tab ${tabId} no longer blockable, cleaning up`);
         this.clearTabTimer(tabId);
         this.tabStates.delete(tabId);
       }
@@ -1024,8 +1083,11 @@ class BackgroundManager {
     }
   }
 
+
+
   async loadPersistedStates() {
     try {
+      console.log('📂 Loading persisted tab states...');
       const stored = await chrome.storage.local.get(['tabStates']);
 
       if (stored.tabStates) {
@@ -1037,10 +1099,12 @@ class BackgroundManager {
           // Fix for existing broken states: if lastQuestionTime is 0, set it to now
           if (state.lastQuestionTime === 0) {
             state.lastQuestionTime = Date.now();
+            console.log(`🔧 Fixed broken tab state ${tabId}: set lastQuestionTime to now`);
           }
           this.tabStates.set(parseInt(tabId), state);
           loadedCount++;
         }
+        console.log(`📂 Loaded ${loadedCount} tab states from storage`);
       }
 
       // Recreate penalty timers for tabs still under penalty
@@ -1052,6 +1116,7 @@ class BackgroundManager {
         }
       }
       if (penaltyCount > 0) {
+        console.log(`⏱️ Restored ${penaltyCount} penalty timers`);
       }
 
     } catch (error) {
@@ -1080,16 +1145,19 @@ class BackgroundManager {
         tabTimers: tabTimersObj
       });
       
+      console.log(`💾 Persisted ${Object.keys(tabStatesObj).length} tab states, ${Object.keys(tabTimersObj).length} timers`);
     } catch (error) {
       console.error('❌ Failed to persist states:', error);
     }
   }
 
   async handleExtensionStartup() {
+    console.log('Extension startup detected');
     await this.loadPersistedStates();
   }
 
   async handleExtensionInstalled(details) {
+    console.log('Extension installed:', details.reason);
     
     if (details.reason === 'install') {
       // First time installation
@@ -1098,6 +1166,8 @@ class BackgroundManager {
       });
     }
   }
+
+
 
   async getStats() {
     try {
@@ -1169,6 +1239,7 @@ class BackgroundManager {
             }
             
             // Session expired - clear it and return expired status
+            console.log('🔒 Session expired, clearing vb-auth');
             await chrome.storage.local.remove(['vb-auth']);
             return { isAuthenticated: false, sessionExpired: true };
           }
@@ -1197,6 +1268,7 @@ class BackgroundManager {
         }
         
         // Session expired - clear it
+        console.log('🔒 userSession expired, clearing');
         await chrome.storage.local.remove(['userSession']);
         return { isAuthenticated: false, sessionExpired: true };
       }
@@ -1332,10 +1404,13 @@ class BackgroundManager {
 }
 
 // Initialize background manager
+console.log('🚀 VocabBreak background script starting up...');
 const backgroundManager = new BackgroundManager();
 
 // Persist states periodically
 setInterval(() => {
   backgroundManager.persistStates();
 }, 60000); // Every minute
+
+
 

@@ -22,20 +22,20 @@ class OptionsManager {
     };
     this.user = null;
     this.isDirty = false;
-    
+
     this.init();
   }
 
   async init() {
     console.log('Options page initializing...');
-    
+
     // Set up event listeners
     this.setupEventListeners();
-    
+
     // Load user data and settings
     await this.loadUserData();
     await this.loadSettings();
-    
+
     // Wait for i18n ready, then localize and set lang
     if (window.i18n && window.i18n.ready) {
       await window.i18n.ready;
@@ -48,17 +48,17 @@ class OptionsManager {
 
     // Initialize UI
     this.initializeUI();
-    
+
     // Set up auto-save on changes
     this.setupAutoSave();
-    
+
     console.log('Options page initialized');
   }
 
   async waitForGamificationReady() {
     try {
       console.log('⏳ Waiting for gamification dependencies...');
-      
+
       // Wait for Supabase to be ready
       if (window.supabaseReadyPromise) {
         await Promise.race([
@@ -66,7 +66,7 @@ class OptionsManager {
           new Promise(resolve => setTimeout(resolve, 5000))
         ]);
       }
-      
+
       // Wait for gamificationManager to initialize and load from database
       if (window.gamificationManager) {
         let attempts = 0;
@@ -74,7 +74,7 @@ class OptionsManager {
           await new Promise(resolve => setTimeout(resolve, 100));
           attempts++;
         }
-        
+
         // Force reload from database if authenticated but stats look empty
         if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
           const stats = window.gamificationManager.getUserStats();
@@ -84,7 +84,7 @@ class OptionsManager {
           }
         }
       }
-      
+
       console.log('✅ Gamification dependencies ready');
     } catch (error) {
       console.warn('⚠️ Error waiting for gamification dependencies:', error);
@@ -138,7 +138,7 @@ class OptionsManager {
           this.markDirty();
         }
       });
-      
+
       // Validate on blur to ensure minimum value
       periodicIntervalInput.addEventListener('blur', (e) => {
         const value = parseFloat(e.target.value);
@@ -161,7 +161,7 @@ class OptionsManager {
           this.markDirty();
         }
       });
-      
+
       // Validate on blur to ensure minimum value
       penaltyDurationInput.addEventListener('blur', (e) => {
         const value = parseFloat(e.target.value);
@@ -184,7 +184,7 @@ class OptionsManager {
       }
       this.hideConfirmModal();
     });
-    
+
     // Footer support link - scroll to support section
     const supportLink = document.getElementById('support-link');
     if (supportLink) {
@@ -193,7 +193,7 @@ class OptionsManager {
         this.scrollToSupport();
       });
     }
-    
+
     // Listen for messages from popup to scroll to support
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'SCROLL_TO_SUPPORT') {
@@ -202,13 +202,13 @@ class OptionsManager {
       }
       return true;
     });
-    
+
     // Check URL hash on load
     if (window.location.hash === '#support') {
       setTimeout(() => this.scrollToSupport(), 500);
     }
   }
-  
+
   scrollToSupport() {
     const supportSection = document.getElementById('support-section');
     if (supportSection) {
@@ -250,12 +250,12 @@ class OptionsManager {
 
       // Merge with defaults
       this.settings = { ...this.settings, ...result };
-      
+
       console.log('Loaded local settings:', this.settings);
 
       // Load gamification settings from database if authenticated
       await this.loadGamificationSettingsFromDatabase();
-      
+
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -281,7 +281,7 @@ class OptionsManager {
       const userProfile = await window.supabaseClient.getUserProfile();
       if (userProfile && userProfile.profile) {
         const prefs = userProfile.profile.preferences || {};
-        
+
         // Load gamification-specific preferences from database
         if (prefs.gamification_enabled !== undefined) {
           this.settings.gamificationEnabled = prefs.gamification_enabled;
@@ -295,7 +295,7 @@ class OptionsManager {
         if (prefs.sound_enabled !== undefined) {
           this.settings.soundEnabled = prefs.sound_enabled;
         }
-        
+
         console.log('✅ Loaded gamification settings from database:', {
           gamificationEnabled: this.settings.gamificationEnabled,
           streakNotifications: this.settings.streakNotifications,
@@ -311,29 +311,29 @@ class OptionsManager {
   initializeUI() {
     // Initialize account info
     this.updateAccountInfo();
-    
+
     // Initialize form values
     this.updateFormValues();
-    
+
     // Initialize topics list
     this.updateTopicsList();
-    
+
     // Initialize site list
     this.updateSiteList();
-    
+
     // Initialize progress overview
     this.updateProgressOverview();
-    
+
     // Initialize achievements
     this.updateAchievements();
-    
+
     // Initialize timezone selector
     this.updateTimezoneSelector();
   }
 
   updateAccountInfo() {
     const accountInfo = document.getElementById('account-info');
-    
+
     if (this.user) {
       accountInfo.innerHTML = `
         <div class="account-field">
@@ -381,7 +381,7 @@ class OptionsManager {
       periodicIntervalInput.value = this.settings.periodicInterval;
       document.getElementById('interval-value').textContent = `${this.settings.periodicInterval} min`;
     }
-    
+
     const penaltyDurationInput = document.getElementById('penalty-duration');
     if (penaltyDurationInput) {
       penaltyDurationInput.value = this.settings.penaltyDuration;
@@ -436,7 +436,7 @@ class OptionsManager {
 
   updateSiteList() {
     const siteList = document.getElementById('site-list');
-    
+
     if (this.settings.siteList.length === 0) {
       const empty = window.i18n ? window.i18n.getMessage('no_sites_added') : 'No sites added yet';
       siteList.innerHTML = `<p style="color: #718096; text-align: center; padding: 20px;">${empty}</p>`;
@@ -450,7 +450,7 @@ class OptionsManager {
         <button class="remove-site" data-site="${site}">${window.i18n ? window.i18n.getMessage('remove') : 'Remove'}</button>
       </div>
     `).join('');
-    
+
     // Attach event listeners after rendering (CSP-compliant)
     siteList.querySelectorAll('.remove-site').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -462,7 +462,7 @@ class OptionsManager {
 
   async updateProgressOverview() {
     const progressOverview = document.getElementById('progress-overview');
-    
+
     try {
       // Wait for gamificationManager to be ready and get stats directly from it
       let stats = {
@@ -502,7 +502,7 @@ class OptionsManager {
             }, 5000);
           });
         }
-        
+
         // If stats are still empty but we're authenticated, force reload from database
         let currentStats = window.gamificationManager.getUserStats();
         if (currentStats.totalPoints === 0 && currentStats.totalQuestions === 0) {
@@ -512,13 +512,13 @@ class OptionsManager {
             currentStats = window.gamificationManager.getUserStats();
           }
         }
-        
+
         stats = currentStats;
         console.log('📊 Loaded stats from gamificationManager:', stats);
       }
 
-      const accuracyRate = stats.totalQuestions > 0 
-        ? Math.round((stats.correctAnswers / stats.totalQuestions) * 100) 
+      const accuracyRate = stats.totalQuestions > 0
+        ? Math.round((stats.correctAnswers / stats.totalQuestions) * 100)
         : 0;
 
       progressOverview.innerHTML = `
@@ -573,11 +573,11 @@ class OptionsManager {
 
   async updateAchievements() {
     const achievementsGrid = document.getElementById('achievements-grid');
-    
+
     try {
       // Get achievements directly from gamificationManager
       let achievements = {};
-      
+
       // First, wait for Supabase client to be ready
       if (window.supabaseReadyPromise) {
         await Promise.race([
@@ -585,7 +585,7 @@ class OptionsManager {
           new Promise(resolve => setTimeout(resolve, 5000))
         ]);
       }
-      
+
       if (window.gamificationManager) {
         // Wait for gamification manager to initialize if needed
         if (!window.gamificationManager.isInitialized) {
@@ -603,19 +603,19 @@ class OptionsManager {
             }, 5000);
           });
         }
-        
+
         // If stats weren't loaded (cachedStats is empty/null), force reload from database
-        if (!window.gamificationManager.cachedStats || 
-            (window.gamificationManager.cachedStats.gamification.achievements.length === 0 && 
-             window.supabaseClient && window.supabaseClient.isAuthenticated())) {
+        if (!window.gamificationManager.cachedStats ||
+          (window.gamificationManager.cachedStats.gamification.achievements.length === 0 &&
+            window.supabaseClient && window.supabaseClient.isAuthenticated())) {
           console.log('🏆 Forcing reload of achievements from database...');
           await window.gamificationManager.loadUserStatsFromDatabase();
         }
-        
+
         achievements = window.gamificationManager.getAchievements();
         console.log('🏆 Loaded achievements from gamificationManager:', achievements);
       }
-      
+
       // Convert achievements object to array and sort: unlocked first, then locked
       const achievementArray = Object.values(achievements).sort((a, b) => {
         if (a.unlocked && !b.unlocked) return -1;
@@ -635,7 +635,7 @@ class OptionsManager {
       achievementsGrid.innerHTML = achievementArray.map(achievement => {
         const name = isVi && achievement.nameVi ? achievement.nameVi : achievement.name;
         const description = isVi && achievement.descriptionVi ? achievement.descriptionVi : achievement.description;
-        
+
         return `
           <div class="achievement-card ${achievement.unlocked ? 'unlocked' : 'locked'}">
             <span class="achievement-icon">${achievement.icon}</span>
@@ -656,7 +656,7 @@ class OptionsManager {
   updateTimezoneSelector() {
     const timezoneSelect = document.getElementById('timezone');
     const currentTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
+
     // Common timezones
     const timezones = [
       'America/New_York',
@@ -751,7 +751,7 @@ class OptionsManager {
   async addSite() {
     const input = document.getElementById('site-input');
     const site = input.value.trim();
-    
+
     if (!site) {
       this.showNotification('Please enter a website URL or pattern', 'error');
       return;
@@ -807,6 +807,11 @@ class OptionsManager {
   }
 
   async saveSettings() {
+    if (this.isSaving) return; // Prevent double clicks
+
+    this.isSaving = true;
+    this.updateSaveButton(); // Show saving state
+
     try {
       const interval = Number(this.settings.periodicInterval);
       const penalty = Number(this.settings.penaltyDuration);
@@ -816,17 +821,17 @@ class OptionsManager {
         this.showNotification('Question frequency must be a positive number', 'error');
         return;
       }
-      
+
       if (interval < 0.5) {
         this.showNotification('Question frequency must be at least 0.5 minutes (30 seconds)', 'error');
         return;
       }
-      
+
       if (!Number.isFinite(penalty) || penalty <= 0) {
         this.showNotification('Penalty duration must be a positive number', 'error');
         return;
       }
-      
+
       if (penalty < 5) {
         this.showNotification('Penalty duration must be at least 5 seconds', 'error');
         return;
@@ -841,10 +846,12 @@ class OptionsManager {
 
       // Save to local storage first (persist to chrome.storage.sync)
       await chrome.storage.sync.set(this.settings);
-      
-      // Save gamification settings to database
-      await this.saveGamificationSettingsToDatabase();
-      
+
+      // Save gamification settings to database (fire and forget / optimistic)
+      this.saveGamificationSettingsToDatabase().catch(err => {
+        console.warn('Background save to DB failed, but local save ok:', err);
+      });
+
       // Notify background script about settings update with all settings
       // This triggers immediate reschedule of all timers and re-evaluation of tabs
       const response = await new Promise((resolve) => {
@@ -853,16 +860,33 @@ class OptionsManager {
           settings: this.settings
         }, resolve);
       });
-      
+
       console.log('📩 Background script acknowledged settings update:', response);
-      
+
       this.isDirty = false;
-      this.updateSaveButton();
-      this.showNotification('Settings saved and applied immediately');
-      
+      this.isSaving = false; // Reset saving flag
+
+      // visual feedback for success
+      const saveButton = document.getElementById('save-settings');
+      if (saveButton) {
+        saveButton.textContent = window.i18n ? window.i18n.getMessage('saved_exclamation') : 'Saved!';
+        saveButton.classList.remove('btn-saving');
+        saveButton.classList.add('btn-success');
+
+        // Revert after delay
+        setTimeout(() => {
+          saveButton.classList.remove('btn-success');
+          this.updateSaveButton(); // This will reset it to normal "Save Changes" state since isDirty is false
+        }, 2000);
+      }
+
+      // this.showNotification('Settings saved and applied immediately'); // Optional: keep notification or just rely on button? keeping for now but maybe less intrusive if button works well.
+
     } catch (error) {
       console.error('Failed to save settings:', error);
       this.showNotification('Failed to save settings', 'error');
+      this.isSaving = false;
+      this.updateSaveButton(); // Revert to dirty state if failed
     }
   }
 
@@ -909,18 +933,18 @@ class OptionsManager {
   async syncData() {
     const statusIndicator = document.querySelector('#sync-status .status-indicator');
     const statusText = document.querySelector('#sync-status .status-text');
-    
+
     statusIndicator.className = 'status-indicator syncing';
     statusText.textContent = window.i18n ? window.i18n.getMessage('syncing') : 'Syncing...';
-    
+
     try {
       // Simulate sync delay
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       statusIndicator.className = 'status-indicator';
       statusText.textContent = window.i18n ? window.i18n.getMessage('synced') : 'Synced';
       this.showNotification(window.i18n ? window.i18n.getMessage('data_synced_success') : 'Data synced successfully');
-      
+
     } catch (error) {
       console.error('Sync failed:', error);
       statusIndicator.className = 'status-indicator error';
@@ -936,8 +960,24 @@ class OptionsManager {
 
   updateSaveButton() {
     const saveButton = document.getElementById('save-settings');
+    if (!saveButton) return;
+
+    // If currently saving, override everything else
+    if (this.isSaving) {
+      saveButton.textContent = window.i18n ? window.i18n.getMessage('saving_dot_dot_dot') : 'Saving...';
+      saveButton.classList.add('btn-saving');
+      saveButton.disabled = true;
+      return;
+    }
+
+    // Reset special classes and state
+    saveButton.classList.remove('btn-saving', 'btn-success');
+    saveButton.disabled = false;
+
     if (this.isDirty) {
       saveButton.textContent = window.i18n ? window.i18n.getMessage('save_changes_star') : 'Save Changes *';
+      // saveButton.style.background = '#ed8936'; // Managed by CSS now preferred, but keeping inline if needed or moving to class? 
+      // Let's use a class for dirty state if we want to clean up JS, but consistent with existing code:
       saveButton.style.background = '#ed8936';
     } else {
       saveButton.textContent = window.i18n ? window.i18n.getMessage('save_changes') : 'Save Changes';
@@ -960,11 +1000,11 @@ class OptionsManager {
   showNotification(message, type = 'success') {
     const notification = document.getElementById('notification');
     const notificationText = document.getElementById('notification-text');
-    
+
     notificationText.textContent = message;
     notification.style.background = type === 'error' ? '#f56565' : '#48bb78';
     notification.classList.remove('hidden');
-    
+
     setTimeout(() => {
       notification.classList.add('hidden');
     }, 3000);

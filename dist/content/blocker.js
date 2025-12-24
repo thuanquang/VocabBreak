@@ -37,6 +37,7 @@ class VocabBreakBlocker {
       if (window.i18n && window.i18n.ready) {
         try {
           await window.i18n.ready;
+          console.log('✅ i18n system ready in content script');
         } catch (error) {
           console.warn('⚠️ Failed to wait for i18n system:', error);
         }
@@ -57,18 +58,24 @@ class VocabBreakBlocker {
       });
 
       // Check if we should block this page
+      console.log('🔍 VocabBreak content script checking if should block...');
       const response = await this.sendMessage({ type: 'REQUEST_BLOCK_CHECK' });
+      console.log('🔍 Block check response:', JSON.stringify(response));
       
       if (response && response.shouldBlock) {
         // Check authentication first - only block for logged-in users
         const isAuthenticated = await this.checkAuthStatus();
         if (!isAuthenticated) {
+          console.log('🔒 User not authenticated, skipping block');
         } else if (response.reason === 'penalty') {
+          console.log('⏳ Penalty active: showing penalty overlay until', new Date(response.penaltyEndTime).toISOString());
           this.showPenaltyOverlay(response.penaltyEndTime);
         } else {
+          console.log(`❌ BLOCKING: reason=${response.reason}, timeSinceLastQuestion=${Math.round((response.timeSinceLastQuestion || 0)/1000)}s`);
           this.showQuestion(response.reason || 'periodic');
         }
       } else {
+        console.log(`✅ NOT BLOCKING: timeSinceLastQuestion=${Math.round((response?.timeSinceLastQuestion || 0)/1000)}s`);
       }
 
       // Set up message listener
@@ -82,6 +89,7 @@ class VocabBreakBlocker {
       this.isInitialized = true;
       window.vocabBreakBlocker = this;
       
+      console.log('✅ VocabBreak blocker initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize VocabBreak blocker:', error);
       console.error('📝 Stack:', error.stack);
@@ -198,6 +206,7 @@ class VocabBreakBlocker {
       // Questions should only appear for logged-in users
       const isAuthenticated = await this.checkAuthStatus();
       if (!isAuthenticated) {
+        console.log('🔒 User not authenticated, skipping question');
         return;
       }
 
@@ -250,11 +259,13 @@ class VocabBreakBlocker {
           if (dbQuestion) {
             // Transform database question to expected format
             question = this.transformDatabaseQuestion(dbQuestion);
+            console.log('✅ Question fetched from Supabase:', dbQuestion.id);
             
             // Cache this question to IndexedDB for connection failure fallback
             await this.cacheQuestionToIndexedDB(question, userSettings);
             
           } else {
+            console.log('📝 No questions returned from Supabase');
           }
         } catch (dbError) {
           console.warn('⚠️ Supabase failed, will try cache:', dbError);
@@ -267,6 +278,7 @@ class VocabBreakBlocker {
       // 2. SECOND: Try IndexedDB cache if Supabase failed or no internet
       if (!question && window.coreManager) {
         try {
+          console.log('🗄️ Trying IndexedDB cache for questions...');
           const userState = window.coreManager.getState('user');
           const userPreferences = userState?.preferences || {
             difficultyLevels: ['A1', 'A2'],
@@ -278,6 +290,7 @@ class VocabBreakBlocker {
           const cachedQuestion = await this.getCachedQuestionFromIndexedDB(userPreferences);
           if (cachedQuestion) {
             question = cachedQuestion;
+            console.log('✅ Using cached question from IndexedDB:', question.id);
           }
         } catch (cacheError) {
           console.warn('⚠️ IndexedDB cache failed:', cacheError);
@@ -740,6 +753,7 @@ class VocabBreakBlocker {
       
       // If this is a Supabase question, validate it locally
       if (this.currentQuestion.id && !this.currentQuestion.id.startsWith('local_')) {
+        console.log('🔍 Validating Supabase question locally');
         response = await this.validateSupabaseQuestion(userAnswer);
         
         // CRITICAL: Notify background script of the answer result
@@ -751,6 +765,7 @@ class VocabBreakBlocker {
             isCorrect: response.validation.isCorrect,
             timeTaken: timeTaken
           });
+          console.log('📩 Notified background script of answer result');
         }
       } else {
         // Send to background script for local question validation
@@ -791,6 +806,7 @@ class VocabBreakBlocker {
             response.gamification = gamificationResult;
             response.motivationMessage = window.gamificationManager.getMotivationMessage(questionResult);
             
+            console.log('✅ Gamification stats updated:', gamificationResult);
           } catch (error) {
             console.warn('Failed to update gamification stats:', error);
           }
@@ -976,24 +992,29 @@ class VocabBreakBlocker {
   }
 
   handleMessage(message, sender, sendResponse) {
+    console.log('📩 Content script received message:', message.type);
     
     switch (message.type) {
       case 'SHOW_QUESTION':
+        console.log(`📩 SHOW_QUESTION received, reason: ${message.reason || 'periodic'}`);
         this.showQuestion(message.reason || 'periodic');
         sendResponse && sendResponse({ success: true });
         break;
         
       case 'GLOBAL_PENALTY':
+        console.log(`📩 GLOBAL_PENALTY received, endTime: ${new Date(message.penaltyEndTime).toISOString()}`);
         this.showPenaltyOverlay(message.penaltyEndTime);
         sendResponse && sendResponse({ success: true });
         break;
 
       case 'PENALTY_CLEARED':
+        console.log('📩 PENALTY_CLEARED received');
         this.hideOverlay();
         sendResponse && sendResponse({ success: true });
         break;
       
       case 'SETTINGS_CHANGED':
+        console.log('🔄 Settings changed, refreshing question cache...');
         setTimeout(() => this.checkAndRefreshCacheIfNeeded(), 1000);
         sendResponse && sendResponse({ success: true });
         break;
@@ -1068,6 +1089,7 @@ class VocabBreakBlocker {
           outcome: response.validation.isCorrect ? 'answered_correct' : 'wrong_answer',
           metadata: { questionId: this.currentQuestion.id }
         });
+        console.log('✅ Interaction recorded to Supabase');
       } else {
         // Store in offline manager for later sync
         if (window.offlineManager) {
@@ -1079,6 +1101,7 @@ class VocabBreakBlocker {
             streakAtTime: response.currentStreak || 0,
             timestamp: Date.now()
           });
+          console.log('📝 Interaction queued for offline sync');
         }
       }
     } catch (error) {
@@ -1102,6 +1125,10 @@ class VocabBreakBlocker {
       } catch (error) {
         console.warn('Failed to get interface language setting:', error);
       }
+
+      console.log('🔍 Validating answer for question:', question.id);
+      console.log('🔍 User answer:', userAnswer);
+      console.log('🔍 Question data:', question);
 
       // Get correct answer(s) - check multiple possible locations
       let correctAnswers = [];
@@ -1129,9 +1156,14 @@ class VocabBreakBlocker {
         }
       }
 
+      console.log('🔍 Correct answers found:', correctAnswers);
+
       // Normalize answers for comparison
       const normalizedUserAnswer = userAnswer.toLowerCase().trim();
       const normalizedCorrectAnswers = correctAnswers.map(ans => ans.toLowerCase().trim());
+
+      console.log('🔍 Normalized user answer:', normalizedUserAnswer);
+      console.log('🔍 Normalized correct answers:', normalizedCorrectAnswers);
 
       // Check if user answer matches any correct answer
       const isCorrect = normalizedCorrectAnswers.some(correct => correct === normalizedUserAnswer);
@@ -1299,6 +1331,7 @@ class VocabBreakBlocker {
         type: 'question'
       });
 
+      console.log('📦 Cached question to IndexedDB:', question.id);
     } catch (error) {
       console.warn('Failed to cache question to IndexedDB:', error);
     }
@@ -1324,6 +1357,7 @@ class VocabBreakBlocker {
         
         request.onsuccess = () => {
           const cachedQuestions = request.result || [];
+          console.log(`🗄️ Found ${cachedQuestions.length} cached questions in IndexedDB`);
           
           // Filter questions that match user preferences and are not expired
           const validQuestions = cachedQuestions.filter(cached => {
@@ -1355,8 +1389,10 @@ class VocabBreakBlocker {
             // Return a random valid question
             const randomIndex = Math.floor(Math.random() * validQuestions.length);
             const selectedQuestion = validQuestions[randomIndex].data.question;
+            console.log(`✅ Selected cached question: ${selectedQuestion.id} (${validQuestions.length} available)`);
             resolve(selectedQuestion);
           } else {
+            console.log('📝 No valid cached questions found matching user preferences');
             resolve(null);
           }
         };
@@ -1379,8 +1415,11 @@ class VocabBreakBlocker {
   async preloadQuestionsForCache() {
     try {
       if (!window.supabaseClient) {
+        console.log('📝 Skipping question preload: no Supabase client available');
         return;
       }
+
+      console.log('🔄 Preloading questions for connection failure fallback...');
 
       // Get user preferences
       let userSettings = {
@@ -1418,6 +1457,7 @@ class VocabBreakBlocker {
       const questions = await window.supabaseClient.getQuestions(questionFilters);
       
       if (questions && questions.length > 0) {
+        console.log(`📦 Caching exactly 30 questions for current settings...`);
         
         // Cache exactly 30 questions for connection failure fallback
         const questionsToCache = questions.slice(0, 30);
@@ -1435,7 +1475,9 @@ class VocabBreakBlocker {
         const settingsHash = this.getSettingsHash(userSettings);
         await window.coreManager?.setCache('cached_questions_settings', settingsHash, { persist: true });
         
+        console.log(`✅ Successfully cached ${questionsToCache.length} questions for connection failure fallback`);
       } else {
+        console.log('📝 No questions available for caching');
       }
     } catch (error) {
       console.warn('Failed to preload questions for cache:', error);
@@ -1461,6 +1503,7 @@ class VocabBreakBlocker {
         
         request.onsuccess = async () => {
           const cachedQuestions = request.result || [];
+          console.log(`🗑️ Clearing ${cachedQuestions.length} old cached questions...`);
           
           // Delete all cached questions
           const deleteTransaction = db.transaction(['cache'], 'readwrite');
@@ -1525,6 +1568,7 @@ class VocabBreakBlocker {
       const cachedHash = await window.coreManager.getCache('cached_questions_settings');
 
       if (cachedHash !== currentHash) {
+        console.log('🔄 User settings changed, refreshing question cache...');
         await this.preloadQuestionsForCache();
       }
     } catch (error) {
@@ -1584,6 +1628,7 @@ class VocabBreakBlocker {
       `;
 
       document.body.appendChild(this.overlay);
+      console.log('📶 Showed no questions available message');
     } catch (error) {
       console.error('Failed to show no questions message:', error);
     }
@@ -1653,4 +1698,6 @@ class VocabBreakBlocker {
     }
   });
 })();
+
+
 

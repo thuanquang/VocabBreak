@@ -31,6 +31,7 @@ class AuthManager {
       // Check for existing session (with recovery)
       await this.checkExistingSession();
 
+      console.log('✅ Auth manager initialized');
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'init' });
     }
@@ -74,6 +75,7 @@ class AuthManager {
 
       // Check if Supabase client is properly initialized with valid credentials
       if (!this.supabaseClient?.client || !this.supabaseClient.initialized) {
+        console.log('Supabase client not ready, but not logging out - will retry later');
         // Don't logout immediately, just mark as not ready
         window.stateManager.updateAuthState({
           isAuthenticated: false,
@@ -94,10 +96,12 @@ class AuthManager {
           error.status === 401;
 
         if (isAuthError) {
+          console.log('Auth session error detected, logging out');
           await this.handleAuthLogout();
           return;
         } else {
           // Network error, server error, etc. - don't logout
+          console.log('Non-auth error during session check, preserving session:', error.message);
           // Keep existing auth state, just update loading
           window.stateManager.updateAuthState({ isLoading: false });
           return;
@@ -107,6 +111,7 @@ class AuthManager {
       if (user) {
         await this.handleAuthSuccess(user, null);
       } else {
+        console.log('No user found, logging out');
         await this.handleAuthLogout();
       }
     } catch (error) {
@@ -329,22 +334,27 @@ class AuthManager {
       ];
       
       await chrome.storage.local.remove(keysToRemove);
+      console.log('🧹 Cleared all cached data from chrome.storage.local');
       
       // Clear coreManager cache if available
       if (window.coreManager && window.coreManager.clearCache) {
         await window.coreManager.clearCache();
+        console.log('🧹 Cleared coreManager cache');
       }
       
       // Reset coreManager state
       if (window.coreManager && window.coreManager.reset) {
         window.coreManager.reset();
+        console.log('🧹 Reset coreManager state');
       }
       
       // Clear gamification manager if available
       if (window.gamificationManager && window.gamificationManager.reset) {
         window.gamificationManager.reset();
+        console.log('🧹 Reset gamification manager');
       }
       
+      console.log('✅ All cached data cleared successfully');
     } catch (error) {
       console.error('Failed to clear all cached data:', error);
     }
@@ -370,6 +380,7 @@ class AuthManager {
       // Start session refresh timer
       this.startSessionRefresh();
 
+      console.log('✅ Authentication successful:', user.email);
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'handleAuthSuccess' });
     }
@@ -404,6 +415,7 @@ class AuthManager {
         const age = Date.now() - (backupSession.persistedAt || 0);
         // Only recover if less than 1 hour old
         if (age < 3600000) {
+          console.log('Recovering persisted session from backup');
           window.stateManager.updateAuthState({
             user: backupSession.user,
             session: backupSession.session,
@@ -442,6 +454,7 @@ class AuthManager {
       // Clear session data
       await this.clearSessionData();
 
+      console.log('✅ Logout successful');
     } catch (error) {
       window.errorHandler?.handleAuthError(error, { context: 'handleAuthLogout' });
     }
@@ -575,6 +588,7 @@ class AuthManager {
   startSessionMonitoring() {
     if (this.supabaseClient && this.supabaseClient.client) {
       this.supabaseClient.client.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event);
 
         switch (event) {
           case 'SIGNED_IN':
@@ -588,6 +602,7 @@ class AuthManager {
             if (!hasPersistedSession) {
               await this.handleAuthLogout();
             } else {
+              console.log('SIGNED_OUT event received but persisted session exists, preserving auth state');
             }
             break;
           case 'TOKEN_REFRESHED':
@@ -621,6 +636,7 @@ class AuthManager {
           // Only logout if we get a definitive "not authenticated" response
           // Don't logout on network errors or temporary issues
           if (!user) {
+            console.log('Session no longer valid, logging out');
             await this.handleAuthLogout();
           }
         }
