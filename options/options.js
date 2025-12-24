@@ -109,6 +109,12 @@ class OptionsManager {
       this.syncData();
     });
 
+    // Logout button
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => this.handleLogout());
+    }
+
     // Site management
     document.getElementById('add-site').addEventListener('click', () => {
       this.addSite();
@@ -950,6 +956,48 @@ class OptionsManager {
       statusIndicator.className = 'status-indicator error';
       statusText.textContent = window.i18n ? window.i18n.getMessage('sync_failed') : 'Sync failed';
       this.showNotification(window.i18n ? window.i18n.getMessage('sync_failed_full') : 'Failed to sync data', 'error');
+    }
+  }
+
+  async handleLogout() {
+    try {
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.disabled = true;
+        logoutBtn.textContent = window.i18n ? window.i18n.getMessage('signing_out') : 'Signing out...';
+      }
+
+      if (window.authManager) {
+        const result = await window.authManager.signOut();
+        if (result.success) {
+          // Redirect to popup or close options page
+          this.showNotification(window.i18n ? window.i18n.getMessage('signed_out_success') : 'Signed out successfully');
+          // Reload page to show logged-out state
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          this.showNotification(result.error || 'Logout failed', 'error');
+          if (logoutBtn) {
+            logoutBtn.disabled = false;
+            logoutBtn.textContent = window.i18n ? window.i18n.getMessage('sign_out') : 'Sign Out';
+          }
+        }
+      } else {
+        this.showNotification('Auth manager not available', 'error');
+        if (logoutBtn) {
+          logoutBtn.disabled = false;
+          logoutBtn.textContent = window.i18n ? window.i18n.getMessage('sign_out') : 'Sign Out';
+        }
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      this.showNotification('Logout failed: ' + error.message, 'error');
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.disabled = false;
+        logoutBtn.textContent = window.i18n ? window.i18n.getMessage('sign_out') : 'Sign Out';
+      }
     }
   }
 

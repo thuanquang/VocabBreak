@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,6 +21,7 @@
     <script src="../shared/question-manager.js"></script>
     <script src="../shared/gamification.js"></script>
 </head>
+
 <body>
     <div class="container">
         <!-- Header -->
@@ -67,6 +69,15 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="card">
+                    <h2 data-i18n="account_actions">Account Actions</h2>
+                    <div class="form-group">
+                        <button id="logout-btn" class="btn btn-danger" data-i18n="sign_out">Sign Out</button>
+                        <p class="form-description" data-i18n="sign_out_desc">Sign out of your account on this device.
+                        </p>
+                    </div>
+                </div>
             </section>
 
             <!-- Learning Tab -->
@@ -75,7 +86,8 @@
                     <h2 data-i18n="difficulty_settings">Difficulty Settings</h2>
                     <div class="form-group">
                         <label data-i18n="vocab_levels">Vocabulary Levels</label>
-                        <p class="form-description" data-i18n="vocab_levels_desc">Select the CEFR levels you want to practice</p>
+                        <p class="form-description" data-i18n="vocab_levels_desc">Select the CEFR levels you want to
+                            practice</p>
                         <div class="checkbox-group">
                             <label class="checkbox-item">
                                 <input type="checkbox" name="levels" value="A1" checked>
@@ -115,7 +127,8 @@
                     <h2 data-i18n="question_types">Question Types</h2>
                     <div class="form-group">
                         <label data-i18n="question_formats">Question Formats</label>
-                        <p class="form-description" data-i18n="question_formats_desc">Choose which types of questions you want to see</p>
+                        <p class="form-description" data-i18n="question_formats_desc">Choose which types of questions
+                            you want to see</p>
                         <div class="checkbox-group">
                             <label class="checkbox-item">
                                 <input type="checkbox" name="question-types" value="multiple-choice" checked>
@@ -155,7 +168,8 @@
                                 <span class="radiomark"></span>
                                 <div class="radio-content">
                                     <strong data-i18n="blacklist_mode">Blacklist Mode</strong>
-                                    <p data-i18n="blacklist_desc">Block all sites except those in your exclusion list</p>
+                                    <p data-i18n="blacklist_desc">Block all sites except those in your exclusion list
+                                    </p>
                                 </div>
                             </label>
                             <label class="radio-item">
@@ -175,25 +189,30 @@
                     <div class="form-group">
                         <label data-i18n="manage_sites">Manage Sites</label>
                         <div class="site-input-group">
-                            <input type="text" id="site-input" data-i18n="site_input_placeholder" placeholder="Enter website URL or pattern (e.g., *.reddit.com)">
+                            <input type="text" id="site-input" data-i18n="site_input_placeholder"
+                                placeholder="Enter website URL or pattern (e.g., *.reddit.com)">
                             <button id="add-site" class="btn btn-primary" data-i18n="add_site">Add Site</button>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label data-i18n="site_list">Site List</label>
                         <div class="site-list" id="site-list">
                             <!-- Will be populated by JavaScript -->
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label data-i18n="quick_add_categories">Quick Add Categories</label>
                         <div class="category-buttons">
-                            <button class="btn btn-outline btn-sm" data-category="social" data-i18n="category_social">Social Media</button>
-                            <button class="btn btn-outline btn-sm" data-category="news" data-i18n="category_news">News Sites</button>
-                            <button class="btn btn-outline btn-sm" data-category="entertainment" data-i18n="category_entertainment">Entertainment</button>
-                            <button class="btn btn-outline btn-sm" data-category="shopping" data-i18n="category_shopping">Shopping</button>
+                            <button class="btn btn-outline btn-sm" data-category="social"
+                                data-i18n="category_social">Social Media</button>
+                            <button class="btn btn-outline btn-sm" data-category="news" data-i18n="category_news">News
+                                Sites</button>
+                            <button class="btn btn-outline btn-sm" data-category="entertainment"
+                                data-i18n="category_entertainment">Entertainment</button>
+                            <button class="btn btn-outline btn-sm" data-category="shopping"
+                                data-i18n="category_shopping">Shopping</button>
                         </div>
                     </div>
                 </div>
@@ -202,9 +221,11 @@
                     <h2 data-i18n="timing_settings">Timing Settings</h2>
                     <div class="form-group">
                         <label for="periodic-interval" data-i18n="question_frequency">Question Frequency</label>
-                        <p class="form-description" data-i18n="question_frequency_desc">How often should questions appear (in minutes)</p>
+                        <p class="form-description" data-i18n="question_frequency_desc">How often should questions
+                            appear (in minutes)</p>
                         <div class="input-with-unit">
-                            <input type="number" id="periodic-interval" min="0.1" value="30" step="0.1" inputmode="decimal">
+                            <input type="number" id="periodic-interval" min="0.1" value="30" step="0.1"
+                                inputmode="decimal">
                             <span class="unit-label" data-i18n="minutes_label">min</span>
                         </div>
                         <div class="range-labels">
@@ -213,12 +234,14 @@
                             <span></span>
                         </div>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="penalty-duration" data-i18n="wrong_answer_penalty">Wrong Answer Penalty</label>
-                        <p class="form-description" data-i18n="wrong_answer_penalty_desc">How long to wait after wrong answers (in seconds)</p>
+                        <p class="form-description" data-i18n="wrong_answer_penalty_desc">How long to wait after wrong
+                            answers (in seconds)</p>
                         <div class="input-with-unit">
-                            <input type="number" id="penalty-duration" min="0.1" value="30" step="0.1" inputmode="decimal">
+                            <input type="number" id="penalty-duration" min="0.1" value="30" step="0.1"
+                                inputmode="decimal">
                             <span class="unit-label" data-i18n="seconds_label">sec</span>
                         </div>
                         <div class="range-labels">
@@ -258,7 +281,7 @@
                             </div>
                         </label>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="switch-item">
                             <input type="checkbox" id="streak-notifications" checked>
@@ -303,7 +326,8 @@
                     <h2 data-i18n="learning_language">Learning Language</h2>
                     <div class="form-group">
                         <label data-i18n="target_language">Target Language</label>
-                        <p class="form-description" data-i18n="target_language_desc">The language you want to learn (currently only English is supported)</p>
+                        <p class="form-description" data-i18n="target_language_desc">The language you want to learn
+                            (currently only English is supported)</p>
                         <select id="target-language" disabled>
                             <option value="en" data-i18n="language_en">English</option>
                             <option value="es" data-i18n="language_es">Spanish (Coming Soon)</option>
@@ -331,12 +355,12 @@
                         <div class="support-text">
                             <h2>❤️ Support VocabBreak</h2>
                             <p class="support-message">
-                                Thank you for using VocabBreak! If this extension has helped you learn new vocabulary 
-                                and stay focused, consider buying me a coffee. Your support helps keep this project 
+                                Thank you for using VocabBreak! If this extension has helped you learn new vocabulary
+                                and stay focused, consider buying me a coffee. Your support helps keep this project
                                 free and motivates me to add new features!
                             </p>
                             <p class="support-note">
-                                Scan the QR code with your banking app to send a donation via VietQR. 
+                                Scan the QR code with your banking app to send a donation via VietQR.
                                 Every contribution, big or small, is deeply appreciated! 🙏
                             </p>
                         </div>
@@ -381,6 +405,5 @@
     <script src="../shared/site-filter.js"></script>
     <script src="options.js"></script>
 </body>
+
 </html>
-
-

@@ -9,7 +9,7 @@ class PopupManager {
     this.isInitialized = false;
     this.userPrefs = { soundEnabled: true, reducedMotion: false };
     this.audioContext = null;
-    
+
     this.init();
   }
 
@@ -134,16 +134,16 @@ class PopupManager {
     try {
       // Google OAuth only
       this.addEventListenerSafely('google-login-btn', 'click', () => this.handleGoogleLogin());
-      
+
       // Dashboard buttons
       this.addEventListenerSafely('logout-btn', 'click', () => this.handleLogout());
       this.addEventListenerSafely('settings-btn', 'click', () => this.openSettings());
       this.addEventListenerSafely('sync-btn', 'click', () => this.handleSync());
       this.addEventListenerSafely('test-now-btn', 'click', () => this.handleTestNow());
-      
+
       // Error screen
       this.addEventListenerSafely('retry-btn', 'click', () => this.handleRetry());
-      
+
       // Support link - opens options page scrolled to support section
       this.addEventListenerSafely('support-link', 'click', (e) => {
         e.preventDefault();
@@ -198,8 +198,17 @@ class PopupManager {
       if (authState.isLoading) {
         this.showLoadingState();
       } else if (authState.isAuthenticated && authState.user) {
+        // Clear stats display immediately to prevent showing old user's data
+        this.clearStatsDisplay();
+
+        // Show dashboard (with cleared stats)
         this.showDashboard();
+
+        // Re-initialize gamification and refresh stats for new user
+        this.reinitializeForNewUser();
       } else {
+        // User logged out - clear stats and show login
+        this.clearStatsDisplay();
         this.showLoginScreen();
       }
 
@@ -211,12 +220,83 @@ class PopupManager {
     }
   }
 
+  /**
+   * Clear all stats display to prevent showing previous user's data
+   */
+  clearStatsDisplay() {
+    try {
+      // Clear stat values
+      this.setElementText('day-streak', '...');
+      this.setElementText('total-points', '...');
+      this.setElementText('questions-answered', '...');
+      this.setElementText('accuracy-rate', '...');
+      this.setElementText('user-level', 'Loading...');
+      this.setElementText('user-name', 'Loading...');
+      this.setElementText('user-initial', '?');
+
+      // Clear progress bar
+      const progressFill = document.getElementById('level-progress-fill');
+      if (progressFill) {
+        progressFill.style.width = '0%';
+      }
+
+      const progressText = document.getElementById('progress-text');
+      if (progressText) {
+        progressText.textContent = 'Loading...';
+      }
+
+      const progressPoints = document.getElementById('progress-points');
+      if (progressPoints) {
+        progressPoints.textContent = '';
+      }
+
+      // Clear achievements
+      const achievementsContainer = document.getElementById('recent-achievements');
+      if (achievementsContainer) {
+        achievementsContainer.innerHTML = '<div class="no-achievements"><p>Loading achievements...</p></div>';
+      }
+    } catch (error) {
+      console.warn('Failed to clear stats display:', error);
+    }
+  }
+
+  /**
+   * Re-initialize gamification for a new user after login
+   */
+  async reinitializeForNewUser() {
+    try {
+      console.log('🔄 Re-initializing for new user...');
+
+      // Wait a moment for auth to fully settle
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Re-initialize gamification manager to load new user's data
+      if (window.gamificationManager) {
+        await window.gamificationManager.loadUserStatsFromDatabase();
+      }
+
+      // Refresh the stats display with new user's data
+      await this.initializeGamificationStats();
+      this.refreshStats();
+
+      // Update user info
+      const userState = window.coreManager?.getState('user');
+      if (userState?.profile) {
+        this.updateUserInfo(userState.profile);
+      }
+
+      console.log('✅ Re-initialization complete');
+    } catch (error) {
+      console.error('Failed to reinitialize for new user:', error);
+    }
+  }
+
   handleUserStateChange(userState) {
     try {
       if (userState.profile) {
         this.updateUserInfo(userState.profile);
       }
-      
+
       if (userState.stats) {
         this.updateStatsDisplay(userState.stats);
       }
@@ -228,12 +308,12 @@ class PopupManager {
   handleAppStateChange(appState) {
     try {
       this.updateSyncStatus(appState.isOnline ? 'synced' : 'offline');
-      
+
       if (appState.lastError) {
-        const errorType = appState.lastError.type || 
+        const errorType = appState.lastError.type ||
           (appState.lastError.message?.includes('session') ? 'session' :
-           appState.lastError.message?.includes('network') ? 'network' : 'unknown');
-        
+            appState.lastError.message?.includes('network') ? 'network' : 'unknown');
+
         this.showError(appState.lastError.message, {
           errorType,
           details: appState.lastError.details || ''
@@ -297,11 +377,11 @@ class PopupManager {
     try {
       this.maybePlayClick(200);
       const result = await window.authManager.signOut();
-      
+
       if (!result.success) {
         this.showError('Logout failed. Please try again.');
       }
-      
+
       // Clear form fields
       this.clearFormFields();
     } catch (error) {
@@ -318,16 +398,16 @@ class PopupManager {
     try {
       this.maybePlayClick(250);
       window.stateManager.updateAppState({ syncStatus: 'syncing' });
-      
+
       // Simulate sync delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // In production, this would sync with Supabase
       if (window.authManager.isAuthenticated()) {
         await window.authManager.loadUserProfile(window.authManager.getCurrentUser().id);
       }
-      
-      window.stateManager.updateAppState({ 
+
+      window.stateManager.updateAppState({
         syncStatus: 'success',
         lastSync: new Date().toISOString()
       });
@@ -346,7 +426,7 @@ class PopupManager {
 
       // Check if user is actually authenticated before clearing session
       const isAuthenticated = window.authManager?.isAuthenticated?.() ||
-                             window.coreManager?.getState?.('auth')?.isAuthenticated;
+        window.coreManager?.getState?.('auth')?.isAuthenticated;
 
       if (isAuthenticated) {
         console.log('🔄 User is authenticated, just refreshing UI instead of clearing session');
@@ -383,17 +463,17 @@ class PopupManager {
       } catch (e) {
         console.warn('Could not clear session data:', e);
       }
-      
+
       // Reset auth state
-      window.stateManager.updateAuthState({ 
+      window.stateManager.updateAuthState({
         user: null,
         session: null,
         isAuthenticated: false,
-        lastError: null, 
-        isLoading: false 
+        lastError: null,
+        isLoading: false
       });
       window.stateManager.updateAppState({ currentScreen: 'loading', lastError: null });
-      
+
       // Re-initialize auth manager to get fresh state
       if (window.authManager && typeof window.authManager.checkExistingSession === 'function') {
         try {
@@ -402,7 +482,7 @@ class PopupManager {
           console.warn('Auth re-check failed:', e);
         }
       }
-      
+
       // Show login screen after brief delay
       setTimeout(() => {
         this.showLoginScreen();
@@ -441,7 +521,7 @@ class PopupManager {
   async handleTestNow() {
     try {
       this.maybePlayClick(320);
-      
+
       const button = document.getElementById('test-now-btn');
       if (button) {
         button.disabled = true;
@@ -453,9 +533,9 @@ class PopupManager {
       }
 
       console.log('🎯 Test Now clicked - triggering manual block');
-      
+
       const response = await this.sendMessage({ type: 'TRIGGER_BLOCK_NOW' });
-      
+
       if (response && response.success) {
         console.log('✅ Manual block triggered successfully');
         // Close the popup so user can see the question
@@ -463,7 +543,7 @@ class PopupManager {
       } else {
         console.warn('⚠️ Manual block failed:', response?.error);
         this.showAuthError(response?.error || 'Could not trigger question on this page. Try a different website.');
-        
+
         if (button) {
           button.disabled = false;
           const textSpan = button.querySelector('span');
@@ -476,7 +556,7 @@ class PopupManager {
       console.error('Failed to trigger test:', error);
       window.errorHandler?.handleUIError(error, { context: 'test-now' });
       this.showAuthError('Failed to trigger question. Please try again.');
-      
+
       const button = document.getElementById('test-now-btn');
       if (button) {
         button.disabled = false;
@@ -495,7 +575,7 @@ class PopupManager {
       document.querySelectorAll('.screen').forEach(screen => {
         screen.classList.add('hidden');
       });
-      
+
       // Show target screen
       const targetScreen = document.getElementById(`${screenName}-screen`);
       if (targetScreen) {
@@ -524,7 +604,7 @@ class PopupManager {
       if (errorElement) {
         errorElement.textContent = message;
         errorElement.classList.remove('hidden');
-        
+
         // Hide error after 5 seconds
         setTimeout(() => {
           errorElement.classList.add('hidden');
@@ -538,7 +618,7 @@ class PopupManager {
   showError(message, options = {}) {
     try {
       const { title, details, errorType } = options;
-      
+
       // Set error title if provided
       const errorTitleElement = document.getElementById('error-title');
       if (errorTitleElement) {
@@ -552,7 +632,7 @@ class PopupManager {
           errorTitleElement.textContent = 'Something went wrong';
         }
       }
-      
+
       // Set main error message
       const errorMessageElement = document.getElementById('error-message');
       if (errorMessageElement) {
@@ -566,13 +646,13 @@ class PopupManager {
           errorMessageElement.textContent = 'An unexpected error occurred.';
         }
       }
-      
+
       // Set error details if provided
       const errorDetailsElement = document.getElementById('error-details');
       if (errorDetailsElement) {
         errorDetailsElement.textContent = details || '';
       }
-      
+
       this.showScreen('error');
     } catch (error) {
       console.error('Failed to show error:', error);
@@ -583,11 +663,11 @@ class PopupManager {
     try {
       const user = window.authManager.getCurrentUser();
       if (!user) return;
-      
+
       // Update user initial
       const initial = user.email.charAt(0).toUpperCase();
       this.setElementText('user-initial', initial);
-      
+
       // Update user name
       const username = profile?.display_name || user.email.split('@')[0];
       this.setElementText('user-name', username);
@@ -599,19 +679,19 @@ class PopupManager {
   async initializeGamificationStats() {
     try {
       console.log('🔄 Initializing gamification stats...');
-      
+
       if (!window.gamificationManager) {
         console.warn('Gamification manager not available');
         return;
       }
-      
+
       // Wait for gamification manager to be initialized
       let attempts = 0;
       while (!window.gamificationManager.isInitialized && attempts < 50) {
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
-      
+
       if (!window.gamificationManager.isInitialized) {
         console.warn('Gamification manager failed to initialize');
         return;
@@ -625,32 +705,32 @@ class PopupManager {
   refreshStats() {
     try {
       console.log('🔄 Refreshing stats from gamification manager...');
-      
+
       if (!window.gamificationManager || !window.gamificationManager.isInitialized) {
         console.warn('Gamification manager not ready');
         return;
       }
-      
+
       const gamificationStats = window.gamificationManager.getUserStats();
       const currentLevel = window.gamificationManager.getCurrentLevel();
       const nextLevelProgress = window.gamificationManager.getNextLevelProgress();
-      
+
       console.log('📊 Gamification stats:', gamificationStats);
       console.log('📈 Current level:', currentLevel);
-      
+
       const stats = {
         dayStreak: gamificationStats.dayStreak || 0,
         isActiveToday: gamificationStats.isActiveToday || false,
         totalPoints: gamificationStats.totalPoints || 0,
         questionsAnswered: gamificationStats.totalQuestions || 0,
-        accuracyRate: gamificationStats.totalQuestions > 0 ? 
+        accuracyRate: gamificationStats.totalQuestions > 0 ?
           Math.round((gamificationStats.correctAnswers / gamificationStats.totalQuestions) * 100) : 0,
         currentLevel: currentLevel.level || 1,
         levelName: currentLevel.name || 'Beginner',
         levelProgress: nextLevelProgress.progress || 0,
         pointsToNextLevel: nextLevelProgress.nextLevel?.points || 500
       };
-      
+
       this.updateStatsDisplay(stats);
     } catch (error) {
       console.error('Failed to refresh stats:', error);
@@ -664,7 +744,7 @@ class PopupManager {
         console.warn('No stats provided to updateStatsDisplay');
         return;
       }
-      
+
       // Update stat cards - use day streak (Duolingo-style)
       const dayStreakElement = document.getElementById('day-streak');
       if (dayStreakElement) {
@@ -678,24 +758,24 @@ class PopupManager {
       this.setElementText('total-points', this.formatNumber(stats.totalPoints || 0));
       this.setElementText('questions-answered', stats.questionsAnswered || 0);
       this.setElementText('accuracy-rate', `${stats.accuracyRate || 0}%`);
-      
+
       // Update level badge
       this.setElementText('user-level', `Level ${stats.currentLevel || 1}`);
-      
+
       // Update progress bar
       const progressFill = document.getElementById('level-progress-fill');
       const progressText = document.getElementById('progress-text');
       const progressPoints = document.getElementById('progress-points');
-      
+
       if (progressFill) {
         const progressPercentage = Math.max(0, Math.min(100, stats.levelProgress || 0));
         progressFill.style.width = `${progressPercentage}%`;
       }
-      
+
       if (progressText) {
         progressText.textContent = `Level ${stats.currentLevel || 1} - ${stats.levelName || 'Beginner'}`;
       }
-      
+
       if (progressPoints) {
         progressPoints.textContent = `${this.formatNumber(stats.totalPoints || 0)} / ${this.formatNumber(stats.pointsToNextLevel || 500)} points`;
       }
@@ -711,10 +791,10 @@ class PopupManager {
     try {
       const indicator = document.querySelector('.sync-indicator');
       const text = document.querySelector('.sync-text');
-      
+
       if (indicator) {
         indicator.className = 'sync-indicator';
-        
+
         switch (status) {
           case 'syncing':
             indicator.classList.add('syncing');
@@ -728,7 +808,7 @@ class PopupManager {
             break;
         }
       }
-      
+
       if (text) {
         const statusTexts = {
           syncing: 'Syncing...',
@@ -750,7 +830,7 @@ class PopupManager {
       if (!recentAchievementsContainer) return;
 
       let achievements = {};
-      
+
       // Try to get achievements from gamification manager first
       if (window.gamificationManager) {
         achievements = window.gamificationManager.getAchievements();
@@ -774,7 +854,7 @@ class PopupManager {
 
       // Show up to 3 most recent achievements
       const recentAchievements = unlockedAchievements.slice(-3).reverse();
-      
+
       const achievementsHTML = recentAchievements.map(achievement => `
         <div class="achievement-item">
           <div class="achievement-icon">${achievement.icon}</div>
@@ -785,7 +865,7 @@ class PopupManager {
           <div class="achievement-points">+${achievement.points}</div>
         </div>
       `).join('');
-      
+
       recentAchievementsContainer.innerHTML = `
         <h3>Recent Achievements</h3>
         <div class="achievements-list">
@@ -811,13 +891,13 @@ class PopupManager {
         console.warn('i18n system not available for localization');
         return;
       }
-      
+
       const elements = document.querySelectorAll('[data-i18n]');
       elements.forEach(element => {
         const key = element.getAttribute('data-i18n');
         const args = element.getAttribute('data-i18n-args');
         const substitutions = args ? args.split(',') : [];
-        
+
         const message = window.i18n.getMessage(key, substitutions);
         if (message && message !== key) {
           if (element.tagName === 'INPUT' && element.type === 'text') {
@@ -889,7 +969,7 @@ class PopupManager {
         }
       });
       this.unsubscribers = [];
-      
+
       console.log('✅ Popup manager destroyed');
     } catch (error) {
       console.error('Failed to destroy popup manager:', error);
@@ -901,7 +981,7 @@ class PopupManager {
 document.addEventListener('DOMContentLoaded', () => {
   try {
     window.popupManager = new PopupManager();
-    
+
     // Cleanup on unload
     window.addEventListener('beforeunload', () => {
       if (window.popupManager && typeof window.popupManager.destroy === 'function') {

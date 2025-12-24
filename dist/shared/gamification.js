@@ -9,14 +9,14 @@ class GamificationManager {
     this.pointsConfig = {
       A1: 10, A2: 15, B1: 20, B2: 25, C1: 30, C2: 35
     };
-    
+
     this.streakMultipliers = {
       1: 1.0,   // 1-2 correct
       3: 1.2,   // 3-5 correct
       6: 1.5,   // 6-10 correct
       11: 2.0   // 11+ correct
     };
-    
+
     this.levelThresholds = [
       { level: 1, points: 0, name: 'Beginner' },
       { level: 2, points: 500, name: 'Elementary' },
@@ -25,14 +25,14 @@ class GamificationManager {
       { level: 5, points: 7000, name: 'Advanced' },
       { level: 6, points: 13000, name: 'Expert' }
     ];
-    
+
     this.achievements = this.initializeAchievements();
-    
+
     // Cache for user stats - always sync with database
     this.cachedStats = null;
     this.lastSyncTime = 0;
     this.isInitialized = false;
-    
+
     this.init();
   }
 
@@ -40,10 +40,10 @@ class GamificationManager {
     try {
       // Wait for Supabase client to be ready
       await this.waitForSupabase();
-      
+
       // Load user stats from database
       await this.loadUserStatsFromDatabase();
-      
+
       this.isInitialized = true;
       console.log('✅ Gamification manager initialized with database connection');
     } catch (error) {
@@ -96,7 +96,7 @@ class GamificationManager {
   generateAchievementUUID(stringId) {
     // VocabBreak namespace UUID (generated once, fixed forever)
     const namespace = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
-    
+
     // Simple hash function to create deterministic UUID from string
     let hash = 0;
     const str = namespace + stringId;
@@ -105,13 +105,13 @@ class GamificationManager {
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
-    
+
     // Create UUID-like string from hash (version 5 style)
     const hex = Math.abs(hash).toString(16).padStart(8, '0');
     const hex2 = Math.abs(hash * 31).toString(16).padStart(8, '0');
     const hex3 = Math.abs(hash * 17).toString(16).padStart(8, '0');
     const hex4 = Math.abs(hash * 13).toString(16).padStart(8, '0');
-    
+
     return `${hex.slice(0, 8)}-${hex2.slice(0, 4)}-5${hex2.slice(5, 8)}-${hex3.slice(0, 4)}-${hex4.slice(0, 12)}`;
   }
 
@@ -131,10 +131,10 @@ class GamificationManager {
         unlocked: false,
         condition: (stats) => stats.correctAnswers >= 1
       },
-      
+
       // NOTE: Day streak achievements removed - the streak itself is the reward (Duolingo-style)
       // The day_streak counter in gamification stats tracks consecutive days of activity
-      
+
       // Mastery achievements
       perfect_10: {
         id: 'perfect_10',
@@ -149,7 +149,7 @@ class GamificationManager {
         unlocked: false,
         condition: (stats) => stats.currentStreak >= 10
       },
-      
+
       accuracy_master: {
         id: 'accuracy_master',
         name: 'Accuracy Master',
@@ -163,7 +163,7 @@ class GamificationManager {
         unlocked: false,
         condition: (stats) => stats.totalQuestions >= 50 && (stats.correctAnswers / stats.totalQuestions) >= 0.9
       },
-      
+
       // Volume achievements
       century_club: {
         id: 'century_club',
@@ -178,7 +178,7 @@ class GamificationManager {
         unlocked: false,
         condition: (stats) => stats.correctAnswers >= 100
       },
-      
+
       millennium_master: {
         id: 'millennium_master',
         name: 'Millennium Master',
@@ -192,7 +192,7 @@ class GamificationManager {
         unlocked: false,
         condition: (stats) => stats.correctAnswers >= 1000
       },
-      
+
       // Speed achievements
       lightning_fast: {
         id: 'lightning_fast',
@@ -207,7 +207,7 @@ class GamificationManager {
         unlocked: false,
         condition: (stats) => this.checkSpeedRecord(10, 5000)
       },
-      
+
       // Level achievements
       level_up_2: {
         id: 'level_up_2',
@@ -222,7 +222,7 @@ class GamificationManager {
         unlocked: false,
         condition: (stats) => stats.currentLevel >= 2
       },
-      
+
       level_up_5: {
         id: 'level_up_5',
         name: 'Language Expert',
@@ -249,9 +249,9 @@ class GamificationManager {
   // Points calculation
   calculatePoints(question, correct, timeTaken, currentStreak) {
     if (!correct) return 0;
-    
+
     let basePoints = this.pointsConfig[question.level] || 20;
-    
+
     // Streak multiplier
     let streakMultiplier = 1.0;
     for (const [threshold, multiplier] of Object.entries(this.streakMultipliers).reverse()) {
@@ -260,15 +260,15 @@ class GamificationManager {
         break;
       }
     }
-    
+
     // Speed bonus (50% bonus if answered within 10 seconds)
     const speedBonus = timeTaken <= 10000 ? 1.5 : 1.0;
-    
+
     // First attempt bonus (25% bonus for correct answers without retries)
     const firstAttemptBonus = 1.25; // Assuming this is first attempt for now
-    
+
     const totalPoints = Math.round(basePoints * streakMultiplier * speedBonus * firstAttemptBonus);
-    
+
     return {
       basePoints,
       streakMultiplier,
@@ -291,16 +291,16 @@ class GamificationManager {
   getProgressToNextLevel(totalPoints) {
     const currentLevel = this.calculateLevel(totalPoints);
     const nextLevelIndex = this.levelThresholds.findIndex(l => l.level === currentLevel.level) + 1;
-    
+
     if (nextLevelIndex >= this.levelThresholds.length) {
       return { progress: 100, pointsNeeded: 0, nextLevel: null };
     }
-    
+
     const nextLevel = this.levelThresholds[nextLevelIndex];
     const pointsInCurrentLevel = totalPoints - currentLevel.points;
     const pointsNeededForNextLevel = nextLevel.points - currentLevel.points;
     const progress = (pointsInCurrentLevel / pointsNeededForNextLevel) * 100;
-    
+
     return {
       progress: Math.min(progress, 100),
       pointsNeeded: nextLevel.points - totalPoints,
@@ -311,18 +311,18 @@ class GamificationManager {
   // Achievement checking
   async checkAndUnlockAchievements() {
     if (!this.cachedStats) return [];
-    
+
     const newAchievements = [];
     const currentAchievements = this.cachedStats.gamification.achievements || [];
     const unlockedIds = currentAchievements.map(a => a.id);
-    
+
     // Check each achievement
     for (const [id, achievement] of Object.entries(this.achievements)) {
       if (unlockedIds.includes(id)) continue;
-      
+
       let unlocked = false;
       const stats = this.getUserStats();
-      
+
       switch (id) {
         case 'first_correct':
           unlocked = stats.correctAnswers >= 1;
@@ -331,8 +331,8 @@ class GamificationManager {
           unlocked = stats.currentStreak >= 10;
           break;
         case 'accuracy_master':
-          unlocked = stats.totalQuestions >= 50 && 
-                    (stats.correctAnswers / stats.totalQuestions) >= 0.9;
+          unlocked = stats.totalQuestions >= 50 &&
+            (stats.correctAnswers / stats.totalQuestions) >= 0.9;
           break;
         case 'century_club':
           unlocked = stats.correctAnswers >= 100;
@@ -350,7 +350,7 @@ class GamificationManager {
           unlocked = stats.currentLevel >= 5;
           break;
       }
-      
+
       if (unlocked) {
         const unlockedAchievement = {
           id: id,
@@ -363,25 +363,25 @@ class GamificationManager {
           tier: achievement.tier,
           unlocked_at: new Date().toISOString()
         };
-        
+
         // Add to cached stats
         this.cachedStats.gamification.achievements.push(unlockedAchievement);
-        
+
         // Mark as unlocked in achievements object
         achievement.unlocked = true;
         achievement.unlocked_at = unlockedAchievement.unlocked_at;
-        
+
         newAchievements.push(unlockedAchievement);
-        
+
         console.log('🏆 Achievement unlocked:', unlockedAchievement.name);
-        
+
         // Trigger dual-write (async, non-blocking)
         this.saveAchievementUnlock(id).catch(err => {
           console.error('❌ Dual-write failed for achievement:', id, err);
         });
       }
     }
-    
+
     return newAchievements;
   }
 
@@ -394,15 +394,15 @@ class GamificationManager {
    */
   updateDayStreak() {
     if (!this.cachedStats) return { streakChanged: false };
-    
+
     const today = new Date().toDateString();
     const lastActive = this.cachedStats.gamification.last_active_date;
     const oldStreak = this.cachedStats.gamification.day_streak || 0;
-    
+
     let newStreak = oldStreak;
     let streakLost = false;
     let streakExtended = false;
-    
+
     if (!lastActive) {
       // First time ever - start streak at 1
       newStreak = 1;
@@ -427,7 +427,7 @@ class GamificationManager {
         console.log(`💔 Day streak reset (was ${oldStreak}), starting fresh: Day 1`);
       }
     }
-    
+
     // Update stats
     this.cachedStats.gamification.day_streak = newStreak;
     this.cachedStats.gamification.last_active_date = today;
@@ -435,7 +435,7 @@ class GamificationManager {
       this.cachedStats.gamification.longest_day_streak || 0,
       newStreak
     );
-    
+
     return {
       streakChanged: streakExtended || streakLost,
       streakExtended,
@@ -452,10 +452,10 @@ class GamificationManager {
     if (!this.cachedStats) {
       return { dayStreak: 0, longestDayStreak: 0, lastActiveDate: null, isActiveToday: false };
     }
-    
+
     const today = new Date().toDateString();
     const lastActive = this.cachedStats.gamification.last_active_date;
-    
+
     return {
       dayStreak: this.cachedStats.gamification.day_streak || 0,
       longestDayStreak: this.cachedStats.gamification.longest_day_streak || 0,
@@ -477,26 +477,26 @@ class GamificationManager {
       }
 
       const { correct, pointsEarned, timeTaken, question } = questionResult;
-      
+
       console.log('📊 Updating stats:', { correct, pointsEarned, timeTaken });
-      
+
       // Ensure we have cached stats
       if (!this.cachedStats) {
         await this.loadUserStatsFromDatabase();
       }
-      
+
       // Update statistics
       this.cachedStats.statistics.total_questions_answered++;
       if (correct) {
         this.cachedStats.statistics.total_correct_answers++;
       }
-      
+
       // Update response time average
       const totalQuestions = this.cachedStats.statistics.total_questions_answered;
       const currentAvg = this.cachedStats.statistics.average_response_time || 0;
-      this.cachedStats.statistics.average_response_time = 
+      this.cachedStats.statistics.average_response_time =
         ((currentAvg * (totalQuestions - 1)) + timeTaken) / totalQuestions;
-      
+
       // Update gamification stats
       let dayStreakResult = { streakChanged: false, dayStreak: 0 };
       if (correct) {
@@ -507,13 +507,13 @@ class GamificationManager {
           this.cachedStats.gamification.longest_streak,
           this.cachedStats.gamification.current_streak
         );
-        
+
         // Update Duolingo-style day streak
         dayStreakResult = this.updateDayStreak();
       } else {
         this.cachedStats.gamification.current_streak = 0;
       }
-      
+
       // Check for level up
       const newLevel = this.calculateLevel(this.cachedStats.gamification.total_points);
       const levelUp = newLevel.level > this.cachedStats.gamification.current_level;
@@ -521,18 +521,18 @@ class GamificationManager {
         this.cachedStats.gamification.current_level = newLevel.level;
         console.log('🎉 Level up!', newLevel);
       }
-      
+
       // Check for new achievements
       const newAchievements = await this.checkAndUnlockAchievements();
-      
+
       // Save to database
       const saved = await this.saveUserStatsToDatabase();
       if (!saved) {
         console.warn('⚠️ Failed to save stats to database');
       }
-      
+
       console.log('✅ Stats updated successfully');
-      
+
       return {
         pointsEarned,
         levelUp,
@@ -547,7 +547,7 @@ class GamificationManager {
         dayStreakLost: dayStreakResult.streakLost,
         previousDayStreak: dayStreakResult.previousStreak
       };
-      
+
     } catch (error) {
       console.error('❌ Failed to update stats:', error);
       return { pointsEarned: 0, levelUp: false, newAchievements: [] };
@@ -562,10 +562,10 @@ class GamificationManager {
       }
 
       console.log('📊 Loading user stats from database...');
-      
+
       try {
         const userProfile = await window.supabaseClient.getUserProfile();
-        
+
         if (userProfile && userProfile.profile) {
           this.cachedStats = {
             gamification: userProfile.profile.gamification || {
@@ -588,7 +588,7 @@ class GamificationManager {
               weak_areas: []
             }
           };
-          
+
           // Ensure day streak fields exist (for users upgrading from old version)
           if (this.cachedStats.gamification.day_streak === undefined) {
             this.cachedStats.gamification.day_streak = 0;
@@ -599,7 +599,7 @@ class GamificationManager {
           if (this.cachedStats.gamification.last_active_date === undefined) {
             this.cachedStats.gamification.last_active_date = null;
           }
-          
+
           // Mark achievements as unlocked
           const achievements = this.cachedStats.gamification.achievements || [];
           achievements.forEach(achievement => {
@@ -608,7 +608,7 @@ class GamificationManager {
               this.achievements[achievement.id].unlocked_at = achievement.unlocked_at;
             }
           });
-          
+
           this.lastSyncTime = Date.now();
           console.log('✅ Loaded stats from database:', this.cachedStats);
         } else {
@@ -616,18 +616,18 @@ class GamificationManager {
         }
       } catch (profileError) {
         console.log('📝 User profile not found, attempting to create...');
-        
+
         // Try to create profile if it doesn't exist
         try {
           await window.supabaseClient.createUserProfileWithRetry({
             displayName: window.supabaseClient.user?.email?.split('@')[0] || 'User'
           });
-          
+
           console.log('✅ User profile created, retrying stats load...');
-          
+
           // Retry loading profile
           const userProfile = await window.supabaseClient.getUserProfile();
-          
+
           if (userProfile && userProfile.profile) {
             this.cachedStats = {
               gamification: userProfile.profile.gamification || {
@@ -650,7 +650,7 @@ class GamificationManager {
                 weak_areas: []
               }
             };
-            
+
             this.lastSyncTime = Date.now();
             console.log('✅ Loaded stats from newly created profile:', this.cachedStats);
           } else {
@@ -662,7 +662,7 @@ class GamificationManager {
           this.setEmptyStats();
         }
       }
-      
+
     } catch (error) {
       console.error('❌ Failed to load user stats from database:', error);
       this.setEmptyStats();
@@ -682,7 +682,7 @@ class GamificationManager {
       }
 
       console.log('💾 Saving stats to database...');
-      
+
       // Update the user profile with new stats
       const updateData = {
         profile: {
@@ -694,10 +694,10 @@ class GamificationManager {
 
       await window.supabaseClient.updateUserProfile(updateData);
       this.lastSyncTime = Date.now();
-      
+
       console.log('✅ Stats saved to database successfully');
       return true;
-      
+
     } catch (error) {
       console.error('❌ Failed to save stats to database:', error);
       return false;
@@ -715,17 +715,17 @@ class GamificationManager {
         console.warn('No cached stats available for saving achievement');
         return;
       }
-      
+
       // Save the entire stats to database (includes the new achievement in JSONB)
       if (navigator.onLine && window.supabaseClient?.isAuthenticated()) {
         try {
           // PRIMARY WRITE: Save to users.profile.gamification.achievements
           await this.saveUserStatsToDatabase();
           console.log('✅ [Dual-Write] Primary write completed (JSONB)');
-          
+
           // SECONDARY WRITE: Save to user_achievements table
           await this.saveToUserAchievementsTable(achievementId);
-          
+
         } catch (error) {
           console.error('Failed to sync achievement to Supabase:', error);
         }
@@ -945,6 +945,27 @@ class GamificationManager {
     }
   }
 
+  /**
+   * Reset all cached data (called on logout)
+   * This ensures no data leaks between user sessions
+   */
+  reset() {
+    console.log('🧹 Resetting gamification manager...');
+
+    // Clear cached stats
+    this.cachedStats = null;
+    this.lastSyncTime = 0;
+    this.isInitialized = false;
+
+    // Reset all achievement unlocked states
+    for (const [id, achievement] of Object.entries(this.achievements)) {
+      achievement.unlocked = false;
+      delete achievement.unlocked_at;
+    }
+
+    console.log('✅ Gamification manager reset complete');
+  }
+
   // Getters - updated for database structure
   getUserStats() {
     if (!this.cachedStats) {
@@ -960,11 +981,11 @@ class GamificationManager {
         currentLevel: 1
       };
     }
-    
+
     const gamification = this.cachedStats.gamification;
     const statistics = this.cachedStats.statistics;
     const today = new Date().toDateString();
-    
+
     return {
       totalPoints: gamification.total_points || 0,
       currentStreak: gamification.current_streak || 0,
@@ -1040,11 +1061,11 @@ class GamificationManager {
         ]
       }
     };
-    
+
     const locale = window.i18n?.getCurrentLocale() || 'en';
     const messageType = result.correct ? 'correct' : 'incorrect';
     const messageList = messages[messageType][locale] || messages[messageType]['en'];
-    
+
     return messageList[Math.floor(Math.random() * messageList.length)];
   }
 }
