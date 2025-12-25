@@ -78,7 +78,9 @@ body {
     display: inline-block;
 }
 
-.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after {
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
     animation-duration: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0ms !important;
@@ -102,6 +104,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -131,8 +134,13 @@ body {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* Login Screen */
@@ -262,6 +270,9 @@ body {
     display: flex;
     align-items: center;
     gap: var(--vb-space-6);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .user-avatar {
@@ -274,6 +285,12 @@ body {
     justify-content: center;
     font-weight: 600;
     font-size: var(--vb-text-p);
+    flex-shrink: 0;
+}
+
+.user-details {
+    min-width: 0;
+    overflow: hidden;
 }
 
 .user-details h3 {
@@ -281,6 +298,9 @@ body {
     font-weight: 600;
     margin-bottom: var(--vb-space-2);
     line-height: var(--vb-line-p);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .level-badge {
@@ -367,9 +387,12 @@ body {
 }
 
 @keyframes flame-pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.1);
     }
@@ -481,6 +504,7 @@ body {
         opacity: 0;
         transform: scale(0.8) translateY(20px);
     }
+
     100% {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -643,8 +667,15 @@ body {
 }
 
 @keyframes heartbeat {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
 }
 
 .sync-indicator {
@@ -664,9 +695,12 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.5;
     }
@@ -791,6 +825,7 @@ body {
         opacity: 0;
         transform: translateX(calc(-1 * var(--vb-space-7)));
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -834,15 +869,15 @@ body {
     body {
         width: 320px;
     }
-    
+
     .stats-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .auth-buttons {
         flex-direction: column;
     }
-    
+
     .action-buttons {
         flex-direction: column;
     }
@@ -855,19 +890,22 @@ body {
 
 /* High contrast mode */
 @media (prefers-contrast: high) {
-    .btn, .form-group input, .stat-card {
+
+    .btn,
+    .form-group input,
+    .stat-card {
         border-width: 2px;
     }
 }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
+
+    *,
+    *::before,
+    *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
 }
-
-
-

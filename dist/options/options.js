@@ -970,7 +970,9 @@ class OptionsManager {
       if (window.authManager) {
         const result = await window.authManager.signOut();
         if (result.success) {
+          // Redirect to popup or close options page
           this.showNotification(window.i18n ? window.i18n.getMessage('signed_out_success') : 'Signed out successfully');
+          // Reload page to show logged-out state
           setTimeout(() => {
             window.location.reload();
           }, 1000);
